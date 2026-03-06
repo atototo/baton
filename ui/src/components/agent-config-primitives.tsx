@@ -128,12 +128,13 @@ export const roleLabels: Record<string, string> = {
 
 /* ---- Primitive components ---- */
 
-function HintButton({ ariaLabel }: { ariaLabel: string }) {
+function HintButton({ ariaLabel, ...props }: { ariaLabel: string } & React.ComponentPropsWithRef<"button">) {
   return (
     <button
       type="button"
       aria-label={ariaLabel}
       className="inline-flex text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+      {...props}
     >
       <HelpCircle className="h-3 w-3" />
     </button>
