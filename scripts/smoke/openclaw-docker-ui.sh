@@ -118,7 +118,7 @@ OPENCLAW_IMAGE=$OPENCLAW_IMAGE
 OPENAI_API_KEY=$OPENAI_API_KEY
 EOF
 
-COMPOSE_OVERRIDE="${OPENCLAW_DOCKER_DIR}/.paperclip-openclaw.override.yml"
+COMPOSE_OVERRIDE="${OPENCLAW_DOCKER_DIR}/.baton-openclaw.override.yml"
 cat > "$COMPOSE_OVERRIDE" <<EOF
 services:
   openclaw-gateway:

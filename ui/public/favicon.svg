@@ -1,9 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <style>
-    path { stroke: #18181b; }
+    path, line { stroke: #18181b; }
     @media (prefers-color-scheme: dark) {
-      path { stroke: #e4e4e7; }
+      path, line { stroke: #e4e4e7; }
     }
   </style>
-  <path stroke-width="2" d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
+  <path stroke-width="2" d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/>
+  <path stroke-width="2" d="m14 7 3 3"/>
+  <path stroke-width="2" d="M5 6v4"/>
+  <path stroke-width="2" d="M19 14v4"/>
+  <path stroke-width="2" d="M10 2v2"/>
+  <path stroke-width="2" d="M7 8H3"/>
+  <path stroke-width="2" d="M21 16h-4"/>
+  <path stroke-width="2" d="M11 3H9"/>
 </svg>

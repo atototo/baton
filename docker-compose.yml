@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: paperclip
-      POSTGRES_PASSWORD: paperclip
-      POSTGRES_DB: paperclip
+      POSTGRES_USER: baton
+      POSTGRES_PASSWORD: baton
+      POSTGRES_DB: baton
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +15,7 @@ services:
     ports:
       - "3100:3100"
     environment:
-      DATABASE_URL: postgres://paperclip:paperclip@db:5432/paperclip
+      DATABASE_URL: postgres://baton:baton@db:5432/baton
       PORT: "3100"
       SERVE_UI: "true"
     depends_on:

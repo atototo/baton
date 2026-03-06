@@ -1,4 +1,4 @@
-import type { Approval, Issue, IssueAttachment, IssueComment, IssueLabel } from "@paperclipai/shared";
+import type { Approval, Issue, IssueAttachment, IssueComment, IssueLabel } from "@atototo/shared";
 import { api } from "./client";
 
 export const issuesApi = {

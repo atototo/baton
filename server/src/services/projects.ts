@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
-import { projects, projectGoals, goals, projectWorkspaces } from "@paperclipai/db";
+import type { Db } from "@atototo/db";
+import { projects, projectGoals, goals, projectWorkspaces } from "@atototo/db";
 import {
   PROJECT_COLORS,
   deriveProjectUrlKey,
@@ -8,11 +8,11 @@ import {
   normalizeProjectUrlKey,
   type ProjectGoalRef,
   type ProjectWorkspace,
-} from "@paperclipai/shared";
+} from "@atototo/shared";
 
 type ProjectRow = typeof projects.$inferSelect;
 type ProjectWorkspaceRow = typeof projectWorkspaces.$inferSelect;
-const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
+const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 type CreateWorkspaceInput = {
   name?: string | null;
   cwd?: string | null;

@@ -27,7 +27,7 @@ import {
   Github,
   GitBranch,
 } from "lucide-react";
-import { PROJECT_COLORS } from "@paperclipai/shared";
+import { PROJECT_COLORS } from "@atototo/shared";
 import { cn } from "../lib/utils";
 import { MarkdownEditor, type MarkdownEditorRef } from "./MarkdownEditor";
 import { StatusBadge } from "./StatusBadge";
@@ -42,7 +42,7 @@ const projectStatuses = [
 ];
 
 type WorkspaceSetup = "none" | "local" | "repo" | "both";
-const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
+const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 
 export function NewProjectDialog() {
   const { newProjectOpen, closeNewProject } = useDialog();

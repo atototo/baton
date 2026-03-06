@@ -45,7 +45,7 @@ If resume fails with an unknown session error, the adapter automatically retries
 
 ## Skills Injection
 
-The adapter creates a temporary directory with symlinks to Paperclip skills and passes it via `--add-dir`. This makes skills discoverable without polluting the agent's working directory.
+The adapter creates a temporary directory with symlinks to Baton skills and passes it via `--add-dir`. This makes skills discoverable without polluting the agent's working directory.
 
 ## Environment Test
 

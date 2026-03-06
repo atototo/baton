@@ -6,8 +6,9 @@ drizzle/meta/
 .vite/
 coverage/
 .DS_Store
+.idea/
 data/
-.paperclip/
+.baton/
 .pnpm-store/
 tmp-*
 cli/tmp/
@@ -36,4 +37,4 @@ tmp/
 *.tmp
 .vscode/
 .claude/settings.local.json
-.paperclip-local/
+.baton-local/

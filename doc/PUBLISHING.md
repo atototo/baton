@@ -1,12 +1,12 @@
 # Publishing to npm
 
-This document covers how to build and publish the `paperclipai` CLI package to npm.
+This document covers how to build and publish the `atototo` CLI package to npm.
 
 ## Prerequisites
 
 - Node.js 20+
 - pnpm 9.15+
-- An npm account with publish access to the `paperclipai` package
+- An npm account with publish access to the `atototo` package
 - Logged in to npm: `npm login`
 
 ## One-Command Publish
@@ -82,7 +82,7 @@ The build script runs five steps:
 
 1. **Forbidden token check** — scans tracked files for tokens listed in `.git/hooks/forbidden-tokens.txt`. If the file is missing (e.g. on a contributor's machine), the check passes silently. The script never prints which tokens it's searching for.
 2. **TypeScript type-check** — runs `pnpm -r typecheck` across all workspace packages.
-3. **esbuild bundle** — bundles the CLI entry point (`cli/src/index.ts`) and all workspace package code (`@paperclipai/*`) into a single file at `cli/dist/index.js`. External npm dependencies (express, postgres, etc.) are kept as regular imports.
+3. **esbuild bundle** — bundles the CLI entry point (`cli/src/index.ts`) and all workspace package code (`@atototo/*`) into a single file at `cli/dist/index.js`. External npm dependencies (express, postgres, etc.) are kept as regular imports.
 4. **Generate publishable package.json** — replaces `cli/package.json` with a version that has real npm dependency ranges instead of `workspace:*` references (see [package.dev.json](#packagedevjson) below).
 5. **Summary** — prints the bundle size and next steps.
 
@@ -129,8 +129,8 @@ During development, `cli/package.json` contains `workspace:*` references like:
 ```json
 {
   "dependencies": {
-    "@paperclipai/server": "workspace:*",
-    "@paperclipai/db": "workspace:*"
+    "@atototo/server": "workspace:*",
+    "@atototo/db": "workspace:*"
   }
 }
 ```
@@ -149,9 +149,9 @@ The generated publishable `package.json` looks like:
 
 ```json
 {
-  "name": "paperclipai",
+  "name": "atototo",
   "version": "0.1.0",
-  "bin": { "paperclipai": "./dist/index.js" },
+  "bin": { "atototo": "./dist/index.js" },
   "dependencies": {
     "express": "^5.1.0",
     "postgres": "^3.4.5",
@@ -164,9 +164,9 @@ The generated publishable `package.json` looks like:
 
 ## How the bundle works
 
-The CLI is a monorepo package that imports code from `@paperclipai/server`, `@paperclipai/db`, `@paperclipai/shared`, and several adapter packages. These workspace packages don't exist on npm.
+The CLI is a monorepo package that imports code from `@atototo/server`, `@atototo/db`, `@atototo/shared`, and several adapter packages. These workspace packages don't exist on npm.
 
-**esbuild** bundles all workspace TypeScript code into a single `dist/index.js` file (~250kb). External npm packages (express, postgres, zod, etc.) are left as normal `import` statements — they get installed by npm when a user runs `npx paperclipai onboard`.
+**esbuild** bundles all workspace TypeScript code into a single `dist/index.js` file (~250kb). External npm packages (express, postgres, zod, etc.) are left as normal `import` statements — they get installed by npm when a user runs `npx atototo onboard`.
 
 The esbuild configuration lives at `cli/esbuild.config.mjs`. It automatically reads every workspace package's `package.json` to determine which dependencies are external (real npm packages) vs. internal (workspace code to bundle).
 

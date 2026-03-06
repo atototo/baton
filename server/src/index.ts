@@ -18,7 +18,7 @@ import {
   companies,
   companyMemberships,
   instanceUserRoles,
-} from "@paperclipai/db";
+} from "@atototo/db";
 import detectPort from "detect-port";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
@@ -57,14 +57,14 @@ type EmbeddedPostgresCtor = new (opts: {
 }) => EmbeddedPostgresInstance;
 
 const config = loadConfig();
-if (process.env.PAPERCLIP_SECRETS_PROVIDER === undefined) {
-  process.env.PAPERCLIP_SECRETS_PROVIDER = config.secretsProvider;
+if (process.env.BATON_SECRETS_PROVIDER === undefined) {
+  process.env.BATON_SECRETS_PROVIDER = config.secretsProvider;
 }
-if (process.env.PAPERCLIP_SECRETS_STRICT_MODE === undefined) {
-  process.env.PAPERCLIP_SECRETS_STRICT_MODE = config.secretsStrictMode ? "true" : "false";
+if (process.env.BATON_SECRETS_STRICT_MODE === undefined) {
+  process.env.BATON_SECRETS_STRICT_MODE = config.secretsStrictMode ? "true" : "false";
 }
-if (process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE === undefined) {
-  process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE = config.secretsMasterKeyFilePath;
+if (process.env.BATON_SECRETS_MASTER_KEY_FILE === undefined) {
+  process.env.BATON_SECRETS_MASTER_KEY_FILE = config.secretsMasterKeyFilePath;
 }
 
 type MigrationSummary =
@@ -82,8 +82,8 @@ function formatPendingMigrationSummary(migrations: string[]): string {
 }
 
 async function promptApplyMigrations(migrations: string[]): Promise<boolean> {
-  if (process.env.PAPERCLIP_MIGRATION_PROMPT === "never") return false;
-  if (process.env.PAPERCLIP_MIGRATION_AUTO_APPLY === "true") return true;
+  if (process.env.BATON_MIGRATION_PROMPT === "never") return false;
+  if (process.env.BATON_MIGRATION_AUTO_APPLY === "true") return true;
   if (!stdin.isTTY || !stdout.isTTY) return true;
 
   const prompt = createInterface({ input: stdin, output: stdout });
@@ -159,7 +159,7 @@ function isLoopbackHost(host: string): boolean {
 }
 
 const LOCAL_BOARD_USER_ID = "local-board";
-const LOCAL_BOARD_USER_EMAIL = "local@paperclip.local";
+const LOCAL_BOARD_USER_EMAIL = "local@baton.local";
 const LOCAL_BOARD_USER_NAME = "Board";
 
 async function ensureLocalTrustedBoardPrincipal(db: any): Promise<void> {
@@ -250,7 +250,7 @@ if (config.databaseUrl) {
   let port = configuredPort;
   const embeddedPostgresLogBuffer: string[] = [];
   const EMBEDDED_POSTGRES_LOG_BUFFER_LIMIT = 120;
-  const verboseEmbeddedPostgresLogs = process.env.PAPERCLIP_EMBEDDED_POSTGRES_VERBOSE === "true";
+  const verboseEmbeddedPostgresLogs = process.env.BATON_EMBEDDED_POSTGRES_VERBOSE === "true";
   const appendEmbeddedPostgresLog = (message: unknown) => {
     const text = typeof message === "string" ? message : message instanceof Error ? message.message : String(message ?? "");
     for (const lineRaw of text.split(/\r?\n/)) {
@@ -319,8 +319,8 @@ if (config.databaseUrl) {
     logger.info(`Using embedded PostgreSQL because no DATABASE_URL set (dataDir=${dataDir}, port=${port})`);
     embeddedPostgres = new EmbeddedPostgres({
       databaseDir: dataDir,
-      user: "paperclip",
-      password: "paperclip",
+      user: "baton",
+      password: "baton",
       port,
       persistent: true,
       onLog: appendEmbeddedPostgresLog,
@@ -351,13 +351,13 @@ if (config.databaseUrl) {
     embeddedPostgresStartedByThisProcess = true;
   }
 
-  const embeddedAdminConnectionString = `postgres://paperclip:paperclip@127.0.0.1:${port}/postgres`;
-  const dbStatus = await ensurePostgresDatabase(embeddedAdminConnectionString, "paperclip");
+  const embeddedAdminConnectionString = `postgres://baton:baton@127.0.0.1:${port}/postgres`;
+  const dbStatus = await ensurePostgresDatabase(embeddedAdminConnectionString, "baton");
   if (dbStatus === "created") {
-    logger.info("Created embedded PostgreSQL database: paperclip");
+    logger.info("Created embedded PostgreSQL database: baton");
   }
 
-  const embeddedConnectionString = `postgres://paperclip:paperclip@127.0.0.1:${port}/paperclip`;
+  const embeddedConnectionString = `postgres://baton:baton@127.0.0.1:${port}/baton`;
   const shouldAutoApplyFirstRunMigrations = !clusterAlreadyInitialized || dbStatus === "created";
   if (shouldAutoApplyFirstRunMigrations) {
     logger.info("Detected first-run embedded PostgreSQL setup; applying pending migrations automatically");
@@ -416,10 +416,10 @@ if (config.deploymentMode === "authenticated") {
     resolveBetterAuthSessionFromHeaders,
   } = await import("./auth/better-auth.js");
   const betterAuthSecret =
-    process.env.BETTER_AUTH_SECRET?.trim() ?? process.env.PAPERCLIP_AGENT_JWT_SECRET?.trim();
+    process.env.BETTER_AUTH_SECRET?.trim() ?? process.env.BATON_AGENT_JWT_SECRET?.trim();
   if (!betterAuthSecret) {
     throw new Error(
-      "authenticated mode requires BETTER_AUTH_SECRET (or PAPERCLIP_AGENT_JWT_SECRET) to be set",
+      "authenticated mode requires BETTER_AUTH_SECRET (or BATON_AGENT_JWT_SECRET) to be set",
     );
   }
   const auth = createBetterAuthInstance(db as any, config);
@@ -456,9 +456,9 @@ const runtimeApiHost =
   runtimeListenHost === "0.0.0.0" || runtimeListenHost === "::"
     ? "localhost"
     : runtimeListenHost;
-process.env.PAPERCLIP_LISTEN_HOST = runtimeListenHost;
-process.env.PAPERCLIP_LISTEN_PORT = String(listenPort);
-process.env.PAPERCLIP_API_URL = `http://${runtimeApiHost}:${listenPort}`;
+process.env.BATON_LISTEN_HOST = runtimeListenHost;
+process.env.BATON_LISTEN_PORT = String(listenPort);
+process.env.BATON_API_URL = `http://${runtimeApiHost}:${listenPort}`;
 
 setupLiveEventsWebSocketServer(server, db as any, {
   deploymentMode: config.deploymentMode,
@@ -510,7 +510,7 @@ if (config.databaseBackupEnabled) {
         connectionString: activeDatabaseConnectionString,
         backupDir: config.databaseBackupDir,
         retentionDays: config.databaseBackupRetentionDays,
-        filenamePrefix: "paperclip",
+        filenamePrefix: "baton",
       });
       logger.info(
         {
@@ -544,7 +544,7 @@ if (config.databaseBackupEnabled) {
 
 server.listen(listenPort, config.host, () => {
   logger.info(`Server listening on ${config.host}:${listenPort}`);
-  if (process.env.PAPERCLIP_OPEN_ON_LISTEN === "true") {
+  if (process.env.BATON_OPEN_ON_LISTEN === "true") {
     const openHost = config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host;
     const url = `http://${openHost}:${listenPort}`;
     void import("open")

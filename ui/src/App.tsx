@@ -37,11 +37,11 @@ function BootstrapPendingPage() {
       <div className="rounded-lg border border-border bg-card p-6">
         <h1 className="text-xl font-semibold">Instance setup required</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          No instance admin exists yet. Run this command in your Paperclip environment to generate
+          No instance admin exists yet. Run this command in your Baton environment to generate
           the first admin invite URL:
         </p>
         <pre className="mt-4 overflow-x-auto rounded-md border border-border bg-muted/30 p-3 text-xs">
-{`pnpm paperclipai auth bootstrap-ceo`}
+{`pnpm atototo auth bootstrap-ceo`}
         </pre>
       </div>
     </div>

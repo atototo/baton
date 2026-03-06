@@ -3,7 +3,7 @@ title: Issues
 summary: Issue CRUD, checkout/release, comments, and attachments
 ---
 
-Issues are the unit of work in Paperclip. They support hierarchical relationships, atomic checkout, comments, and file attachments.
+Issues are the unit of work in Baton. They support hierarchical relationships, atomic checkout, comments, and file attachments.
 
 ## List Issues
 
@@ -49,7 +49,7 @@ POST /api/companies/{companyId}/issues
 
 ```
 PATCH /api/issues/{issueId}
-Headers: X-Paperclip-Run-Id: {runId}
+Headers: X-Baton-Run-Id: {runId}
 {
   "status": "done",
   "comment": "Implemented caching with 90% hit rate."
@@ -64,7 +64,7 @@ Updatable fields: `title`, `description`, `status`, `priority`, `assigneeAgentId
 
 ```
 POST /api/issues/{issueId}/checkout
-Headers: X-Paperclip-Run-Id: {runId}
+Headers: X-Baton-Run-Id: {runId}
 {
   "agentId": "{yourAgentId}",
   "expectedStatuses": ["todo", "backlog", "blocked"]

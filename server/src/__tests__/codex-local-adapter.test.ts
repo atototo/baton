@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { isCodexUnknownSessionError, parseCodexJsonl } from "@paperclipai/adapter-codex-local/server";
-import { parseCodexStdoutLine } from "@paperclipai/adapter-codex-local/ui";
-import { printCodexStreamEvent } from "@paperclipai/adapter-codex-local/cli";
+import { isCodexUnknownSessionError, parseCodexJsonl } from "@atototo/adapter-codex-local/server";
+import { parseCodexStdoutLine } from "@atototo/adapter-codex-local/ui";
+import { printCodexStreamEvent } from "@atototo/adapter-codex-local/cli";
 
 describe("codex_local parser", () => {
   it("extracts session, summary, usage, and terminal error message", () => {
@@ -45,12 +45,12 @@ describe("codex_local ui stdout parser", () => {
       parseCodexStdoutLine(
         JSON.stringify({
           type: "item.completed",
-          item: { id: "item_1", type: "reasoning", text: "**Preparing to use paperclip skill**" },
+          item: { id: "item_1", type: "reasoning", text: "**Preparing to use baton skill**" },
         }),
         ts,
       ),
     ).toEqual([
-      { kind: "thinking", ts, text: "**Preparing to use paperclip skill**" },
+      { kind: "thinking", ts, text: "**Preparing to use baton skill**" },
     ]);
   });
 

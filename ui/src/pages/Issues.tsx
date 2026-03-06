@@ -67,7 +67,7 @@ export function Issues() {
       error={error as Error | null}
       agents={agents}
       liveIssueIds={liveIssueIds}
-      viewStateKey="paperclip:issues-view"
+      viewStateKey="baton:issues-view"
       initialAssignees={searchParams.get("assignee") ? [searchParams.get("assignee")!] : undefined}
       onUpdateIssue={(id, data) => updateIssue.mutate({ id, data })}
     />

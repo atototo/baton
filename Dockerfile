@@ -21,8 +21,8 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app /app
 COPY . .
-RUN pnpm --filter @paperclip/ui build
-RUN pnpm --filter @paperclip/server build
+RUN pnpm --filter @atototo/ui build
+RUN pnpm --filter @atototo/server build
 
 FROM base AS production
 WORKDIR /app
@@ -30,17 +30,17 @@ COPY --from=build /app /app
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest
 
 ENV NODE_ENV=production \
-  HOME=/paperclip \
+  HOME=/baton \
   HOST=0.0.0.0 \
   PORT=3100 \
   SERVE_UI=true \
-  PAPERCLIP_HOME=/paperclip \
-  PAPERCLIP_INSTANCE_ID=default \
-  PAPERCLIP_CONFIG=/paperclip/instances/default/config.json \
-  PAPERCLIP_DEPLOYMENT_MODE=local_trusted \
-  PAPERCLIP_DEPLOYMENT_EXPOSURE=private
+  BATON_HOME=/baton \
+  BATON_INSTANCE_ID=default \
+  BATON_CONFIG=/baton/instances/default/config.json \
+  BATON_DEPLOYMENT_MODE=local_trusted \
+  BATON_DEPLOYMENT_EXPOSURE=private
 
-VOLUME ["/paperclip"]
+VOLUME ["/baton"]
 EXPOSE 3100
 
 CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]

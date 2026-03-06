@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { isOpenCodeUnknownSessionError, parseOpenCodeJsonl } from "@paperclipai/adapter-opencode-local/server";
-import { parseOpenCodeStdoutLine } from "@paperclipai/adapter-opencode-local/ui";
-import { printOpenCodeStreamEvent } from "@paperclipai/adapter-opencode-local/cli";
+import { isOpenCodeUnknownSessionError, parseOpenCodeJsonl } from "@atototo/adapter-opencode-local/server";
+import { parseOpenCodeStdoutLine } from "@atototo/adapter-opencode-local/ui";
+import { printOpenCodeStreamEvent } from "@atototo/adapter-opencode-local/cli";
 
 describe("opencode_local parser", () => {
   it("extracts session, summary, usage, cost, and terminal error message", () => {

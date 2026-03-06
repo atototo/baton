@@ -1,4 +1,4 @@
-# @paperclipai/adapter-utils
+# @atototo/adapter-utils
 
 ## 0.2.7
 

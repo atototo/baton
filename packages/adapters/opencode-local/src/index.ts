@@ -14,7 +14,7 @@ export const agentConfigurationDoc = `# opencode_local agent configuration
 Adapter: opencode_local
 
 Use when:
-- You want Paperclip to run OpenCode locally as the agent runtime
+- You want Baton to run OpenCode locally as the agent runtime
 - You want provider/model routing in OpenCode format (provider/model)
 - You want OpenCode session resume across heartbeats via --session
 

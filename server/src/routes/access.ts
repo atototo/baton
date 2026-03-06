@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 import { Router } from "express";
 import type { Request } from "express";
 import { and, eq, isNull, desc } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@atototo/db";
 import {
   agentApiKeys,
   authUsers,
   invites,
   joinRequests,
-} from "@paperclipai/db";
+} from "@atototo/db";
 import {
   acceptInviteSchema,
   claimJoinRequestApiKeySchema,
@@ -20,8 +20,8 @@ import {
   updateMemberPermissionsSchema,
   updateUserCompanyAccessSchema,
   PERMISSION_KEYS,
-} from "@paperclipai/shared";
-import type { DeploymentExposure, DeploymentMode } from "@paperclipai/shared";
+} from "@atototo/shared";
+import type { DeploymentExposure, DeploymentMode } from "@atototo/shared";
 import { forbidden, conflict, notFound, unauthorized, badRequest } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { accessService, agentService, logActivity } from "../services/index.js";
@@ -56,7 +56,7 @@ function requestBaseUrl(req: Request) {
 
 function readSkillMarkdown(skillName: string): string | null {
   const normalized = skillName.trim().toLowerCase();
-  if (normalized !== "paperclip" && normalized !== "paperclip-create-agent") return null;
+  if (normalized !== "baton" && normalized !== "baton-create-agent") return null;
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     path.resolve(moduleDir, "../../skills", normalized, "SKILL.md"),  // published: dist/routes/ -> <pkg>/skills/
@@ -147,7 +147,7 @@ function buildJoinConnectivityDiagnostics(input: {
       diagnostics.push({
         code: "openclaw_private_bind_loopback",
         level: "warn",
-        message: "Paperclip is bound to loopback in authenticated/private mode.",
+        message: "Baton is bound to loopback in authenticated/private mode.",
         hint: "Bind to a reachable private hostname/IP for remote OpenClaw callbacks.",
       });
     }
@@ -155,8 +155,8 @@ function buildJoinConnectivityDiagnostics(input: {
       diagnostics.push({
         code: "openclaw_private_bind_not_allowed",
         level: "warn",
-        message: `Paperclip bind host \"${bindHost}\" is not in allowed hostnames.`,
-        hint: `Run pnpm paperclipai allowed-hostname ${bindHost}`,
+        message: `Baton bind host \"${bindHost}\" is not in allowed hostnames.`,
+        hint: `Run pnpm atototo allowed-hostname ${bindHost}`,
       });
     }
     if (callbackHost && !isLoopbackHost(callbackHost) && allowSet.size === 0) {
@@ -164,7 +164,7 @@ function buildJoinConnectivityDiagnostics(input: {
         code: "openclaw_private_allowed_hostnames_empty",
         level: "warn",
         message: "No explicit allowed hostnames are configured for authenticated/private mode.",
-        hint: "Set one with pnpm paperclipai allowed-hostname <host> when OpenClaw runs off-host.",
+        hint: "Set one with pnpm atototo allowed-hostname <host> when OpenClaw runs off-host.",
       });
     }
   }
@@ -207,7 +207,7 @@ function normalizeAgentDefaultsForJoin(input: {
       code: "openclaw_callback_config_missing",
       level: "warn",
       message: "No OpenClaw callback config was provided in agentDefaultsPayload.",
-      hint: "Include agentDefaultsPayload.url so Paperclip can invoke the OpenClaw webhook immediately after approval.",
+      hint: "Include agentDefaultsPayload.url so Baton can invoke the OpenClaw webhook immediately after approval.",
     });
     return { normalized: null as Record<string, unknown> | null, diagnostics };
   }
@@ -338,7 +338,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
       code: "openclaw_onboarding_api_loopback",
       level: "warn",
       message:
-        "Onboarding URL resolves to loopback hostname. Remote OpenClaw agents cannot reach localhost on your Paperclip host.",
+        "Onboarding URL resolves to loopback hostname. Remote OpenClaw agents cannot reach localhost on your Baton host.",
       hint: "Use a reachable hostname/IP (for example Tailscale hostname, Docker host alias, or public domain).",
     });
   }
@@ -351,7 +351,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
     diagnostics.push({
       code: "openclaw_onboarding_private_loopback_bind",
       level: "warn",
-      message: "Paperclip is bound to loopback in authenticated/private mode.",
+      message: "Baton is bound to loopback in authenticated/private mode.",
       hint: "Run with a reachable bind host or use pnpm dev --tailscale-auth for private-network onboarding.",
     });
   }
@@ -368,7 +368,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
       code: "openclaw_onboarding_private_host_not_allowed",
       level: "warn",
       message: `Onboarding host "${apiHost}" is not in allowed hostnames for authenticated/private mode.`,
-      hint: `Run pnpm paperclipai allowed-hostname ${apiHost}`,
+      hint: `Run pnpm atototo allowed-hostname ${apiHost}`,
     });
   }
 
@@ -387,7 +387,7 @@ function buildInviteOnboardingManifest(
   },
 ) {
   const baseUrl = requestBaseUrl(req);
-  const skillPath = "/api/skills/paperclip";
+  const skillPath = "/api/skills/baton";
   const skillUrl = baseUrl ? `${baseUrl}${skillPath}` : skillPath;
   const registrationEndpointPath = `/api/invites/${token}/accept`;
   const registrationEndpointUrl = baseUrl ? `${baseUrl}${registrationEndpointPath}` : registrationEndpointPath;
@@ -405,7 +405,7 @@ function buildInviteOnboardingManifest(
     invite: toInviteSummaryResponse(req, token, invite),
     onboarding: {
       instructions:
-        "Join as an agent, save your one-time claim secret, wait for board approval, then claim your API key and install the Paperclip skill before starting heartbeat loops.",
+        "Join as an agent, save your one-time claim secret, wait for board approval, then claim your API key and install the Baton skill before starting heartbeat loops.",
       recommendedAdapterType: "openclaw",
       requiredFields: {
         requestType: "agent",
@@ -435,8 +435,8 @@ function buildInviteOnboardingManifest(
         diagnostics: discoveryDiagnostics,
         guidance:
           opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private"
-            ? "If OpenClaw runs on another machine, ensure the Paperclip hostname is reachable and allowed via `pnpm paperclipai allowed-hostname <host>`."
-            : "Ensure OpenClaw can reach this Paperclip API base URL for callbacks and claims.",
+            ? "If OpenClaw runs on another machine, ensure the Baton hostname is reachable and allowed via `pnpm atototo allowed-hostname <host>`."
+            : "Ensure OpenClaw can reach this Baton API base URL for callbacks and claims.",
       },
       textInstructions: {
         path: onboardingTextPath,
@@ -444,10 +444,10 @@ function buildInviteOnboardingManifest(
         contentType: "text/plain",
       },
       skill: {
-        name: "paperclip",
+        name: "baton",
         path: skillPath,
         url: skillUrl,
-        installPath: "~/.openclaw/skills/paperclip/SKILL.md",
+        installPath: "~/.openclaw/skills/baton/SKILL.md",
       },
     },
   };
@@ -477,7 +477,7 @@ export function buildInviteOnboardingTextDocument(
     : [];
 
   const lines = [
-    "# Paperclip OpenClaw Onboarding",
+    "# Baton OpenClaw Onboarding",
     "",
     "This document is meant to be readable by both humans and agents.",
     "",
@@ -509,7 +509,7 @@ export function buildInviteOnboardingTextDocument(
     "- claimApiKeyPath",
     "",
     "## Step 2: Wait for board approval",
-    "The board approves the join request in Paperclip before key claim is allowed.",
+    "The board approves the join request in Baton before key claim is allowed.",
     "",
     "## Step 3: Claim API key (one-time)",
     `${onboarding.claimEndpointTemplate.method} /api/join-requests/{requestId}/claim-api-key`,
@@ -524,7 +524,7 @@ export function buildInviteOnboardingTextDocument(
     "- claim secrets are single-use",
     "- claim fails before board approval",
     "",
-    "## Step 4: Install Paperclip skill in OpenClaw",
+    "## Step 4: Install Baton skill in OpenClaw",
     `GET ${onboarding.skill.url}`,
     `Install path: ${onboarding.skill.installPath}`,
     "",
@@ -532,7 +532,7 @@ export function buildInviteOnboardingTextDocument(
     `${onboarding.textInstructions.url}`,
     "",
     "## Connectivity guidance",
-    onboarding.connectivity?.guidance ?? "Ensure Paperclip is reachable from your OpenClaw runtime.",
+    onboarding.connectivity?.guidance ?? "Ensure Baton is reachable from your OpenClaw runtime.",
   ];
 
   if (diagnostics.length > 0) {
@@ -573,7 +573,7 @@ function isLocalImplicit(req: Request) {
 }
 
 async function resolveActorEmail(db: Db, req: Request): Promise<string | null> {
-  if (isLocalImplicit(req)) return "local@paperclip.local";
+  if (isLocalImplicit(req)) return "local@baton.local";
   const userId = req.actor.userId;
   if (!userId) return null;
   const user = await db
@@ -685,8 +685,8 @@ export function accessRoutes(
   router.get("/skills/index", (_req, res) => {
     res.json({
       skills: [
-        { name: "paperclip", path: "/api/skills/paperclip" },
-        { name: "paperclip-create-agent", path: "/api/skills/paperclip-create-agent" },
+        { name: "baton", path: "/api/skills/baton" },
+        { name: "baton-create-agent", path: "/api/skills/baton-create-agent" },
       ],
     });
   });

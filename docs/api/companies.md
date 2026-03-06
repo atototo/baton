@@ -3,7 +3,7 @@ title: Companies
 summary: Company CRUD endpoints
 ---
 
-Manage companies within your Paperclip instance.
+Manage companies within your Baton instance.
 
 ## List Companies
 

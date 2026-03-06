@@ -48,7 +48,7 @@ function formatBackupSize(sizeBytes: number): string {
 }
 
 export async function runDatabaseBackup(opts: RunDatabaseBackupOptions): Promise<RunDatabaseBackupResult> {
-  const filenamePrefix = opts.filenamePrefix ?? "paperclip";
+  const filenamePrefix = opts.filenamePrefix ?? "baton";
   const retentionDays = Math.max(1, Math.trunc(opts.retentionDays));
   const connectTimeout = Math.max(1, Math.trunc(opts.connectTimeoutSeconds ?? 5));
   const sql = postgres(opts.connectionString, { max: 1, connect_timeout: connectTimeout });
@@ -59,7 +59,7 @@ export async function runDatabaseBackup(opts: RunDatabaseBackupOptions): Promise
     const lines: string[] = [];
     const emit = (line: string) => lines.push(line);
 
-    emit("-- Paperclip database backup");
+    emit("-- Baton database backup");
     emit(`-- Created: ${new Date().toISOString()}`);
     emit("");
     emit("BEGIN;");

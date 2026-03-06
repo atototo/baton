@@ -1,5 +1,5 @@
 import { eq, count } from "drizzle-orm";
-import type { Db } from "@paperclipai/db";
+import type { Db } from "@atototo/db";
 import {
   companies,
   agents,
@@ -22,7 +22,7 @@ import {
   invites,
   principalPermissionGrants,
   companyMemberships,
-} from "@paperclipai/db";
+} from "@atototo/db";
 
 export function companyService(db: Db) {
   const ISSUE_PREFIX_FALLBACK = "CMP";

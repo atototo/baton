@@ -1,5 +1,5 @@
 {
-  "name": "@paperclipai/server",
+  "name": "@atototo/server",
   "version": "0.2.7",
   "type": "module",
   "exports": {
@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
-    "dev:watch": "PAPERCLIP_MIGRATION_PROMPT=never tsx watch --ignore ../ui/node_modules --ignore ../ui/.vite --ignore ../ui/dist src/index.ts",
+    "dev:watch": "BATON_MIGRATION_PROMPT=never tsx watch --ignore ../ui/node_modules --ignore ../ui/.vite --ignore ../ui/dist src/index.ts",
     "build": "tsc",
     "clean": "rm -rf dist",
     "start": "node dist/index.js",
@@ -31,14 +31,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
-    "@paperclipai/adapter-claude-local": "workspace:*",
-    "@paperclipai/adapter-codex-local": "workspace:*",
-    "@paperclipai/adapter-cursor-local": "workspace:*",
-    "@paperclipai/adapter-opencode-local": "workspace:*",
-    "@paperclipai/adapter-openclaw": "workspace:*",
-    "@paperclipai/adapter-utils": "workspace:*",
-    "@paperclipai/db": "workspace:*",
-    "@paperclipai/shared": "workspace:*",
+    "@atototo/adapter-claude-local": "workspace:*",
+    "@atototo/adapter-codex-local": "workspace:*",
+    "@atototo/adapter-cursor-local": "workspace:*",
+    "@atototo/adapter-opencode-local": "workspace:*",
+    "@atototo/adapter-openclaw": "workspace:*",
+    "@atototo/adapter-utils": "workspace:*",
+    "@atototo/db": "workspace:*",
+    "@atototo/shared": "workspace:*",
     "better-auth": "1.4.18",
     "detect-port": "^2.1.0",
     "dotenv": "^17.0.1",

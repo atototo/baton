@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { parseProjectMentionHref } from "@paperclipai/shared";
+import { parseProjectMentionHref } from "@atototo/shared";
 import { cn } from "../lib/utils";
 import { useTheme } from "../context/ThemeContext";
 
@@ -53,7 +53,7 @@ export function MarkdownBody({ children, className }: MarkdownBodyProps) {
               return (
                 <a
                   href={`/projects/${parsed.projectId}`}
-                  className="paperclip-project-mention-chip"
+                  className="baton-project-mention-chip"
                   style={mentionChipStyle(parsed.color)}
                 >
                   {label}

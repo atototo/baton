@@ -1,14 +1,14 @@
 services:
-  paperclip:
+  baton:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PAPERCLIP_PORT:-3100}:3100"
+      - "${BATON_PORT:-3100}:3100"
     environment:
       HOST: "0.0.0.0"
-      PAPERCLIP_HOME: "/paperclip"
+      BATON_HOME: "/baton"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     volumes:
-      - "${PAPERCLIP_DATA_DIR:-./data/docker-paperclip}:/paperclip"
+      - "${BATON_DATA_DIR:-./data/docker-baton}:/baton"

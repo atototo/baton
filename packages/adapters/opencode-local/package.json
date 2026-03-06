@@ -1,5 +1,5 @@
 {
-  "name": "@paperclipai/adapter-opencode-local",
+  "name": "@atototo/adapter-opencode-local",
   "version": "0.2.7",
   "type": "module",
   "exports": {
@@ -41,7 +41,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@paperclipai/adapter-utils": "workspace:*",
+    "@atototo/adapter-utils": "workspace:*",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

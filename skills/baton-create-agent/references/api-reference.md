@@ -1,4 +1,4 @@
-# Paperclip Create Agent API Reference
+# Baton Create Agent API Reference
 
 ## Core Endpoints
 
@@ -92,4 +92,4 @@ For hire approvals:
 - `pending_approval` agents cannot run heartbeats, receive assignments, or create keys.
 - All actions are logged in activity for auditability.
 - Use markdown in issue/approval comments and include links to approval, agent, and source issue.
-- After approval resolution, requester may be woken with `PAPERCLIP_APPROVAL_ID` and should reconcile linked issues.
+- After approval resolution, requester may be woken with `BATON_APPROVAL_ID` and should reconcile linked issues.
