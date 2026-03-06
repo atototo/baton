@@ -145,6 +145,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     typeof envConfig.BATON_API_KEY === "string" && envConfig.BATON_API_KEY.trim().length > 0;
   const env: Record<string, string> = { ...buildBatonEnv(agent) };
   env.BATON_RUN_ID = runId;
+  if (typeof context.batonLocale === "string") env.BATON_LOCALE = context.batonLocale;
   const wakeTaskId =
     (typeof context.taskId === "string" && context.taskId.trim().length > 0 && context.taskId.trim()) ||
     (typeof context.issueId === "string" && context.issueId.trim().length > 0 && context.issueId.trim()) ||

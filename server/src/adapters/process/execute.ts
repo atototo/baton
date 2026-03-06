@@ -18,6 +18,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const cwd = asString(config.cwd, process.cwd());
   const envConfig = parseObject(config.env);
   const env: Record<string, string> = { ...buildBatonEnv(agent) };
+  if (typeof ctx.context?.batonLocale === "string") env.BATON_LOCALE = ctx.context.batonLocale;
   for (const [k, v] of Object.entries(envConfig)) {
     if (typeof v === "string") env[k] = v;
   }

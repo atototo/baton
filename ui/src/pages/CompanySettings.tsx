@@ -21,6 +21,7 @@ export function CompanySettings() {
   const [companyName, setCompanyName] = useState("");
   const [description, setDescription] = useState("");
   const [brandColor, setBrandColor] = useState("");
+  const [locale, setLocale] = useState("en");
 
   // Sync local state from selected company
   useEffect(() => {
@@ -28,6 +29,7 @@ export function CompanySettings() {
     setCompanyName(selectedCompany.name);
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
+    setLocale(selectedCompany.locale ?? "en");
   }, [selectedCompany]);
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -37,10 +39,11 @@ export function CompanySettings() {
     !!selectedCompany &&
     (companyName !== selectedCompany.name ||
       description !== (selectedCompany.description ?? "") ||
-      brandColor !== (selectedCompany.brandColor ?? ""));
+      brandColor !== (selectedCompany.brandColor ?? "") ||
+      locale !== (selectedCompany.locale ?? "en"));
 
   const generalMutation = useMutation({
-    mutationFn: (data: { name: string; description: string | null; brandColor: string | null }) =>
+    mutationFn: (data: { name: string; description: string | null; brandColor: string | null; locale: string }) =>
       companiesApi.update(selectedCompanyId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
@@ -113,6 +116,7 @@ export function CompanySettings() {
       name: companyName.trim(),
       description: description.trim() || null,
       brandColor: brandColor || null,
+      locale,
     });
   }
 
@@ -210,8 +214,12 @@ export function CompanySettings() {
           <Field label={t("settings.language")} hint={t("settings.languageHint")}>
             <select
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              value={i18n.language.startsWith("ko") ? "ko" : "en"}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              value={locale}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLocale(v);
+                i18n.changeLanguage(v);
+              }}
             >
               <option value="en">English</option>
               <option value="ko">한국어</option>

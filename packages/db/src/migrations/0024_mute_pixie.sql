@@ -1,0 +1,1 @@
+ALTER TABLE "companies" ADD COLUMN "locale" text DEFAULT 'en' NOT NULL;

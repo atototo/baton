@@ -1,3 +1,6 @@
+export const SUPPORTED_LOCALES = ["en", "ko"] as const;
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
 export const COMPANY_STATUSES = ["active", "paused", "archived"] as const;
 export type CompanyStatus = (typeof COMPANY_STATUSES)[number];
 
