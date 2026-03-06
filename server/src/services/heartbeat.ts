@@ -7,6 +7,7 @@ import {
   agentRuntimeState,
   agentTaskSessions,
   agentWakeupRequests,
+  companies,
   heartbeatRunEvents,
   heartbeatRuns,
   costEvents,
@@ -1063,6 +1064,13 @@ export function heartbeatService(db: Db) {
       return;
     }
 
+    const companyRow = await db
+      .select({ locale: companies.locale })
+      .from(companies)
+      .where(eq(companies.id, agent.companyId))
+      .then((rows) => rows[0] ?? null);
+    const companyLocale = companyRow?.locale ?? "en";
+
     const runtime = await ensureRuntimeState(agent);
     const context = parseObject(run.contextSnapshot);
     const taskKey = deriveTaskKey(context, null);
@@ -1116,6 +1124,7 @@ export function heartbeatService(db: Db) {
           ]
         : []),
     ];
+    context.batonLocale = companyLocale;
     context.batonWorkspace = {
       cwd: resolvedWorkspace.cwd,
       source: resolvedWorkspace.source,
@@ -1785,8 +1794,10 @@ export function heartbeatService(db: Db) {
             Boolean(wakeCommentId) &&
             activeExecutionRun.status === "running" &&
             isSameExecutionAgent;
+          const shouldQueueFollowupForApprovalWake =
+            opts.reason === "approval_approved";
 
-          if (isSameExecutionAgent && !shouldQueueFollowupForCommentWake) {
+          if (isSameExecutionAgent && !shouldQueueFollowupForCommentWake && !shouldQueueFollowupForApprovalWake) {
             const mergedContextSnapshot = mergeCoalescedContextSnapshot(
               activeExecutionRun.contextSnapshot,
               enrichedContextSnapshot,

@@ -12,6 +12,12 @@ description: >
 
 You run in **heartbeats** — short execution windows triggered by Baton. Each heartbeat, you wake up, check your work, do something useful, and exit. You do not run continuously.
 
+## Language
+
+`BATON_LOCALE` specifies the user's preferred language (e.g. "ko", "en").
+ALL your output — issue titles, descriptions, comments, approval requests,
+reports, and any other user-facing text — MUST be written in this language.
+
 ## Authentication
 
 Env vars auto-injected: `BATON_AGENT_ID`, `BATON_COMPANY_ID`, `BATON_API_URL`, `BATON_RUN_ID`. Optional wake-context vars may also be present: `BATON_TASK_ID` (issue/task that triggered this wake), `BATON_WAKE_REASON` (why this run was triggered), `BATON_WAKE_COMMENT_ID` (specific comment that triggered this wake), `BATON_APPROVAL_ID`, `BATON_APPROVAL_STATUS`, and `BATON_LINKED_ISSUE_IDS` (comma-separated). For local adapters, `BATON_API_KEY` is auto-injected as a short-lived run JWT. For non-local adapters, your operator should set `BATON_API_KEY` in adapter config. All requests use `Authorization: Bearer $BATON_API_KEY`. All endpoints under `/api`, all JSON. Never hard-code the API URL.

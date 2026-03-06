@@ -1,4 +1,5 @@
 export {
+  SUPPORTED_LOCALES,
   COMPANY_STATUSES,
   DEPLOYMENT_MODES,
   DEPLOYMENT_EXPOSURES,
@@ -30,6 +31,7 @@ export {
   JOIN_REQUEST_TYPES,
   JOIN_REQUEST_STATUSES,
   PERMISSION_KEYS,
+  type SupportedLocale,
   type CompanyStatus,
   type DeploymentMode,
   type DeploymentExposure,
