@@ -362,8 +362,6 @@
     "codexDesc": "로컬 Codex 에이전트",
     "openCode": "OpenCode",
     "openCodeDesc": "로컬 OpenCode 에이전트",
-    "openClaw": "OpenClaw",
-    "openClawDesc": "OpenClaw 웹훅 알림",
     "cursor": "Cursor",
     "cursorDesc": "로컬 Cursor 에이전트",
     "shellCommand": "셸 명령",

@@ -10,16 +10,12 @@ import { AGENT_ADAPTER_TYPES } from "@atototo/shared";
 import type { AgentAdapterType, JoinRequest } from "@atototo/shared";
 
 type JoinType = "human" | "agent";
-const joinAdapterOptions: AgentAdapterType[] = [
-  "openclaw",
-  ...AGENT_ADAPTER_TYPES.filter((type): type is Exclude<AgentAdapterType, "openclaw"> => type !== "openclaw"),
-];
+const joinAdapterOptions: AgentAdapterType[] = [...AGENT_ADAPTER_TYPES];
 
 const adapterLabels: Record<string, string> = {
   claude_local: "Claude (local)",
   codex_local: "Codex (local)",
   opencode_local: "OpenCode (local)",
-  openclaw: "OpenClaw",
   cursor: "Cursor (local)",
   process: "Process",
   http: "HTTP",

@@ -44,7 +44,6 @@ The central nervous system. Manages:
 
 Agents run externally and report into the control plane. An agent is just Python code that gets kicked off and does work. Adapters connect different execution environments:
 
-- **OpenClaw** — initial adapter target
 - **Heartbeat loop** — simple custom Python that loops, checks in, does work
 - **Others** — any runtime that can call an API
 

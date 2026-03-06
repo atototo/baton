@@ -22,7 +22,7 @@ Every employee is an agent. When you create a company, you start by defining the
 
 Each employee has:
 
-- **Adapter type + config** — how this agent runs and what defines its identity/behavior. This is adapter-specific (e.g., an OpenClaw agent might use SOUL.md and HEARTBEAT.md files; a Claude Code agent might use CLAUDE.md; a bare script might use CLI args). Baton doesn't prescribe the format — the adapter does.
+- **Adapter type + config** — how this agent runs and what defines its identity/behavior. This is adapter-specific (e.g., a webhook-based agent might use custom configuration files; a Claude Code agent might use CLAUDE.md; a bare script might use CLI args). Baton doesn't prescribe the format — the adapter does.
 - **Role & reporting** — their title, who they report to, who reports to them
 - **Capabilities description** — a short paragraph on what this agent does and when they're relevant (helps other agents discover who can help with what)
 
@@ -35,7 +35,7 @@ Then you define who reports to the CEO: a CTO managing programmers, a CMO managi
 There are two fundamental modes for running an agent's heartbeat:
 
 1. **Run a command** — Baton kicks off a process (shell command, Python script, etc.) and tracks it. The heartbeat is "execute this and monitor it."
-2. **Fire and forget a request** — Baton sends a webhook/API call to an externally running agent. The heartbeat is "notify this agent to wake up." (OpenClaw hooks work this way.)
+2. **Fire and forget a request** — Baton sends a webhook/API call to an externally running agent. The heartbeat is "notify this agent to wake up."
 
 We provide sensible defaults — a default agent that shells out to Claude Code or Codex with your configuration, remembers session IDs, runs basic scripts. But you can plug in anything.
 
@@ -58,7 +58,7 @@ More detailed task structure TBD.
 
 ## Principles
 
-1. **Unopinionated about how you run your agents.** Your agents could be OpenClaw bots, Python scripts, Node scripts, Claude Code sessions, Codex instances — we don't care. Baton defines the control plane for communication and provides utility infrastructure for heartbeats. It does not mandate an agent runtime.
+1. **Unopinionated about how you run your agents.** Your agents could be webhook-based bots, Python scripts, Node scripts, Claude Code sessions, Codex instances — we don't care. Baton defines the control plane for communication and provides utility infrastructure for heartbeats. It does not mandate an agent runtime.
 
 2. **Company is the unit of organization.** Everything lives under a company. One Baton instance, many companies.
 
@@ -73,7 +73,7 @@ More detailed task structure TBD.
 1. Open Baton, create a new company
 2. Define the company's goal: "Create the #1 AI note-taking app, $1M MRR in 3 months"
 3. Create the CEO
-   - Choose an adapter (e.g., process adapter for Claude Code, HTTP adapter for OpenClaw)
+   - Choose an adapter (e.g., process adapter for Claude Code, HTTP adapter for webhooks)
    - Configure the adapter (agent identity, loop behavior, execution settings)
    - CEO proposes strategic breakdown → board approves
 4. Define the CEO's reports: CTO, CMO, CFO, etc.

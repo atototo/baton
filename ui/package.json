@@ -13,7 +13,6 @@
     "@atototo/adapter-claude-local": "workspace:*",
     "@atototo/adapter-codex-local": "workspace:*",
     "@atototo/adapter-cursor-local": "workspace:*",
-    "@atototo/adapter-openclaw": "workspace:*",
     "@atototo/adapter-opencode-local": "workspace:*",
     "@atototo/adapter-utils": "workspace:*",
     "@atototo/shared": "workspace:*",

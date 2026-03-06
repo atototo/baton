@@ -23,14 +23,6 @@ import {
   sessionCodec as opencodeSessionCodec,
 } from "@atototo/adapter-opencode-local/server";
 import { agentConfigurationDoc as opencodeAgentConfigurationDoc, models as opencodeModels } from "@atototo/adapter-opencode-local";
-import {
-  execute as openclawExecute,
-  testEnvironment as openclawTestEnvironment,
-} from "@atototo/adapter-openclaw/server";
-import {
-  agentConfigurationDoc as openclawAgentConfigurationDoc,
-  models as openclawModels,
-} from "@atototo/adapter-openclaw";
 import { listCodexModels } from "./codex-models.js";
 import { listCursorModels } from "./cursor-models.js";
 import { processAdapter } from "./process/index.js";
@@ -78,17 +70,8 @@ const cursorLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: cursorAgentConfigurationDoc,
 };
 
-const openclawAdapter: ServerAdapterModule = {
-  type: "openclaw",
-  execute: openclawExecute,
-  testEnvironment: openclawTestEnvironment,
-  models: openclawModels,
-  supportsLocalAgentJwt: false,
-  agentConfigurationDoc: openclawAgentConfigurationDoc,
-};
-
 const adaptersByType = new Map<string, ServerAdapterModule>(
-  [claudeLocalAdapter, codexLocalAdapter, opencodeLocalAdapter, cursorLocalAdapter, openclawAdapter, processAdapter, httpAdapter].map((a) => [a.type, a]),
+  [claudeLocalAdapter, codexLocalAdapter, opencodeLocalAdapter, cursorLocalAdapter, processAdapter, httpAdapter].map((a) => [a.type, a]),
 );
 
 export function getServerAdapter(type: string): ServerAdapterModule {

@@ -83,10 +83,6 @@ const ADAPTER_DEFAULT_RULES_BY_TYPE: Record<string, Array<{ path: string[]; valu
     { path: ["graceSec"], value: 15 },
     { path: ["maxTurnsPerRun"], value: 80 },
   ],
-  openclaw: [
-    { path: ["method"], value: "POST" },
-    { path: ["timeoutSec"], value: 30 },
-  ],
 };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

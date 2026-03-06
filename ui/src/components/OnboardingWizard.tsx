@@ -56,8 +56,7 @@ type AdapterType =
   | "opencode_local"
   | "cursor"
   | "process"
-  | "http"
-  | "openclaw";
+  | "http";
 
 const DEFAULT_TASK_DESCRIPTION = `Setup yourself as the CEO. Use the ceo persona found here: [https://github.com/atototo/companies/blob/main/default/ceo/AGENTS.md](https://github.com/atototo/companies/blob/main/default/ceo/AGENTS.md)
 
@@ -611,13 +610,6 @@ export function OnboardingWizard() {
                           desc: t("onboarding.openCodeDesc")
                         },
                         {
-                          value: "openclaw" as const,
-                          label: t("onboarding.openClaw"),
-                          icon: Bot,
-                          desc: t("onboarding.openClawDesc"),
-                          comingSoon: true
-                        },
-                        {
                           value: "cursor" as const,
                           label: t("onboarding.cursor"),
                           icon: MousePointer2,
@@ -879,7 +871,7 @@ export function OnboardingWizard() {
                     </div>
                   )}
 
-                  {(adapterType === "http" || adapterType === "openclaw") && (
+                  {adapterType === "http" && (
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">
                         {t("onboarding.webhookUrl")}

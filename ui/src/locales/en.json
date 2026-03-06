@@ -362,8 +362,6 @@
     "codexDesc": "Local Codex agent",
     "openCode": "OpenCode",
     "openCodeDesc": "Local OpenCode agent",
-    "openClaw": "OpenClaw",
-    "openClawDesc": "Notify OpenClaw webhook",
     "cursor": "Cursor",
     "cursorDesc": "Local Cursor agent",
     "shellCommand": "Shell Command",

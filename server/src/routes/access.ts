@@ -137,7 +137,7 @@ function buildJoinConnectivityDiagnostics(input: {
   );
 
   diagnostics.push({
-    code: "openclaw_deployment_context",
+    code: "deployment_context",
     level: "info",
     message: `Deployment context: mode=${input.deploymentMode}, exposure=${input.deploymentExposure}.`,
   });
@@ -145,15 +145,15 @@ function buildJoinConnectivityDiagnostics(input: {
   if (input.deploymentMode === "authenticated" && input.deploymentExposure === "private") {
     if (!bindHost || isLoopbackHost(bindHost)) {
       diagnostics.push({
-        code: "openclaw_private_bind_loopback",
+        code: "private_bind_loopback",
         level: "warn",
         message: "Baton is bound to loopback in authenticated/private mode.",
-        hint: "Bind to a reachable private hostname/IP for remote OpenClaw callbacks.",
+        hint: "Bind to a reachable private hostname/IP for remote callbacks.",
       });
     }
     if (bindHost && !isLoopbackHost(bindHost) && !allowSet.has(bindHost)) {
       diagnostics.push({
-        code: "openclaw_private_bind_not_allowed",
+        code: "private_bind_not_allowed",
         level: "warn",
         message: `Baton bind host \"${bindHost}\" is not in allowed hostnames.`,
         hint: `Run pnpm atototo allowed-hostname ${bindHost}`,
@@ -161,10 +161,10 @@ function buildJoinConnectivityDiagnostics(input: {
     }
     if (callbackHost && !isLoopbackHost(callbackHost) && allowSet.size === 0) {
       diagnostics.push({
-        code: "openclaw_private_allowed_hostnames_empty",
+        code: "private_allowed_hostnames_empty",
         level: "warn",
         message: "No explicit allowed hostnames are configured for authenticated/private mode.",
-        hint: "Set one with pnpm atototo allowed-hostname <host> when OpenClaw runs off-host.",
+        hint: "Set one with pnpm atototo allowed-hostname <host> when agents run off-host.",
       });
     }
   }
@@ -176,9 +176,9 @@ function buildJoinConnectivityDiagnostics(input: {
     input.callbackUrl.protocol !== "https:"
   ) {
     diagnostics.push({
-      code: "openclaw_public_http_callback",
+      code: "public_http_callback",
       level: "warn",
-      message: "OpenClaw callback URL uses HTTP in authenticated/public mode.",
+      message: "Callback URL uses HTTP in authenticated/public mode.",
       hint: "Prefer HTTPS for public deployments.",
     });
   }
@@ -195,98 +195,9 @@ function normalizeAgentDefaultsForJoin(input: {
   allowedHostnames: string[];
 }) {
   const diagnostics: JoinDiagnostic[] = [];
-  if (input.adapterType !== "openclaw") {
-    const normalized = isPlainObject(input.defaultsPayload)
-      ? (input.defaultsPayload as Record<string, unknown>)
-      : null;
-    return { normalized, diagnostics };
-  }
-
-  if (!isPlainObject(input.defaultsPayload)) {
-    diagnostics.push({
-      code: "openclaw_callback_config_missing",
-      level: "warn",
-      message: "No OpenClaw callback config was provided in agentDefaultsPayload.",
-      hint: "Include agentDefaultsPayload.url so Baton can invoke the OpenClaw webhook immediately after approval.",
-    });
-    return { normalized: null as Record<string, unknown> | null, diagnostics };
-  }
-
-  const defaults = input.defaultsPayload as Record<string, unknown>;
-  const normalized: Record<string, unknown> = {};
-
-  let callbackUrl: URL | null = null;
-  const rawUrl = typeof defaults.url === "string" ? defaults.url.trim() : "";
-  if (!rawUrl) {
-    diagnostics.push({
-      code: "openclaw_callback_url_missing",
-      level: "warn",
-      message: "OpenClaw callback URL is missing.",
-      hint: "Set agentDefaultsPayload.url to your OpenClaw webhook endpoint.",
-    });
-  } else {
-    try {
-      callbackUrl = new URL(rawUrl);
-      if (callbackUrl.protocol !== "http:" && callbackUrl.protocol !== "https:") {
-        diagnostics.push({
-          code: "openclaw_callback_url_protocol",
-          level: "warn",
-          message: `Unsupported callback protocol: ${callbackUrl.protocol}`,
-          hint: "Use http:// or https://.",
-        });
-      } else {
-        normalized.url = callbackUrl.toString();
-        diagnostics.push({
-          code: "openclaw_callback_url_configured",
-          level: "info",
-          message: `Callback endpoint set to ${callbackUrl.toString()}`,
-        });
-      }
-      if (isLoopbackHost(callbackUrl.hostname)) {
-        diagnostics.push({
-          code: "openclaw_callback_loopback",
-          level: "warn",
-          message: "OpenClaw callback endpoint uses loopback hostname.",
-          hint: "Use a reachable hostname/IP when OpenClaw runs on another machine.",
-        });
-      }
-    } catch {
-      diagnostics.push({
-        code: "openclaw_callback_url_invalid",
-        level: "warn",
-        message: `Invalid callback URL: ${rawUrl}`,
-      });
-    }
-  }
-
-  const rawMethod = typeof defaults.method === "string" ? defaults.method.trim().toUpperCase() : "";
-  normalized.method = rawMethod || "POST";
-
-  if (typeof defaults.timeoutSec === "number" && Number.isFinite(defaults.timeoutSec)) {
-    normalized.timeoutSec = Math.max(1, Math.min(120, Math.floor(defaults.timeoutSec)));
-  }
-
-  const headers = normalizeHeaderMap(defaults.headers);
-  if (headers) normalized.headers = headers;
-
-  if (typeof defaults.webhookAuthHeader === "string" && defaults.webhookAuthHeader.trim()) {
-    normalized.webhookAuthHeader = defaults.webhookAuthHeader.trim();
-  }
-
-  if (isPlainObject(defaults.payloadTemplate)) {
-    normalized.payloadTemplate = defaults.payloadTemplate;
-  }
-
-  diagnostics.push(
-    ...buildJoinConnectivityDiagnostics({
-      deploymentMode: input.deploymentMode,
-      deploymentExposure: input.deploymentExposure,
-      bindHost: input.bindHost,
-      allowedHostnames: input.allowedHostnames,
-      callbackUrl,
-    }),
-  );
-
+  const normalized = isPlainObject(input.defaultsPayload)
+    ? (input.defaultsPayload as Record<string, unknown>)
+    : null;
   return { normalized, diagnostics };
 }
 
@@ -335,10 +246,10 @@ function buildOnboardingDiscoveryDiagnostics(input: {
 
   if (apiHost && isLoopbackHost(apiHost)) {
     diagnostics.push({
-      code: "openclaw_onboarding_api_loopback",
+      code: "onboarding_api_loopback",
       level: "warn",
       message:
-        "Onboarding URL resolves to loopback hostname. Remote OpenClaw agents cannot reach localhost on your Baton host.",
+        "Onboarding URL resolves to loopback hostname. Remote agents cannot reach localhost on your Baton host.",
       hint: "Use a reachable hostname/IP (for example Tailscale hostname, Docker host alias, or public domain).",
     });
   }
@@ -349,7 +260,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
     (!bindHost || isLoopbackHost(bindHost))
   ) {
     diagnostics.push({
-      code: "openclaw_onboarding_private_loopback_bind",
+      code: "onboarding_private_loopback_bind",
       level: "warn",
       message: "Baton is bound to loopback in authenticated/private mode.",
       hint: "Run with a reachable bind host or use pnpm dev --tailscale-auth for private-network onboarding.",
@@ -365,7 +276,7 @@ function buildOnboardingDiscoveryDiagnostics(input: {
     !allowSet.has(apiHost)
   ) {
     diagnostics.push({
-      code: "openclaw_onboarding_private_host_not_allowed",
+      code: "onboarding_private_host_not_allowed",
       level: "warn",
       message: `Onboarding host "${apiHost}" is not in allowed hostnames for authenticated/private mode.`,
       hint: `Run pnpm atototo allowed-hostname ${apiHost}`,
@@ -406,14 +317,13 @@ function buildInviteOnboardingManifest(
     onboarding: {
       instructions:
         "Join as an agent, save your one-time claim secret, wait for board approval, then claim your API key and install the Baton skill before starting heartbeat loops.",
-      recommendedAdapterType: "openclaw",
       requiredFields: {
         requestType: "agent",
         agentName: "Display name for this agent",
-        adapterType: "Use 'openclaw' for OpenClaw webhook-based agents",
+        adapterType: "Adapter type (e.g. claude_local, codex_local, http, process)",
         capabilities: "Optional capability summary",
         agentDefaultsPayload:
-          "Optional adapter config such as url/method/headers/webhookAuthHeader for OpenClaw callback endpoint",
+          "Optional adapter config such as url/method/headers for webhook callback endpoint",
       },
       registrationEndpoint: {
         method: "POST",
@@ -435,8 +345,8 @@ function buildInviteOnboardingManifest(
         diagnostics: discoveryDiagnostics,
         guidance:
           opts.deploymentMode === "authenticated" && opts.deploymentExposure === "private"
-            ? "If OpenClaw runs on another machine, ensure the Baton hostname is reachable and allowed via `pnpm atototo allowed-hostname <host>`."
-            : "Ensure OpenClaw can reach this Baton API base URL for callbacks and claims.",
+            ? "If agents run on another machine, ensure the Baton hostname is reachable and allowed via `pnpm atototo allowed-hostname <host>`."
+            : "Ensure agents can reach this Baton API base URL for callbacks and claims.",
       },
       textInstructions: {
         path: onboardingTextPath,
@@ -447,7 +357,7 @@ function buildInviteOnboardingManifest(
         name: "baton",
         path: skillPath,
         url: skillUrl,
-        installPath: "~/.openclaw/skills/baton/SKILL.md",
+        installPath: "~/.baton/skills/baton/SKILL.md",
       },
     },
   };
@@ -477,7 +387,7 @@ export function buildInviteOnboardingTextDocument(
     : [];
 
   const lines = [
-    "# Baton OpenClaw Onboarding",
+    "# Baton Agent Onboarding",
     "",
     "This document is meant to be readable by both humans and agents.",
     "",
@@ -492,15 +402,9 @@ export function buildInviteOnboardingTextDocument(
     "Body (JSON):",
     "{",
     '  "requestType": "agent",',
-    '  "agentName": "My OpenClaw Agent",',
-    '  "adapterType": "openclaw",',
-    '  "capabilities": "Optional summary",',
-    '  "agentDefaultsPayload": {',
-    '    "url": "https://your-openclaw-webhook.example/webhook",',
-    '    "method": "POST",',
-    '    "headers": { "x-openclaw-auth": "replace-me" },',
-    '    "timeoutSec": 30',
-    "  }",
+    '  "agentName": "My Agent",',
+    '  "adapterType": "claude_local",',
+    '  "capabilities": "Optional summary"',
     "}",
     "",
     "Expected response includes:",
@@ -524,7 +428,7 @@ export function buildInviteOnboardingTextDocument(
     "- claim secrets are single-use",
     "- claim fails before board approval",
     "",
-    "## Step 4: Install Baton skill in OpenClaw",
+    "## Step 4: Install Baton skill",
     `GET ${onboarding.skill.url}`,
     `Install path: ${onboarding.skill.installPath}`,
     "",
@@ -532,7 +436,7 @@ export function buildInviteOnboardingTextDocument(
     `${onboarding.textInstructions.url}`,
     "",
     "## Connectivity guidance",
-    onboarding.connectivity?.guidance ?? "Ensure Baton is reachable from your OpenClaw runtime.",
+    onboarding.connectivity?.guidance ?? "Ensure Baton is reachable from your agent runtime.",
   ];
 
   if (diagnostics.length > 0) {
