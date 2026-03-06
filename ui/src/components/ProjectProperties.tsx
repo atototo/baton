@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@atototo/shared";
+import { InlineHelp } from "./InlineHelp";
 import { StatusBadge } from "./StatusBadge";
 import { formatDate } from "../lib/utils";
 import { goalsApi } from "../api/goals";
@@ -10,10 +12,14 @@ import { useCompany } from "../context/CompanyContext";
 import { queryKeys } from "../lib/queryKeys";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ExternalLink, Github, Plus, Trash2, X } from "lucide-react";
 import { ChoosePathButton } from "./PathInstructionsModal";
+import { HintIcon, useHelpText } from "./agent-config-primitives";
 
 interface ProjectPropertiesProps {
   project: Project;
@@ -22,20 +28,93 @@ interface ProjectPropertiesProps {
 
 const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 
-function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
+function PropertyRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <span className="text-xs text-muted-foreground shrink-0 w-20">{label}</span>
+      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground w-20">
+        <span>{label}</span>
+        {hint && <HintIcon hint={hint} />}
+      </span>
       <div className="flex items-center gap-1.5 min-w-0">{children}</div>
     </div>
   );
 }
 
-export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps) {
+function WorkspaceHelpContent() {
+  const { t } = useTranslation();
+
+  const rows = [
+    {
+      key: "local",
+      name: t("projectHelp.workspaceModes.local.name"),
+      value: t("projectHelp.workspaceModes.local.value"),
+      example: t("projectHelp.workspaceModes.local.example"),
+    },
+    {
+      key: "repo",
+      name: t("projectHelp.workspaceModes.repo.name"),
+      value: t("projectHelp.workspaceModes.repo.value"),
+      example: t("projectHelp.workspaceModes.repo.example"),
+    },
+    {
+      key: "both",
+      name: t("projectHelp.workspaceModes.both.name"),
+      value: t("projectHelp.workspaceModes.both.value"),
+      example: t("projectHelp.workspaceModes.both.example"),
+    },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{t("projectHelp.workspaceTitle")}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("projectHelp.workspaceDescription")}
+        </p>
+      </div>
+      <div className="overflow-hidden rounded-md border border-border bg-blue-950/30">
+        <div className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] border-b border-border/80 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span>{t("projectHelp.columns.mode")}</span>
+          <span>{t("projectHelp.columns.meaning")}</span>
+          <span>{t("projectHelp.columns.example")}</span>
+        </div>
+        {rows.map((row) => (
+          <div
+            key={row.key}
+            className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] gap-3 border-t border-border/60 px-3 py-2 text-xs first:border-t-0"
+          >
+            <span className="font-medium text-foreground">{row.name}</span>
+            <span className="text-muted-foreground">{row.value}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {row.example}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ProjectProperties({
+  project,
+  onUpdate,
+}: ProjectPropertiesProps) {
+  const { t } = useTranslation();
+  const help = useHelpText();
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const [goalOpen, setGoalOpen] = useState(false);
-  const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(null);
+  const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(
+    null
+  );
   const [workspaceCwd, setWorkspaceCwd] = useState("");
   const [workspaceRepoUrl, setWorkspaceRepoUrl] = useState("");
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
@@ -46,31 +125,40 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
     enabled: !!selectedCompanyId,
   });
 
-  const linkedGoalIds = project.goalIds.length > 0
-    ? project.goalIds
-    : project.goalId
+  const linkedGoalIds =
+    project.goalIds.length > 0
+      ? project.goalIds
+      : project.goalId
       ? [project.goalId]
       : [];
 
-  const linkedGoals = project.goals.length > 0
-    ? project.goals
-    : linkedGoalIds.map((id) => ({
-        id,
-        title: allGoals?.find((g) => g.id === id)?.title ?? id.slice(0, 8),
-      }));
+  const linkedGoals =
+    project.goals.length > 0
+      ? project.goals
+      : linkedGoalIds.map((id) => ({
+          id,
+          title: allGoals?.find((g) => g.id === id)?.title ?? id.slice(0, 8),
+        }));
 
-  const availableGoals = (allGoals ?? []).filter((g) => !linkedGoalIds.includes(g.id));
+  const availableGoals = (allGoals ?? []).filter(
+    (g) => !linkedGoalIds.includes(g.id)
+  );
   const workspaces = project.workspaces ?? [];
 
   const invalidateProject = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(project.id) });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.projects.detail(project.id),
+    });
     if (selectedCompanyId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.list(selectedCompanyId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.list(selectedCompanyId),
+      });
     }
   };
 
   const createWorkspace = useMutation({
-    mutationFn: (data: Record<string, unknown>) => projectsApi.createWorkspace(project.id, data),
+    mutationFn: (data: Record<string, unknown>) =>
+      projectsApi.createWorkspace(project.id, data),
     onSuccess: () => {
       setWorkspaceCwd("");
       setWorkspaceRepoUrl("");
@@ -81,12 +169,18 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
   });
 
   const removeWorkspace = useMutation({
-    mutationFn: (workspaceId: string) => projectsApi.removeWorkspace(project.id, workspaceId),
+    mutationFn: (workspaceId: string) =>
+      projectsApi.removeWorkspace(project.id, workspaceId),
     onSuccess: invalidateProject,
   });
   const updateWorkspace = useMutation({
-    mutationFn: ({ workspaceId, data }: { workspaceId: string; data: Record<string, unknown> }) =>
-      projectsApi.updateWorkspace(project.id, workspaceId, data),
+    mutationFn: ({
+      workspaceId,
+      data,
+    }: {
+      workspaceId: string;
+      data: Record<string, unknown>;
+    }) => projectsApi.updateWorkspace(project.id, workspaceId, data),
     onSuccess: invalidateProject,
   });
 
@@ -101,7 +195,8 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
     setGoalOpen(false);
   };
 
-  const isAbsolutePath = (value: string) => value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
+  const isAbsolutePath = (value: string) =>
+    value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
 
   const isGitHubRepoUrl = (value: string) => {
     try {
@@ -177,7 +272,7 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
     const confirmed = window.confirm(
       workspace.repoUrl
         ? "Clear local folder from this workspace?"
-        : "Delete this workspace local folder?",
+        : "Delete this workspace local folder?"
     );
     if (!confirmed) return;
     if (workspace.repoUrl) {
@@ -191,11 +286,13 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
   };
 
   const clearRepoWorkspace = (workspace: Project["workspaces"][number]) => {
-    const hasLocalFolder = Boolean(workspace.cwd && workspace.cwd !== REPO_ONLY_CWD_SENTINEL);
+    const hasLocalFolder = Boolean(
+      workspace.cwd && workspace.cwd !== REPO_ONLY_CWD_SENTINEL
+    );
     const confirmed = window.confirm(
       hasLocalFolder
         ? "Clear GitHub repo from this workspace?"
-        : "Delete this workspace repo?",
+        : "Delete this workspace repo?"
     );
     if (!confirmed) return;
     if (hasLocalFolder) {
@@ -211,14 +308,20 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <PropertyRow label="Status">
+        <PropertyRow label="Status" hint={help.projectStatus}>
           <StatusBadge status={project.status} />
         </PropertyRow>
-        {project.leadAgentId && (
-          <PropertyRow label="Lead">
-            <span className="text-sm font-mono">{project.leadAgentId.slice(0, 8)}</span>
-          </PropertyRow>
-        )}
+        <PropertyRow label="Lead" hint={help.leadAgentId}>
+          {project.leadAgentId ? (
+            <span className="text-sm font-mono">
+              {project.leadAgentId.slice(0, 8)}
+            </span>
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              {t("common.none")}
+            </span>
+          )}
+        </PropertyRow>
         <div className="py-1.5">
           <div className="flex items-start justify-between gap-2">
             <span className="text-xs text-muted-foreground">Goals</span>
@@ -232,7 +335,10 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
                       key={goal.id}
                       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs"
                     >
-                      <Link to={`/goals/${goal.id}`} className="hover:underline max-w-[140px] truncate">
+                      <Link
+                        to={`/goals/${goal.id}`}
+                        className="hover:underline max-w-[140px] truncate"
+                      >
                         {goal.title}
                       </Link>
                       {onUpdate && (
@@ -284,11 +390,15 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
             </div>
           </div>
         </div>
-        {project.targetDate && (
-          <PropertyRow label="Target Date">
+        <PropertyRow label="Target Date" hint={help.targetDate}>
+          {project.targetDate ? (
             <span className="text-sm">{formatDate(project.targetDate)}</span>
-          </PropertyRow>
-        )}
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              {t("common.none")}
+            </span>
+          )}
+        </PropertyRow>
       </div>
 
       <Separator />
@@ -297,21 +407,26 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
         <div className="py-1.5 space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>Workspaces</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground hover:text-foreground"
-                  aria-label="Workspaces help"
-                >
-                  ?
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                Workspaces give your agents hints about where the work is
-              </TooltipContent>
-            </Tooltip>
+            <HintIcon
+              hint={{
+                text: help.workspaceTooltip,
+                popoverContent: <WorkspaceHelpContent />,
+                ariaLabel: help.workspaceLabel,
+                popoverClassName: "border-border bg-popover",
+              }}
+            />
           </div>
+          <InlineHelp
+            title={t("inlineHelp.workspace.title")}
+            summary={t("inlineHelp.workspace.summary")}
+          >
+            <ul className="space-y-1.5">
+              <li>{t("projectHelp.workspaceModes.local.value")}</li>
+              <li>{t("projectHelp.workspaceModes.repo.value")}</li>
+              <li>{t("projectHelp.workspaceModes.both.value")}</li>
+              <li>{t("inlineHelp.workspace.recommendation")}</li>
+            </ul>
+          </InlineHelp>
           {workspaces.length === 0 ? (
             <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
               No workspace configured.
@@ -322,7 +437,9 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
                 <div key={workspace.id} className="space-y-1">
                   {workspace.cwd && workspace.cwd !== REPO_ONLY_CWD_SENTINEL ? (
                     <div className="flex items-center justify-between gap-2 py-1">
-                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{workspace.cwd}</span>
+                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+                        {workspace.cwd}
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon-xs"
@@ -342,7 +459,9 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
                         className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
                       >
                         <Github className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{formatGitHubRepo(workspace.repoUrl)}</span>
+                        <span className="truncate">
+                          {formatGitHubRepo(workspace.repoUrl)}
+                        </span>
                         <ExternalLink className="h-3 w-3 shrink-0" />
                       </a>
                       <Button
@@ -432,7 +551,9 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
                   variant="outline"
                   size="xs"
                   className="h-6 px-2"
-                  disabled={!workspaceRepoUrl.trim() || createWorkspace.isPending}
+                  disabled={
+                    !workspaceRepoUrl.trim() || createWorkspace.isPending
+                  }
                   onClick={submitRepoWorkspace}
                 >
                   Save
@@ -456,13 +577,19 @@ export function ProjectProperties({ project, onUpdate }: ProjectPropertiesProps)
             <p className="text-xs text-destructive">{workspaceError}</p>
           )}
           {createWorkspace.isError && (
-            <p className="text-xs text-destructive">Failed to save workspace.</p>
+            <p className="text-xs text-destructive">
+              Failed to save workspace.
+            </p>
           )}
           {removeWorkspace.isError && (
-            <p className="text-xs text-destructive">Failed to delete workspace.</p>
+            <p className="text-xs text-destructive">
+              Failed to delete workspace.
+            </p>
           )}
           {updateWorkspace.isError && (
-            <p className="text-xs text-destructive">Failed to update workspace.</p>
+            <p className="text-xs text-destructive">
+              Failed to update workspace.
+            </p>
           )}
         </div>
 

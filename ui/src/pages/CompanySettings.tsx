@@ -4,16 +4,28 @@ import { useTranslation } from "react-i18next";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { companiesApi } from "../api/companies";
+import { costsApi } from "../api/costs";
 import { accessApi } from "../api/access";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
-import { Field, ToggleField, HintIcon } from "../components/agent-config-primitives";
+import {
+  Field,
+  ToggleField,
+  HintIcon,
+  useHelpText,
+} from "../components/agent-config-primitives";
 
 export function CompanySettings() {
   const { t, i18n } = useTranslation();
-  const { companies, selectedCompany, selectedCompanyId, setSelectedCompanyId } = useCompany();
+  const help = useHelpText();
+  const {
+    companies,
+    selectedCompany,
+    selectedCompanyId,
+    setSelectedCompanyId,
+  } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
 
@@ -22,6 +34,7 @@ export function CompanySettings() {
   const [description, setDescription] = useState("");
   const [brandColor, setBrandColor] = useState("");
   const [locale, setLocale] = useState("en");
+  const [budgetMonthlyCents, setBudgetMonthlyCents] = useState("0");
 
   // Sync local state from selected company
   useEffect(() => {
@@ -30,6 +43,7 @@ export function CompanySettings() {
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
     setLocale(selectedCompany.locale ?? "en");
+    setBudgetMonthlyCents(String(selectedCompany.budgetMonthlyCents ?? 0));
   }, [selectedCompany]);
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -43,8 +57,12 @@ export function CompanySettings() {
       locale !== (selectedCompany.locale ?? "en"));
 
   const generalMutation = useMutation({
-    mutationFn: (data: { name: string; description: string | null; brandColor: string | null; locale: string }) =>
-      companiesApi.update(selectedCompanyId!, data),
+    mutationFn: (data: {
+      name: string;
+      description: string | null;
+      brandColor: string | null;
+      locale: string;
+    }) => companiesApi.update(selectedCompanyId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
@@ -57,6 +75,20 @@ export function CompanySettings() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+    },
+  });
+
+  const budgetDirty =
+    !!selectedCompany &&
+    Number(budgetMonthlyCents || "0") !==
+      (selectedCompany.budgetMonthlyCents ?? 0);
+
+  const budgetMutation = useMutation({
+    mutationFn: (nextBudgetMonthlyCents: number) =>
+      costsApi.updateCompanyBudget(selectedCompanyId!, nextBudgetMonthlyCents),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.stats });
     },
   });
 
@@ -73,10 +105,14 @@ export function CompanySettings() {
         ? invite.inviteUrl
         : `${base}${invite.inviteUrl}`;
       setInviteLink(absoluteUrl);
-      queryClient.invalidateQueries({ queryKey: queryKeys.sidebarBadges(selectedCompanyId!) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.sidebarBadges(selectedCompanyId!),
+      });
     },
     onError: (err) => {
-      setInviteError(err instanceof Error ? err.message : "Failed to create invite");
+      setInviteError(
+        err instanceof Error ? err.message : "Failed to create invite"
+      );
     },
   });
   const archiveMutation = useMutation({
@@ -91,8 +127,12 @@ export function CompanySettings() {
       if (nextCompanyId) {
         setSelectedCompanyId(nextCompanyId);
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.companies.stats });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.companies.all,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.companies.stats,
+      });
     },
   });
 
@@ -120,11 +160,19 @@ export function CompanySettings() {
     });
   }
 
+  function handleSaveBudget() {
+    const parsed = Number(budgetMonthlyCents || "0");
+    if (!Number.isFinite(parsed) || parsed < 0) return;
+    budgetMutation.mutate(Math.floor(parsed));
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-2">
         <Settings className="h-5 w-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">{t("settings.companySettings")}</h1>
+        <h1 className="text-lg font-semibold">
+          {t("settings.companySettings")}
+        </h1>
       </div>
 
       {/* General */}
@@ -133,7 +181,18 @@ export function CompanySettings() {
           {t("settings.general")}
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
-          <Field label={t("settings.companyName")} hint={t("settings.companyNameHint")}>
+          <Field label={t("settings.issuePrefix")} hint={help.issuePrefix}>
+            <input
+              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-sm font-mono text-muted-foreground outline-none"
+              type="text"
+              value={selectedCompany.issuePrefix}
+              readOnly
+            />
+          </Field>
+          <Field
+            label={t("settings.companyName")}
+            hint={t("settings.companyNameHint")}
+          >
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               type="text"
@@ -141,7 +200,10 @@ export function CompanySettings() {
               onChange={(e) => setCompanyName(e.target.value)}
             />
           </Field>
-          <Field label={t("settings.description")} hint={t("settings.descriptionHint")}>
+          <Field
+            label={t("settings.description")}
+            hint={t("settings.descriptionHint")}
+          >
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               type="text"
@@ -168,7 +230,10 @@ export function CompanySettings() {
               />
             </div>
             <div className="flex-1 space-y-2">
-              <Field label={t("settings.brandColor")} hint={t("settings.brandColorHint")}>
+              <Field
+                label={t("settings.brandColor")}
+                hint={t("settings.brandColorHint")}
+              >
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -211,7 +276,7 @@ export function CompanySettings() {
           {t("settings.language")}
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
-          <Field label={t("settings.language")} hint={t("settings.languageHint")}>
+          <Field label={t("settings.language")} hint={help.locale}>
             <select
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               value={locale}
@@ -228,6 +293,28 @@ export function CompanySettings() {
         </div>
       </div>
 
+      {/* Budget */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {t("settings.budget")}
+        </div>
+        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+          <Field
+            label={t("settings.monthlyBudgetCents")}
+            hint={help.budgetMonthlyCents}
+          >
+            <input
+              className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm font-mono outline-none"
+              type="number"
+              min={0}
+              step={1}
+              value={budgetMonthlyCents}
+              onChange={(e) => setBudgetMonthlyCents(e.target.value)}
+            />
+          </Field>
+        </div>
+      </div>
+
       {/* Save button for General + Appearance */}
       {generalDirty && (
         <div className="flex items-center gap-2">
@@ -236,15 +323,47 @@ export function CompanySettings() {
             onClick={handleSaveGeneral}
             disabled={generalMutation.isPending || !companyName.trim()}
           >
-            {generalMutation.isPending ? t("settings.saving") : t("settings.saveChanges")}
+            {generalMutation.isPending
+              ? t("settings.saving")
+              : t("settings.saveChanges")}
           </Button>
           {generalMutation.isSuccess && (
-            <span className="text-xs text-muted-foreground">{t("settings.saved")}</span>
+            <span className="text-xs text-muted-foreground">
+              {t("settings.saved")}
+            </span>
           )}
           {generalMutation.isError && (
             <span className="text-xs text-destructive">
               {generalMutation.error instanceof Error
                 ? generalMutation.error.message
+                : t("settings.failedToSave")}
+            </span>
+          )}
+        </div>
+      )}
+
+      {budgetDirty && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleSaveBudget}
+            disabled={
+              budgetMutation.isPending || Number(budgetMonthlyCents || "0") < 0
+            }
+          >
+            {budgetMutation.isPending
+              ? t("settings.saving")
+              : t("settings.saveChanges")}
+          </Button>
+          {budgetMutation.isSuccess && (
+            <span className="text-xs text-muted-foreground">
+              {t("settings.saved")}
+            </span>
+          )}
+          {budgetMutation.isError && (
+            <span className="text-xs text-destructive">
+              {budgetMutation.error instanceof Error
+                ? budgetMutation.error.message
                 : t("settings.failedToSave")}
             </span>
           )}
@@ -259,7 +378,7 @@ export function CompanySettings() {
         <div className="rounded-md border border-border px-4 py-3">
           <ToggleField
             label={t("settings.requireApproval")}
-            hint={t("settings.requireApprovalHint")}
+            hint={help.requireBoardApprovalForNewAgents}
             checked={!!selectedCompany.requireBoardApprovalForNewAgents}
             onChange={(v) => settingsMutation.mutate(v)}
           />
@@ -273,12 +392,20 @@ export function CompanySettings() {
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">{t("settings.inviteHint")}</span>
-            <HintIcon text={t("settings.inviteLinkExpiry")} />
+            <span className="text-xs text-muted-foreground">
+              {t("settings.inviteHint")}
+            </span>
+            <HintIcon hint={t("settings.inviteLinkExpiry")} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending}>
-              {inviteMutation.isPending ? t("settings.creating") : t("settings.createInviteLink")}
+            <Button
+              size="sm"
+              onClick={() => inviteMutation.mutate()}
+              disabled={inviteMutation.isPending}
+            >
+              {inviteMutation.isPending
+                ? t("settings.creating")
+                : t("settings.createInviteLink")}
             </Button>
             {inviteLink && (
               <Button
@@ -292,11 +419,17 @@ export function CompanySettings() {
               </Button>
             )}
           </div>
-          {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          {inviteError && (
+            <p className="text-sm text-destructive">{inviteError}</p>
+          )}
           {inviteLink && (
             <div className="rounded-md border border-border bg-muted/30 p-2">
-              <div className="text-xs text-muted-foreground">{t("settings.shareLink")}</div>
-              <div className="mt-1 break-all font-mono text-xs">{inviteLink}</div>
+              <div className="text-xs text-muted-foreground">
+                {t("settings.shareLink")}
+              </div>
+              <div className="mt-1 break-all font-mono text-xs">
+                {inviteLink}
+              </div>
             </div>
           )}
         </div>
@@ -315,23 +448,33 @@ export function CompanySettings() {
             <Button
               size="sm"
               variant="outline"
-              disabled={archiveMutation.isPending || selectedCompany.status === "archived"}
+              disabled={
+                archiveMutation.isPending ||
+                selectedCompany.status === "archived"
+              }
               onClick={() => {
                 if (!selectedCompanyId) return;
                 const confirmed = window.confirm(
-                  t("settings.archiveConfirm", { name: selectedCompany.name }),
+                  t("settings.archiveConfirm", { name: selectedCompany.name })
                 );
                 if (!confirmed) return;
-                const nextCompanyId = companies.find((company) =>
-                  company.id !== selectedCompanyId && company.status !== "archived")?.id ?? null;
-                archiveMutation.mutate({ companyId: selectedCompanyId, nextCompanyId });
+                const nextCompanyId =
+                  companies.find(
+                    (company) =>
+                      company.id !== selectedCompanyId &&
+                      company.status !== "archived"
+                  )?.id ?? null;
+                archiveMutation.mutate({
+                  companyId: selectedCompanyId,
+                  nextCompanyId,
+                });
               }}
             >
               {archiveMutation.isPending
                 ? t("settings.archiving")
                 : selectedCompany.status === "archived"
-                  ? t("settings.alreadyArchived")
-                  : t("settings.archiveCompany")}
+                ? t("settings.alreadyArchived")
+                : t("settings.archiveCompany")}
             </Button>
             {archiveMutation.isError && (
               <span className="text-xs text-destructive">

@@ -15,7 +15,7 @@ import { Dialog, DialogPortal } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "../lib/utils";
@@ -23,13 +23,14 @@ import { getUIAdapter } from "../adapters";
 import { defaultCreateValues } from "./agent-config-defaults";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
-  DEFAULT_CODEX_LOCAL_MODEL
+  DEFAULT_CODEX_LOCAL_MODEL,
 } from "@atototo/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@atototo/adapter-cursor-local";
 import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@atototo/adapter-opencode-local";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
 import { ChoosePathButton } from "./PathInstructionsModal";
 import { HintIcon } from "./agent-config-primitives";
+import { InlineHelp } from "./InlineHelp";
 import {
   Building2,
   Bot,
@@ -46,10 +47,10 @@ import {
   Loader2,
   FolderOpen,
   ChevronDown,
-  X
+  X,
 } from "lucide-react";
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 type AdapterType =
   | "claude_local"
   | "codex_local"
@@ -136,7 +137,7 @@ export function OnboardingWizard() {
   }, [
     onboardingOpen,
     onboardingOptions.companyId,
-    onboardingOptions.initialStep
+    onboardingOptions.initialStep,
   ]);
 
   // Backfill issue prefix for an existing company once companies are loaded.
@@ -154,19 +155,22 @@ export function OnboardingWizard() {
   const { data: adapterModels } = useQuery({
     queryKey: ["adapter-models", adapterType],
     queryFn: () => agentsApi.adapterModels(adapterType),
-    enabled: onboardingOpen && step === 2
+    enabled: onboardingOpen && step === 2,
   });
   const isLocalAdapter =
-    adapterType === "claude_local" || adapterType === "codex_local" || adapterType === "opencode_local" || adapterType === "cursor";
+    adapterType === "claude_local" ||
+    adapterType === "codex_local" ||
+    adapterType === "opencode_local" ||
+    adapterType === "cursor";
   const effectiveAdapterCommand =
     command.trim() ||
     (adapterType === "codex_local"
       ? "codex"
       : adapterType === "cursor"
-        ? "agent"
+      ? "agent"
       : adapterType === "opencode_local"
-        ? "opencode"
-        : "claude");
+      ? "opencode"
+      : "claude");
 
   useEffect(() => {
     if (step !== 2) return;
@@ -226,9 +230,9 @@ export function OnboardingWizard() {
         adapterType === "codex_local"
           ? model || DEFAULT_CODEX_LOCAL_MODEL
           : adapterType === "cursor"
-            ? model || DEFAULT_CURSOR_LOCAL_MODEL
+          ? model || DEFAULT_CURSOR_LOCAL_MODEL
           : adapterType === "opencode_local"
-            ? model || DEFAULT_OPENCODE_LOCAL_MODEL
+          ? model || DEFAULT_OPENCODE_LOCAL_MODEL
           : model,
       command,
       args,
@@ -237,7 +241,7 @@ export function OnboardingWizard() {
       dangerouslyBypassSandbox:
         adapterType === "codex_local"
           ? DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX
-          : defaultCreateValues.dangerouslyBypassSandbox
+          : defaultCreateValues.dangerouslyBypassSandbox,
     });
     if (adapterType === "claude_local" && forceUnsetAnthropicApiKey) {
       const env =
@@ -268,7 +272,7 @@ export function OnboardingWizard() {
         createdCompanyId,
         adapterType,
         {
-          adapterConfig: adapterConfigOverride ?? buildAdapterConfig()
+          adapterConfig: adapterConfigOverride ?? buildAdapterConfig(),
         }
       );
       setAdapterEnvResult(result);
@@ -297,10 +301,10 @@ export function OnboardingWizard() {
         await goalsApi.create(company.id, {
           title: companyGoal.trim(),
           level: "company",
-          status: "active"
+          status: "active",
         });
         queryClient.invalidateQueries({
-          queryKey: queryKeys.goals.list(company.id)
+          queryKey: queryKeys.goals.list(company.id),
         });
       }
 
@@ -333,13 +337,13 @@ export function OnboardingWizard() {
             intervalSec: 3600,
             wakeOnDemand: true,
             cooldownSec: 10,
-            maxConcurrentRuns: 1
-          }
-        }
+            maxConcurrentRuns: 1,
+          },
+        },
       });
       setCreatedAgentId(agent.id);
       queryClient.invalidateQueries({
-        queryKey: queryKeys.agents.list(createdCompanyId)
+        queryKey: queryKeys.agents.list(createdCompanyId),
       });
       setStep(3);
     } catch (err) {
@@ -377,7 +381,7 @@ export function OnboardingWizard() {
           createdCompanyId
         );
         queryClient.invalidateQueries({
-          queryKey: queryKeys.agents.list(createdCompanyId)
+          queryKey: queryKeys.agents.list(createdCompanyId),
         });
       }
 
@@ -409,11 +413,11 @@ export function OnboardingWizard() {
           ? { description: taskDescription.trim() }
           : {}),
         assigneeAgentId: createdAgentId,
-        status: "todo"
+        status: "todo",
       });
       setCreatedIssueRef(issue.identifier ?? issue.id);
       queryClient.invalidateQueries({
-        queryKey: queryKeys.issues.list(createdCompanyId)
+        queryKey: queryKeys.issues.list(createdCompanyId),
       });
       setStep(4);
     } catch (err) {
@@ -444,10 +448,11 @@ export function OnboardingWizard() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (step === 1 && companyName.trim()) handleStep1Next();
-      else if (step === 2 && agentName.trim()) handleStep2Next();
-      else if (step === 3 && taskTitle.trim()) handleStep3Next();
-      else if (step === 4) handleLaunch();
+      if (step === 1) setStep(2);
+      else if (step === 2 && companyName.trim()) handleStep1Next();
+      else if (step === 3 && agentName.trim()) handleStep2Next();
+      else if (step === 4 && taskTitle.trim()) handleStep3Next();
+      else if (step === 5) handleLaunch();
     }
   }
 
@@ -481,12 +486,14 @@ export function OnboardingWizard() {
               {/* Progress indicators */}
               <div className="flex items-center gap-2 mb-8">
                 <Sparkles className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{t("onboarding.getStarted")}</span>
+                <span className="text-sm font-medium">
+                  {t("onboarding.getStarted")}
+                </span>
                 <span className="text-sm text-muted-foreground/60">
-                  {t("onboarding.stepOf", { step, total: 4 })}
+                  {t("onboarding.stepOf", { step, total: 5 })}
                 </span>
                 <div className="flex items-center gap-1.5 ml-auto">
-                  {[1, 2, 3, 4].map((s) => (
+                  {[1, 2, 3, 4, 5].map((s) => (
                     <div
                       key={s}
                       className={cn(
@@ -494,8 +501,8 @@ export function OnboardingWizard() {
                         s < step
                           ? "bg-green-500"
                           : s === step
-                            ? "bg-foreground"
-                            : "bg-muted"
+                          ? "bg-foreground"
+                          : "bg-muted"
                       )}
                     />
                   ))}
@@ -507,10 +514,114 @@ export function OnboardingWizard() {
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
+                      <Rocket className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">
+                        {t("onboarding.learnBaton")}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {t("onboarding.learnBatonDesc")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-muted/20 p-4">
+                    <div className="space-y-3">
+                      {[
+                        {
+                          key: "company",
+                          icon: Building2,
+                          tone: "bg-sky-500/10 text-sky-300 border-sky-500/20",
+                        },
+                        {
+                          key: "project",
+                          icon: FolderOpen,
+                          tone:
+                            "bg-violet-500/10 text-violet-300 border-violet-500/20",
+                        },
+                        {
+                          key: "agent",
+                          icon: Bot,
+                          tone:
+                            "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
+                        },
+                        {
+                          key: "issue",
+                          icon: ListTodo,
+                          tone:
+                            "bg-amber-500/10 text-amber-300 border-amber-500/20",
+                        },
+                      ].map((item, index, items) => (
+                        <div key={item.key}>
+                          <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-background/40 p-3">
+                            <div
+                              className={cn(
+                                "mt-0.5 rounded-md border p-2",
+                                item.tone
+                              )}
+                            >
+                              <item.icon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">
+                                {t(`onboarding.batonMap.${item.key}.title`)}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                {t(
+                                  `onboarding.batonMap.${item.key}.description`
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          {index < items.length - 1 ? (
+                            <div className="ml-5 h-4 w-px bg-border" />
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <InlineHelp
+                    title={t("onboarding.statusFlowTitle")}
+                    summary={t("onboarding.statusFlowSummary")}
+                    defaultOpen={false}
+                  >
+                    <div className="space-y-2">
+                      {[
+                        "backlog",
+                        "todo",
+                        "inProgress",
+                        "done",
+                        "blocked",
+                      ].map((status) => (
+                        <div
+                          key={status}
+                          className="rounded-md border border-border/70 bg-background/30 px-3 py-2"
+                        >
+                          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-foreground/80">
+                            {t(`onboarding.statusFlow.${status}.label`)}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {t(`onboarding.statusFlow.${status}.description`)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </InlineHelp>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="bg-muted/50 p-2">
                       <Building2 className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.nameCompany")}</h3>
+                      <h3 className="font-medium">
+                        {t("onboarding.nameCompany")}
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.nameCompanyDesc")}
                       </p>
@@ -551,19 +662,23 @@ export function OnboardingWizard() {
                       <option value="en">English</option>
                       <option value="ko">한국어</option>
                     </select>
-                    <p className="text-[11px] text-muted-foreground mt-1">{t("onboarding.languageHint")}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {t("onboarding.languageHint")}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {step === 2 && (
+              {step === 3 && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
                       <Bot className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.createAgent")}</h3>
+                      <h3 className="font-medium">
+                        {t("onboarding.createAgent")}
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.createAgentDesc")}
                       </p>
@@ -594,41 +709,41 @@ export function OnboardingWizard() {
                           label: t("onboarding.claudeCode"),
                           icon: Sparkles,
                           desc: t("onboarding.claudeCodeDesc"),
-                          recommended: true
+                          recommended: true,
                         },
                         {
                           value: "codex_local" as const,
                           label: t("onboarding.codex"),
                           icon: Code,
                           desc: t("onboarding.codexDesc"),
-                          recommended: true
+                          recommended: true,
                         },
                         {
                           value: "opencode_local" as const,
                           label: t("onboarding.openCode"),
                           icon: Code,
-                          desc: t("onboarding.openCodeDesc")
+                          desc: t("onboarding.openCodeDesc"),
                         },
                         {
                           value: "cursor" as const,
                           label: t("onboarding.cursor"),
                           icon: MousePointer2,
-                          desc: t("onboarding.cursorDesc")
+                          desc: t("onboarding.cursorDesc"),
                         },
                         {
                           value: "process" as const,
                           label: t("onboarding.shellCommand"),
                           icon: Terminal,
                           desc: t("onboarding.shellCommandDesc"),
-                          comingSoon: true
+                          comingSoon: true,
                         },
                         {
                           value: "http" as const,
                           label: t("onboarding.httpWebhook"),
                           icon: Globe,
                           desc: t("onboarding.httpWebhookDesc"),
-                          comingSoon: true
-                        }
+                          comingSoon: true,
+                        },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -638,8 +753,8 @@ export function OnboardingWizard() {
                             opt.comingSoon
                               ? "border-border opacity-40 cursor-not-allowed"
                               : adapterType === opt.value
-                                ? "border-foreground bg-accent"
-                                : "border-border hover:bg-accent/50"
+                              ? "border-foreground bg-accent"
+                              : "border-border hover:bg-accent/50"
                           )}
                           onClick={() => {
                             if (opt.comingSoon) return;
@@ -649,7 +764,10 @@ export function OnboardingWizard() {
                               setModel(DEFAULT_CODEX_LOCAL_MODEL);
                             } else if (nextType === "cursor" && !model) {
                               setModel(DEFAULT_CURSOR_LOCAL_MODEL);
-                            } else if (nextType === "opencode_local" && !model) {
+                            } else if (
+                              nextType === "opencode_local" &&
+                              !model
+                            ) {
                               setModel(DEFAULT_OPENCODE_LOCAL_MODEL);
                             }
                           }}
@@ -662,7 +780,9 @@ export function OnboardingWizard() {
                           <opt.icon className="h-4 w-4" />
                           <span className="font-medium">{opt.label}</span>
                           <span className="text-muted-foreground text-[10px]">
-                            {opt.comingSoon ? t("onboarding.comingSoon") : opt.desc}
+                            {opt.comingSoon
+                              ? t("onboarding.comingSoon")
+                              : opt.desc}
                           </span>
                         </button>
                       ))}
@@ -680,7 +800,9 @@ export function OnboardingWizard() {
                           <label className="text-xs text-muted-foreground">
                             {t("onboarding.workingDirectory")}
                           </label>
-                          <HintIcon text={t("onboarding.workingDirectoryHint")} />
+                          <HintIcon
+                            hint={t("onboarding.workingDirectoryHint")}
+                          />
                         </div>
                         <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
                           <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -770,7 +892,9 @@ export function OnboardingWizard() {
                           disabled={adapterEnvLoading}
                           onClick={() => void runAdapterEnvironmentTest()}
                         >
-                          {adapterEnvLoading ? t("onboarding.testing") : t("onboarding.testNow")}
+                          {adapterEnvLoading
+                            ? t("onboarding.testing")
+                            : t("onboarding.testNow")}
                         </Button>
                       </div>
 
@@ -787,51 +911,63 @@ export function OnboardingWizard() {
                       {shouldSuggestUnsetAnthropicApiKey && (
                         <div className="rounded-md border border-amber-300/60 bg-amber-50/40 px-2.5 py-2 space-y-2">
                           <p className="text-[11px] text-amber-900/90 leading-relaxed">
-                            Claude failed while <span className="font-mono">ANTHROPIC_API_KEY</span> is set.
-                            You can clear it in this CEO adapter config and retry the probe.
+                            Claude failed while{" "}
+                            <span className="font-mono">ANTHROPIC_API_KEY</span>{" "}
+                            is set. You can clear it in this CEO adapter config
+                            and retry the probe.
                           </p>
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-7 px-2.5 text-xs"
-                            disabled={adapterEnvLoading || unsetAnthropicLoading}
+                            disabled={
+                              adapterEnvLoading || unsetAnthropicLoading
+                            }
                             onClick={() => void handleUnsetAnthropicApiKey()}
                           >
-                            {unsetAnthropicLoading ? t("onboarding.retrying") : t("onboarding.unsetAnthropicKey")}
+                            {unsetAnthropicLoading
+                              ? t("onboarding.retrying")
+                              : t("onboarding.unsetAnthropicKey")}
                           </Button>
                         </div>
                       )}
 
                       <div className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2 text-[11px] space-y-1.5">
-                        <p className="font-medium">{t("onboarding.manualDebug")}</p>
+                        <p className="font-medium">
+                          {t("onboarding.manualDebug")}
+                        </p>
                         <p className="text-muted-foreground font-mono break-all">
                           {adapterType === "cursor"
                             ? `${effectiveAdapterCommand} -p --mode ask --output-format json \"Respond with hello.\"`
                             : adapterType === "codex_local"
                             ? `${effectiveAdapterCommand} exec --json -`
                             : adapterType === "opencode_local"
-                              ? `${effectiveAdapterCommand} run --format json \"Respond with hello.\"`
+                            ? `${effectiveAdapterCommand} run --format json \"Respond with hello.\"`
                             : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
                         </p>
                         <p className="text-muted-foreground">
                           {t("onboarding.prompt")}{" "}
                           <span className="font-mono">Respond with hello.</span>
                         </p>
-                        {adapterType === "cursor" || adapterType === "codex_local" || adapterType === "opencode_local" ? (
+                        {adapterType === "cursor" ||
+                        adapterType === "codex_local" ||
+                        adapterType === "opencode_local" ? (
                           <p className="text-muted-foreground">
                             If auth fails, set{" "}
                             <span className="font-mono">
-                              {adapterType === "cursor" ? "CURSOR_API_KEY" : "OPENAI_API_KEY"}
+                              {adapterType === "cursor"
+                                ? "CURSOR_API_KEY"
+                                : "OPENAI_API_KEY"}
                             </span>{" "}
-                            in
-                            env or run{" "}
+                            in env or run{" "}
                             <span className="font-mono">
                               {adapterType === "cursor"
                                 ? "agent login"
                                 : adapterType === "codex_local"
-                                  ? "codex login"
-                                  : "opencode auth login"}
-                            </span>.
+                                ? "codex login"
+                                : "opencode auth login"}
+                            </span>
+                            .
                           </p>
                         ) : (
                           <p className="text-muted-foreground">
@@ -887,14 +1023,16 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 3 && (
+              {step === 4 && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
                       <ListTodo className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.giveTask")}</h3>
+                      <h3 className="font-medium">
+                        {t("onboarding.giveTask")}
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.giveTaskDesc")}
                       </p>
@@ -927,14 +1065,16 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 4 && (
+              {step === 5 && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
                       <Rocket className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.readyToLaunch")}</h3>
+                      <h3 className="font-medium">
+                        {t("onboarding.readyToLaunch")}
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.readyToLaunchDesc")}
                       </p>
@@ -947,7 +1087,9 @@ export function OnboardingWizard() {
                         <p className="text-sm font-medium truncate">
                           {companyName}
                         </p>
-                        <p className="text-xs text-muted-foreground">{t("onboarding.company")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("onboarding.company")}
+                        </p>
                       </div>
                       <Check className="h-4 w-4 text-green-500 shrink-0" />
                     </div>
@@ -969,7 +1111,9 @@ export function OnboardingWizard() {
                         <p className="text-sm font-medium truncate">
                           {taskTitle}
                         </p>
-                        <p className="text-xs text-muted-foreground">{t("onboarding.task")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("onboarding.task")}
+                        </p>
                       </div>
                       <Check className="h-4 w-4 text-green-500 shrink-0" />
                     </div>
@@ -1001,6 +1145,12 @@ export function OnboardingWizard() {
                 </div>
                 <div className="flex items-center gap-2">
                   {step === 1 && (
+                    <Button size="sm" disabled={loading} onClick={() => setStep(2)}>
+                      <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                      {t("onboarding.next")}
+                    </Button>
+                  )}
+                  {step === 2 && (
                     <Button
                       size="sm"
                       disabled={!companyName.trim() || loading}
@@ -1011,10 +1161,12 @@ export function OnboardingWizard() {
                       ) : (
                         <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? t("onboarding.creating") : t("onboarding.next")}
+                      {loading
+                        ? t("onboarding.creating")
+                        : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 2 && (
+                  {step === 3 && (
                     <Button
                       size="sm"
                       disabled={
@@ -1027,10 +1179,12 @@ export function OnboardingWizard() {
                       ) : (
                         <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? t("onboarding.creating") : t("onboarding.next")}
+                      {loading
+                        ? t("onboarding.creating")
+                        : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 3 && (
+                  {step === 4 && (
                     <Button
                       size="sm"
                       disabled={!taskTitle.trim() || loading}
@@ -1041,24 +1195,27 @@ export function OnboardingWizard() {
                       ) : (
                         <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? t("onboarding.creating") : t("onboarding.next")}
+                      {loading
+                        ? t("onboarding.creating")
+                        : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 4 && (
+                  {step === 5 && (
                     <Button size="sm" disabled={loading} onClick={handleLaunch}>
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                       ) : (
                         <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? t("onboarding.opening") : t("onboarding.openIssue")}
+                      {loading
+                        ? t("onboarding.opening")
+                        : t("onboarding.openIssue")}
                     </Button>
                   )}
                 </div>
               </div>
             </div>
           </div>
-
 
           {/* Right half — ASCII art (hidden on mobile) */}
           <div className="hidden md:block w-1/2 overflow-hidden">
@@ -1071,7 +1228,7 @@ export function OnboardingWizard() {
 }
 
 function AdapterEnvironmentResult({
-  result
+  result,
 }: {
   result: AdapterEnvironmentTestResult;
 }) {
@@ -1080,14 +1237,14 @@ function AdapterEnvironmentResult({
     result.status === "pass"
       ? t("onboarding.passed")
       : result.status === "warn"
-        ? t("onboarding.warnings")
-        : t("onboarding.failed");
+      ? t("onboarding.warnings")
+      : t("onboarding.failed");
   const statusClass =
     result.status === "pass"
       ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
       : result.status === "warn"
-        ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
-        : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
+      ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
+      : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
 
   return (
     <div className={`rounded-md border px-2.5 py-2 text-[11px] ${statusClass}`}>

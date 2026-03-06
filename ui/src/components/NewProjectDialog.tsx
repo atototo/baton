@@ -1,15 +1,13 @@
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { projectsApi } from "../api/projects";
 import { goalsApi } from "../api/goals";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -29,9 +27,11 @@ import {
 } from "lucide-react";
 import { PROJECT_COLORS } from "@atototo/shared";
 import { cn } from "../lib/utils";
+import { InlineHelp } from "./InlineHelp";
 import { MarkdownEditor, type MarkdownEditorRef } from "./MarkdownEditor";
 import { StatusBadge } from "./StatusBadge";
 import { ChoosePathButton } from "./PathInstructionsModal";
+import { HintIcon, useHelpText } from "./agent-config-primitives";
 
 const projectStatuses = [
   { value: "backlog", label: "Backlog" },
@@ -45,6 +45,8 @@ type WorkspaceSetup = "none" | "local" | "repo" | "both";
 const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 
 export function NewProjectDialog() {
+  const { t } = useTranslation();
+  const help = useHelpText();
   const { newProjectOpen, closeNewProject } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
@@ -94,7 +96,8 @@ export function NewProjectDialog() {
     setWorkspaceError(null);
   }
 
-  const isAbsolutePath = (value: string) => value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
+  const isAbsolutePath = (value: string) =>
+    value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
 
   const isGitHubRepoUrl = (value: string) => {
     try {
@@ -132,7 +135,8 @@ export function NewProjectDialog() {
 
   async function handleSubmit() {
     if (!selectedCompanyId || !name.trim()) return;
-    const localRequired = workspaceSetup === "local" || workspaceSetup === "both";
+    const localRequired =
+      workspaceSetup === "local" || workspaceSetup === "both";
     const repoRequired = workspaceSetup === "repo" || workspaceSetup === "both";
     const localPath = workspaceLocalPath.trim();
     const repoUrl = workspaceRepoUrl.trim();
@@ -153,7 +157,8 @@ export function NewProjectDialog() {
         name: name.trim(),
         description: description.trim() || undefined,
         status,
-        color: PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
+        color:
+          PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
         ...(goalIds.length > 0 ? { goalIds } : {}),
         ...(targetDate ? { targetDate } : {}),
       });
@@ -183,8 +188,12 @@ export function NewProjectDialog() {
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.list(selectedCompanyId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(created.id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.list(selectedCompanyId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.detail(created.id),
+      });
       reset();
       closeNewProject();
     } catch {
@@ -235,13 +244,20 @@ export function NewProjectDialog() {
               className="text-muted-foreground"
               onClick={() => setExpanded(!expanded)}
             >
-              {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              {expanded ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
             </Button>
             <Button
               variant="ghost"
               size="icon-xs"
               className="text-muted-foreground"
-              onClick={() => { reset(); closeNewProject(); }}
+              onClick={() => {
+                reset();
+                closeNewProject();
+              }}
             >
               <span className="text-lg leading-none">&times;</span>
             </Button>
@@ -273,7 +289,10 @@ export function NewProjectDialog() {
             onChange={setDescription}
             placeholder="Add description..."
             bordered={false}
-            contentClassName={cn("text-sm text-muted-foreground", expanded ? "min-h-[220px]" : "min-h-[120px]")}
+            contentClassName={cn(
+              "text-sm text-muted-foreground",
+              expanded ? "min-h-[220px]" : "min-h-[120px]"
+            )}
             imageUploadHandler={async (file) => {
               const asset = await uploadDescriptionImage.mutateAsync(file);
               return asset.contentPath;
@@ -283,43 +302,66 @@ export function NewProjectDialog() {
 
         <div className="px-4 pb-3 space-y-3 border-t border-border">
           <div className="pt-3">
-            <p className="text-sm font-medium">Where will work be done on this project?</p>
-            <p className="text-xs text-muted-foreground">Add local folder and/or GitHub repo workspace hints.</p>
+            <p className="text-sm font-medium">
+              Where will work be done on this project?
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Add local folder and/or GitHub repo workspace hints.
+            </p>
           </div>
+          <InlineHelp
+            title={t("inlineHelp.workspace.title")}
+            summary={t("inlineHelp.workspace.summary")}
+          >
+            <ul className="space-y-1.5">
+              <li>{t("projectHelp.workspaceModes.local.value")}</li>
+              <li>{t("projectHelp.workspaceModes.repo.value")}</li>
+              <li>{t("projectHelp.workspaceModes.both.value")}</li>
+              <li>{t("inlineHelp.workspace.recommendation")}</li>
+            </ul>
+          </InlineHelp>
           <div className="grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               className={cn(
                 "rounded-lg border px-3 py-3 text-left transition-colors",
-                workspaceSetup === "local" ? "border-foreground bg-accent/40" : "border-border hover:bg-accent/30",
+                workspaceSetup === "local"
+                  ? "border-foreground bg-accent/40"
+                  : "border-border hover:bg-accent/30"
               )}
               onClick={() => toggleWorkspaceSetup("local")}
             >
               <div className="flex items-center gap-2 text-sm font-medium">
-                <FolderOpen className="h-4 w-4" />
-                A local folder
+                <FolderOpen className="h-4 w-4" />A local folder
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Use a full path on this machine.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use a full path on this machine.
+              </p>
             </button>
             <button
               type="button"
               className={cn(
                 "rounded-lg border px-3 py-3 text-left transition-colors",
-                workspaceSetup === "repo" ? "border-foreground bg-accent/40" : "border-border hover:bg-accent/30",
+                workspaceSetup === "repo"
+                  ? "border-foreground bg-accent/40"
+                  : "border-border hover:bg-accent/30"
               )}
               onClick={() => toggleWorkspaceSetup("repo")}
             >
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Github className="h-4 w-4" />
-                A github repo
+                <Github className="h-4 w-4" />A github repo
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Paste a GitHub URL.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Paste a GitHub URL.
+              </p>
             </button>
             <button
               type="button"
               className={cn(
                 "rounded-lg border px-3 py-3 text-left transition-colors",
-                workspaceSetup === "both" ? "border-foreground bg-accent/40" : "border-border hover:bg-accent/30",
+                workspaceSetup === "both"
+                  ? "border-foreground bg-accent/40"
+                  : "border-border hover:bg-accent/30"
               )}
               onClick={() => toggleWorkspaceSetup("both")}
             >
@@ -327,13 +369,17 @@ export function NewProjectDialog() {
                 <GitBranch className="h-4 w-4" />
                 Both
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Configure local + repo hints.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Configure local + repo hints.
+              </p>
             </button>
           </div>
 
           {(workspaceSetup === "local" || workspaceSetup === "both") && (
             <div className="rounded-md border border-border p-2">
-              <label className="mb-1 block text-xs text-muted-foreground">Local folder (full path)</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                Local folder (full path)
+              </label>
               <div className="flex items-center gap-2">
                 <input
                   className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs font-mono outline-none"
@@ -347,7 +393,9 @@ export function NewProjectDialog() {
           )}
           {(workspaceSetup === "repo" || workspaceSetup === "both") && (
             <div className="rounded-md border border-border p-2">
-              <label className="mb-1 block text-xs text-muted-foreground">GitHub repo URL</label>
+              <label className="mb-1 block text-xs text-muted-foreground">
+                GitHub repo URL
+              </label>
               <input
                 className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none"
                 value={workspaceRepoUrl}
@@ -364,27 +412,33 @@ export function NewProjectDialog() {
         {/* Property chips */}
         <div className="flex items-center gap-1.5 px-4 py-2 border-t border-border flex-wrap">
           {/* Status */}
-          <Popover open={statusOpen} onOpenChange={setStatusOpen}>
-            <PopoverTrigger asChild>
-              <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors">
-                <StatusBadge status={status} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-40 p-1" align="start">
-              {projectStatuses.map((s) => (
-                <button
-                  key={s.value}
-                  className={cn(
-                    "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50",
-                    s.value === status && "bg-accent"
-                  )}
-                  onClick={() => { setStatus(s.value); setStatusOpen(false); }}
-                >
-                  {s.label}
+          <div className="inline-flex items-center gap-1.5">
+            <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+              <PopoverTrigger asChild>
+                <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors">
+                  <StatusBadge status={status} />
                 </button>
-              ))}
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-1" align="start">
+                {projectStatuses.map((s) => (
+                  <button
+                    key={s.value}
+                    className={cn(
+                      "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50",
+                      s.value === status && "bg-accent"
+                    )}
+                    onClick={() => {
+                      setStatus(s.value);
+                      setStatusOpen(false);
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+            <HintIcon hint={help.projectStatus} />
+          </div>
 
           {selectedGoals.map((goal) => (
             <span
@@ -395,7 +449,9 @@ export function NewProjectDialog() {
               <span className="max-w-[160px] truncate">{goal.title}</span>
               <button
                 className="text-muted-foreground hover:text-foreground"
-                onClick={() => setGoalIds((prev) => prev.filter((id) => id !== goal.id))}
+                onClick={() =>
+                  setGoalIds((prev) => prev.filter((id) => id !== goal.id))
+                }
                 aria-label={`Remove goal ${goal.title}`}
                 type="button"
               >
@@ -408,9 +464,15 @@ export function NewProjectDialog() {
             <PopoverTrigger asChild>
               <button
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors disabled:opacity-60"
-                disabled={selectedGoals.length > 0 && availableGoals.length === 0}
+                disabled={
+                  selectedGoals.length > 0 && availableGoals.length === 0
+                }
               >
-                {selectedGoals.length > 0 ? <Plus className="h-3 w-3 text-muted-foreground" /> : <Target className="h-3 w-3 text-muted-foreground" />}
+                {selectedGoals.length > 0 ? (
+                  <Plus className="h-3 w-3 text-muted-foreground" />
+                ) : (
+                  <Target className="h-3 w-3 text-muted-foreground" />
+                )}
                 {selectedGoals.length > 0 ? "+ Goal" : "Goal"}
               </button>
             </PopoverTrigger>
@@ -453,13 +515,16 @@ export function NewProjectDialog() {
               onChange={(e) => setTargetDate(e.target.value)}
               placeholder="Target date"
             />
+            <HintIcon hint={help.targetDate} />
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
           {createProject.isError ? (
-            <p className="text-xs text-destructive">Failed to create project.</p>
+            <p className="text-xs text-destructive">
+              Failed to create project.
+            </p>
           ) : (
             <span />
           )}

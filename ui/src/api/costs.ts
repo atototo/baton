@@ -19,9 +19,19 @@ function dateParams(from?: string, to?: string): string {
 
 export const costsApi = {
   summary: (companyId: string, from?: string, to?: string) =>
-    api.get<CostSummary>(`/companies/${companyId}/costs/summary${dateParams(from, to)}`),
+    api.get<CostSummary>(
+      `/companies/${companyId}/costs/summary${dateParams(from, to)}`
+    ),
   byAgent: (companyId: string, from?: string, to?: string) =>
-    api.get<CostByAgent[]>(`/companies/${companyId}/costs/by-agent${dateParams(from, to)}`),
+    api.get<CostByAgent[]>(
+      `/companies/${companyId}/costs/by-agent${dateParams(from, to)}`
+    ),
   byProject: (companyId: string, from?: string, to?: string) =>
-    api.get<CostByProject[]>(`/companies/${companyId}/costs/by-project${dateParams(from, to)}`),
+    api.get<CostByProject[]>(
+      `/companies/${companyId}/costs/by-project${dateParams(from, to)}`
+    ),
+  updateCompanyBudget: (companyId: string, budgetMonthlyCents: number) =>
+    api.patch<CostSummary>(`/companies/${companyId}/budgets`, {
+      budgetMonthlyCents,
+    }),
 };
