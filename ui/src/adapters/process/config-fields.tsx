@@ -2,7 +2,7 @@ import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
   DraftInput,
-  help,
+  useHelpText,
 } from "../../components/agent-config-primitives";
 
 const inputClass =
@@ -32,6 +32,8 @@ export function ProcessConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const help = useHelpText();
+
   return (
     <>
       <Field label="Command" hint={help.command}>
@@ -61,11 +63,7 @@ export function ProcessConfigFields({
           onCommit={(v) =>
             isCreate
               ? set!({ args: v })
-              : mark(
-                  "adapterConfig",
-                  "args",
-                  v ? parseCommaArgs(v) : undefined,
-                )
+              : mark("adapterConfig", "args", v ? parseCommaArgs(v) : undefined)
           }
           immediate
           className={inputClass}

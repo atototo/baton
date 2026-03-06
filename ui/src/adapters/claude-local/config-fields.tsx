@@ -4,15 +4,12 @@ import {
   ToggleField,
   DraftInput,
   DraftNumberInput,
-  help,
+  useHelpText,
 } from "../../components/agent-config-primitives";
 import { ChoosePathButton } from "../../components/PathInstructionsModal";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
-
-const instructionsFileHint =
-  "Absolute path to a markdown file (e.g. AGENTS.md) that defines this agent's behavior. Injected into the system prompt at runtime.";
 
 export function ClaudeLocalConfigFields({
   isCreate,
@@ -22,8 +19,10 @@ export function ClaudeLocalConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const help = useHelpText();
+
   return (
-    <Field label="Agent instructions file" hint={instructionsFileHint}>
+    <Field label="Agent instructions file" hint={help.instructionsFilePath}>
       <div className="flex items-center gap-2">
         <DraftInput
           value={
@@ -32,7 +31,7 @@ export function ClaudeLocalConfigFields({
               : eff(
                   "adapterConfig",
                   "instructionsFilePath",
-                  String(config.instructionsFilePath ?? ""),
+                  String(config.instructionsFilePath ?? "")
                 )
           }
           onCommit={(v) =>
@@ -58,6 +57,8 @@ export function ClaudeLocalAdvancedFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const help = useHelpText();
+
   return (
     <>
       <ToggleField
@@ -69,9 +70,7 @@ export function ClaudeLocalAdvancedFields({
             : eff("adapterConfig", "chrome", config.chrome === true)
         }
         onChange={(v) =>
-          isCreate
-            ? set!({ chrome: v })
-            : mark("adapterConfig", "chrome", v)
+          isCreate ? set!({ chrome: v }) : mark("adapterConfig", "chrome", v)
         }
       />
       <ToggleField
@@ -83,7 +82,7 @@ export function ClaudeLocalAdvancedFields({
             : eff(
                 "adapterConfig",
                 "dangerouslySkipPermissions",
-                config.dangerouslySkipPermissions !== false,
+                config.dangerouslySkipPermissions !== false
               )
         }
         onChange={(v) =>
@@ -105,7 +104,7 @@ export function ClaudeLocalAdvancedFields({
             value={eff(
               "adapterConfig",
               "maxTurnsPerRun",
-              Number(config.maxTurnsPerRun ?? 80),
+              Number(config.maxTurnsPerRun ?? 80)
             )}
             onCommit={(v) => mark("adapterConfig", "maxTurnsPerRun", v || 80)}
             immediate

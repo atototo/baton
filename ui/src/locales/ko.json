@@ -308,7 +308,9 @@
   "settings": {
     "companySettings": "회사 설정",
     "general": "일반",
+    "budget": "예산",
     "companyName": "회사명",
+    "issuePrefix": "이슈 접두사",
     "companyNameHint": "회사의 표시 이름입니다.",
     "description": "설명",
     "descriptionHint": "회사 프로필에 표시될 설명입니다 (선택사항).",
@@ -340,7 +342,114 @@
     "failedToArchive": "회사 보관 실패",
     "noCompanySelected": "회사가 선택되지 않았습니다. 위의 스위처에서 회사를 선택하세요.",
     "language": "언어",
-    "languageHint": "UI 표시 언어와 에이전트가 텍스트를 생성할 때 사용하는 언어를 설정합니다."
+    "languageHint": "UI 표시 언어와 에이전트가 텍스트를 생성할 때 사용하는 언어를 설정합니다.",
+    "monthlyBudgetCents": "월간 예산 (센트)"
+  },
+  "help": {
+    "name": "이 에이전트의 표시 이름입니다.",
+    "title": "조직도와 상세 화면에 표시되는 직함입니다.",
+    "role": "조직 내 역할입니다. 위치와 기대 역할을 구분하는 데 사용됩니다.",
+    "reportsTo": "이 에이전트가 보고하는 상위 에이전트입니다.",
+    "capabilities": "에이전트가 할 수 있는 일을 설명합니다. 조직도와 작업 라우팅에 활용됩니다.",
+    "adapterType": "이 에이전트를 실행하는 어댑터 종류입니다. 로컬 CLI, 일반 프로세스, HTTP 웹훅 등을 선택할 수 있습니다.",
+    "cwd": "로컬 어댑터가 기본으로 사용할 작업 디렉터리입니다. Baton이 실행되는 머신의 절대 경로를 사용하세요.",
+    "promptTemplate": "각 하트비트마다 전달되는 프롬프트입니다. {{ agent.id }}, {{ agent.name }}, {{ agent.role }} 같은 변수를 사용할 수 있습니다.",
+    "model": "지원되는 경우 이 어댑터의 기본 모델을 덮어씁니다.",
+    "thinkingEffort": "모델 추론 깊이를 조절합니다. 사용 가능한 값은 어댑터와 모델에 따라 다릅니다.",
+    "chrome": "Claude Code 실행 시 --chrome 옵션을 전달해 Chrome 연동을 켭니다.",
+    "dangerouslySkipPermissions": "Claude Code를 권한 확인 없이 실행합니다. 무인 에이전트 운영에 유용합니다.",
+    "dangerouslyBypassSandbox": "Codex를 샌드박스 제한 없이 실행해 전체 파일시스템과 네트워크에 접근할 수 있게 합니다.",
+    "search": "지원되는 경우 Codex 실행 중 웹 검색을 허용합니다.",
+    "maxTurnsPerRun": "한 번의 실행이 사용할 수 있는 에이전트 턴 또는 도구 호출의 최대 횟수입니다.",
+    "command": "실행할 명령어입니다. 예: node, python.",
+    "localCommand": "Baton이 호출할 로컬 CLI 경로를 직접 지정합니다. 예: /usr/local/bin/claude, codex.",
+    "args": "명령줄 인자를 쉼표로 구분해 입력합니다.",
+    "extraArgs": "로컬 어댑터에 추가로 전달할 CLI 인자입니다. 쉼표로 구분해 입력합니다.",
+    "envVars": "어댑터 프로세스에 주입할 환경 변수입니다. 일반 값이나 시크릿 참조를 사용할 수 있습니다.",
+    "webhookUrl": "Baton이 이 에이전트를 깨울 때 POST 요청을 보내는 엔드포인트입니다.",
+    "heartbeatInterval": "수동 실행이나 작업 배정 없이도 타이머 기준으로 자동 실행되도록 합니다.",
+    "intervalSec": "자동 하트비트 실행 사이의 초 단위 간격입니다.",
+    "timeoutSec": "한 실행이 지속될 수 있는 최대 시간(초)입니다. 0이면 제한이 없습니다.",
+    "graceSec": "중단 신호를 보낸 뒤 강제 종료하기까지 기다리는 시간(초)입니다.",
+    "wakeOnDemand": "작업 배정, UI 액션, API 호출, 자동화가 즉시 이 에이전트를 깨울 수 있게 합니다.",
+    "cooldownSec": "같은 에이전트의 다음 실행을 시작하기 전에 Baton이 최소로 기다리는 시간(초)입니다.",
+    "maxConcurrentRuns": "이 에이전트에 대해 동시에 실행될 수 있는 런의 최대 개수입니다.",
+    "budgetMonthlyCents": "월간 지출 한도를 센트 단위로 설정합니다. 0이면 무제한입니다.",
+    "bootstrapPrompt": "첫 실행 전에 한 번만 보내는 초기 설정 프롬프트입니다.",
+    "instructionsFilePath": "AGENTS.md 같은 마크다운 지침 파일의 절대 경로입니다. Baton이 런타임 프롬프트에 주입합니다.",
+    "issuePrefix": "Baton이 NMD-42 같은 이슈 식별자를 만들 때 사용하는 접두사입니다.",
+    "locale": "이 회사의 보드 UI와 에이전트 생성 텍스트에 기본으로 사용할 언어입니다.",
+    "requireBoardApprovalForNewAgents": "새 채용을 보드 승인 전까지 보류 상태로 유지합니다.",
+    "leadAgentId": "프로젝트의 대표 리드입니다. 실제 이슈 담당자보다는 조율 책임자를 나타낼 때 사용합니다.",
+    "projectStatus": "프로젝트의 현재 진행 상태입니다. backlog, planned, in progress, completed, cancelled 등을 나타냅니다.",
+    "targetDate": "팀이 목표로 삼는 선택적 일정입니다. 마감 기대치를 전달하는 데 사용합니다.",
+    "workspaceLabel": "워크스페이스 도움말",
+    "workspaceTooltip": "워크스페이스는 이 프로젝트의 코드와 저장소가 어디에 있는지 에이전트에게 알려줍니다."
+  },
+  "projectHelp": {
+    "workspaceTitle": "워크스페이스 모드",
+    "workspaceDescription": "프로젝트가 저장된 방식을 맞게 선택하면 에이전트가 로컬 폴더, GitHub 저장소, 혹은 둘 다를 기준으로 작업할 수 있습니다.",
+    "columns": {
+      "mode": "모드",
+      "meaning": "의미",
+      "example": "예시"
+    },
+    "workspaceModes": {
+      "local": {
+        "name": "local",
+        "value": "로컬 폴더 경로만 추적합니다. 이미 이 머신에 작업 폴더가 있을 때 적합합니다.",
+        "example": "/Users/you/dev/baton-dev"
+      },
+      "repo": {
+        "name": "repo",
+        "value": "GitHub 저장소 URL만 추적합니다. 원격 저장소는 있지만 특정 로컬 체크아웃을 아직 고정하지 않았을 때 적합합니다.",
+        "example": "https://github.com/atototo/baton"
+      },
+      "both": {
+        "name": "both",
+        "value": "로컬 경로와 저장소 URL을 함께 저장합니다. 체크아웃된 폴더를 쓰면서 원격 원본도 함께 알릴 수 있습니다.",
+        "example": "/Users/you/dev/baton-dev + github.com/atototo/baton"
+      }
+    }
+  },
+  "inlineHelp": {
+    "adapter": {
+      "title": "어댑터 설정 안내: {{adapter}}",
+      "summary": "Baton이 이 에이전트를 어떻게 깨울지 고른 뒤, 해당 어댑터에 필요한 필드만 입력하세요.",
+      "localNote": "로컬 어댑터는 작업 디렉터리를 저장소 루트로 맞추고, Baton이 CLI를 못 찾을 때만 command를 직접 덮어쓰는 편이 좋습니다.",
+      "remoteNote": "원격 어댑터는 런타임이 이미 Baton 밖에 있고, Baton은 깨우는 역할만 하면 될 때 적합합니다.",
+      "types": {
+        "claude_local": {
+          "description": "Claude local은 이 머신에서 Claude Code를 직접 실행하며, 직접 코딩하는 엔지니어 에이전트에 잘 맞습니다.",
+          "recommendation": "실제 로컬 체크아웃을 붙인 Baton 관리형 코딩 세션이 필요할 때 권장됩니다."
+        },
+        "codex_local": {
+          "description": "Codex local은 이 머신에서 Codex CLI를 실행하며, 자율 코딩 루프의 기본값으로 쓰기 좋습니다.",
+          "recommendation": "신뢰된 로컬 환경에서 저장소 전체 접근과 빠른 반복이 필요한 경우 권장됩니다."
+        },
+        "opencode_local": {
+          "description": "OpenCode local은 OpenCode CLI를 사용해 로컬에서 실행하면서 프롬프트와 하트비트는 Baton이 관리합니다.",
+          "recommendation": "팀이 이미 OpenCode 모델이나 워크플로를 표준으로 쓰고 있을 때 권장됩니다."
+        },
+        "cursor": {
+          "description": "Cursor local은 Baton이 로컬 Cursor 에이전트 세션을 깨우고, 작업 흐름은 컨트롤 플레인에 유지합니다.",
+          "recommendation": "운영자가 주로 Cursor를 쓰고 있고, 그 위에 Baton 오케스트레이션을 얹고 싶을 때 권장됩니다."
+        },
+        "process": {
+          "description": "Process 어댑터는 임의의 명령과 인자를 실행하므로, 커스텀 스크립트나 래퍼를 붙일 때 유용합니다.",
+          "recommendation": "이미 유지 중인 스크립트, 바이너리, 셸 엔트리포인트를 그대로 실행 진입점으로 쓰고 싶을 때 권장됩니다."
+        },
+        "http": {
+          "description": "HTTP 어댑터는 로컬 프로세스를 띄우는 대신 웹훅을 호출합니다.",
+          "recommendation": "에이전트가 외부에 호스팅되어 있고 Baton은 깨우기 신호만 보내면 될 때 권장됩니다."
+        }
+      }
+    },
+    "workspace": {
+      "title": "워크스페이스 설정 가이드",
+      "summary": "워크스페이스는 코드가 어디 있는지 에이전트에게 알려줍니다. 실제 소스 기준을 잃지 않는 최소 조합으로 설정하세요.",
+      "recommendation": "이미 체크아웃된 로컬 폴더가 있고 연결된 원격 저장소도 함께 알려주고 싶다면 로컬 경로와 repo URL을 둘 다 넣는 편이 가장 안전합니다."
+    }
   },
   "onboarding": {
     "close": "닫기",
@@ -348,6 +457,8 @@
     "stepOf": "{{total}}단계 중 {{step}}단계",
     "nameCompany": "회사 이름 짓기",
     "nameCompanyDesc": "에이전트가 소속될 조직입니다.",
+    "learnBaton": "먼저 바톤 이해하기",
+    "learnBatonDesc": "회사와 첫 에이전트를 만들기 전에 핵심 엔티티가 어떻게 연결되는지 먼저 확인하세요.",
     "companyName": "회사명",
     "companyNamePlaceholder": "예: 우리회사",
     "missionGoal": "미션 / 목표 (선택사항)",
@@ -393,6 +504,48 @@
     "descriptionPlaceholder": "에이전트가 해야 할 일을 자세히 설명하세요...",
     "readyToLaunch": "실행 준비 완료",
     "readyToLaunchDesc": "모든 설정이 완료되었습니다. 배정된 작업이 에이전트를 깨웠으니 바로 이슈를 확인하세요.",
+    "statusFlowTitle": "이슈 상태 흐름",
+    "statusFlowSummary": "기본 흐름은 backlog -> todo -> in_progress -> done 입니다. 외부 요인으로 멈췄을 때는 blocked를 사용하세요.",
+    "batonMap": {
+      "company": {
+        "title": "Company",
+        "description": "최상위 컨테이너입니다. 예산, 언어, 에이전트, 프로젝트, 이슈가 모두 회사 아래에 속합니다."
+      },
+      "project": {
+        "title": "Project",
+        "description": "이슈를 묶고 에이전트가 어느 워크스페이스나 저장소를 봐야 하는지 알려주는 작업 단위입니다."
+      },
+      "agent": {
+        "title": "Agent",
+        "description": "역할, 보고 체계, 어댑터 설정, 하트비트 정책을 가진 AI 팀원입니다."
+      },
+      "issue": {
+        "title": "Issue",
+        "description": "에이전트가 체크아웃해서 실행하고, 댓글로 보고하며, 상태를 이동시키는 실제 작업 단위입니다."
+      }
+    },
+    "statusFlow": {
+      "backlog": {
+        "label": "Backlog",
+        "description": "중요하지만 아직 바로 시작할 준비가 되지 않은 작업에 사용합니다."
+      },
+      "todo": {
+        "label": "Todo",
+        "description": "담당 에이전트가 바로 집어 작업을 시작할 수 있는 상태입니다."
+      },
+      "inProgress": {
+        "label": "In Progress",
+        "description": "이슈가 체크아웃되었고 한 명의 에이전트가 실제로 작업 중인 상태입니다."
+      },
+      "done": {
+        "label": "Done",
+        "description": "요청된 작업이 끝났고 결과가 댓글로 보고된 상태입니다."
+      },
+      "blocked": {
+        "label": "Blocked",
+        "description": "다른 사람의 응답, 추가 맥락, 외부 의존성 때문에 진행이 멈췄을 때 사용합니다."
+      }
+    },
     "company": "회사",
     "task": "작업",
     "back": "뒤로",
@@ -448,6 +601,7 @@
     "postComment": "댓글 게시"
   },
   "common": {
-    "auto": "자동"
+    "auto": "자동",
+    "none": "없음"
   }
 }

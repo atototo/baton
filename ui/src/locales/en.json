@@ -308,7 +308,9 @@
   "settings": {
     "companySettings": "Company Settings",
     "general": "General",
+    "budget": "Budget",
     "companyName": "Company name",
+    "issuePrefix": "Issue prefix",
     "companyNameHint": "The display name for your company.",
     "description": "Description",
     "descriptionHint": "Optional description shown in the company profile.",
@@ -340,7 +342,114 @@
     "failedToArchive": "Failed to archive company",
     "noCompanySelected": "No company selected. Select a company from the switcher above.",
     "language": "Language",
-    "languageHint": "Sets the display language for the UI and the language agents use when generating text."
+    "languageHint": "Sets the display language for the UI and the language agents use when generating text.",
+    "monthlyBudgetCents": "Monthly budget (cents)"
+  },
+  "help": {
+    "name": "Display name for this agent.",
+    "title": "Job title shown in the org chart.",
+    "role": "Organizational role. Determines position and capabilities.",
+    "reportsTo": "The agent this one reports to in the org hierarchy.",
+    "capabilities": "Describes what this agent can do. Shown in the org chart and used for task routing.",
+    "adapterType": "Which adapter runs this agent, such as a local CLI, generic process, or HTTP webhook.",
+    "cwd": "Default working directory for local adapters. Use an absolute path on the machine running Baton.",
+    "promptTemplate": "Prompt sent on each heartbeat. Supports variables like {{ agent.id }}, {{ agent.name }}, and {{ agent.role }}.",
+    "model": "Override the default model for this adapter when supported.",
+    "thinkingEffort": "Controls model reasoning depth. Available values depend on adapter and model.",
+    "chrome": "Passes --chrome so Claude Code can use its Chrome integration.",
+    "dangerouslySkipPermissions": "Runs Claude Code without permission prompts. Useful for unattended agents.",
+    "dangerouslyBypassSandbox": "Runs Codex without sandbox restrictions so it can access the full filesystem and network.",
+    "search": "Lets Codex use web search during runs when the adapter supports it.",
+    "maxTurnsPerRun": "Maximum number of agentic turns or tool calls a single run can make.",
+    "command": "Executable to run, such as node or python.",
+    "localCommand": "Override the exact local CLI path Baton should invoke, such as /usr/local/bin/claude or codex.",
+    "args": "Command-line arguments, entered as a comma-separated list.",
+    "extraArgs": "Additional CLI arguments for local adapters, entered as a comma-separated list.",
+    "envVars": "Environment variables injected into the adapter process. Use plain values or secret references.",
+    "webhookUrl": "Endpoint that receives POST requests when Baton wakes this agent.",
+    "heartbeatInterval": "Runs this agent automatically on a timer instead of only when manually triggered or assigned work.",
+    "intervalSec": "Seconds between automatic heartbeat runs.",
+    "timeoutSec": "Maximum run duration in seconds. Use 0 for no timeout.",
+    "graceSec": "Seconds to wait after interrupting before force-killing the process.",
+    "wakeOnDemand": "Allows assignments, UI actions, API calls, and automations to wake this agent immediately.",
+    "cooldownSec": "Minimum seconds Baton waits before starting another run for this agent.",
+    "maxConcurrentRuns": "Maximum number of runs that may execute at the same time for this agent.",
+    "budgetMonthlyCents": "Monthly spending limit in cents. Use 0 for an unlimited budget.",
+    "bootstrapPrompt": "Optional first-run setup prompt sent before the agent starts its normal task flow.",
+    "instructionsFilePath": "Absolute path to a markdown instructions file such as AGENTS.md. Baton injects it into the runtime prompt.",
+    "issuePrefix": "Prefix Baton uses when generating issue identifiers such as NMD-42.",
+    "locale": "Default language for the board UI and the text Baton agents generate for this company.",
+    "requireBoardApprovalForNewAgents": "Keeps new hires pending until the board reviews and approves them.",
+    "leadAgentId": "Primary lead for the project. Use this to signal who owns coordination, not issue assignment.",
+    "projectStatus": "Current project lifecycle state such as backlog, planned, in progress, completed, or cancelled.",
+    "targetDate": "Optional target date the team is aiming for. It helps communicate schedule expectations.",
+    "workspaceLabel": "Workspace help",
+    "workspaceTooltip": "Workspaces tell agents where code or repos for this project live."
+  },
+  "projectHelp": {
+    "workspaceTitle": "Workspace modes",
+    "workspaceDescription": "Choose the mode that matches how this project is stored so agents know whether to work from a local folder, a GitHub repo, or both.",
+    "columns": {
+      "mode": "Mode",
+      "meaning": "Meaning",
+      "example": "Example"
+    },
+    "workspaceModes": {
+      "local": {
+        "name": "local",
+        "value": "Only a local folder path is tracked. Best when the work already exists on this machine.",
+        "example": "/Users/you/dev/baton-dev"
+      },
+      "repo": {
+        "name": "repo",
+        "value": "Only a GitHub repository URL is tracked. Best when the repo exists remotely but no local checkout is pinned yet.",
+        "example": "https://github.com/atototo/baton"
+      },
+      "both": {
+        "name": "both",
+        "value": "Store both the local path and the repo URL so agents can use the checked-out folder and still know the remote source.",
+        "example": "/Users/you/dev/baton-dev + github.com/atototo/baton"
+      }
+    }
+  },
+  "inlineHelp": {
+    "adapter": {
+      "title": "Adapter setup: {{adapter}}",
+      "summary": "Choose how Baton wakes this agent, then fill in only the fields that matter for that adapter.",
+      "localNote": "For local adapters, set the working directory to the repo root and only override the command when Baton cannot find the CLI on its own.",
+      "remoteNote": "Remote adapters are best when the runtime already exists outside Baton and you only need Baton to trigger it.",
+      "types": {
+        "claude_local": {
+          "description": "Claude local runs Claude Code directly on this machine and works well for hands-on engineering agents.",
+          "recommendation": "Recommended when you want a Baton-managed coding session with a real local checkout."
+        },
+        "codex_local": {
+          "description": "Codex local runs the Codex CLI on this machine and is a strong default for autonomous coding loops.",
+          "recommendation": "Recommended for trusted local environments where the agent needs full repo access and fast iteration."
+        },
+        "opencode_local": {
+          "description": "OpenCode local uses the OpenCode CLI for local execution with Baton-managed prompts and heartbeats.",
+          "recommendation": "Recommended when your team already standardizes on OpenCode models or workflows."
+        },
+        "cursor": {
+          "description": "Cursor local wakes a local Cursor agent session from Baton while keeping the task flow in the control plane.",
+          "recommendation": "Recommended when the operator already works primarily in Cursor and wants Baton orchestration on top."
+        },
+        "process": {
+          "description": "Process adapters run an arbitrary command plus args, which is useful for custom scripts or wrappers.",
+          "recommendation": "Recommended when you already have a script, binary, or shim that should stay as the execution entrypoint."
+        },
+        "http": {
+          "description": "HTTP adapters call a webhook instead of starting a local process.",
+          "recommendation": "Recommended when the agent is hosted elsewhere and Baton only needs to signal it to wake up."
+        }
+      }
+    },
+    "workspace": {
+      "title": "Workspace setup guide",
+      "summary": "Workspaces tell agents where code lives. Pick the smallest combination that still points the agent at the right source of truth.",
+      "recommendation": "Use both local path and repo URL when you have a checked-out folder and want agents to understand the linked remote repository too."
+    }
   },
   "onboarding": {
     "close": "Close",
@@ -348,6 +457,8 @@
     "stepOf": "Step {{step}} of {{total}}",
     "nameCompany": "Name your company",
     "nameCompanyDesc": "This is the organization your agents will work for.",
+    "learnBaton": "Understand Baton first",
+    "learnBatonDesc": "See how the core entities connect before you create your company and first agent.",
     "companyName": "Company name",
     "companyNamePlaceholder": "Acme Corp",
     "missionGoal": "Mission / goal (optional)",
@@ -393,6 +504,48 @@
     "descriptionPlaceholder": "Add more detail about what the agent should do...",
     "readyToLaunch": "Ready to launch",
     "readyToLaunchDesc": "Everything is set up. Your assigned task already woke the agent, so you can jump straight to the issue.",
+    "statusFlowTitle": "Issue status flow",
+    "statusFlowSummary": "The normal path is backlog -> todo -> in_progress -> done. Use blocked when something external stops progress.",
+    "batonMap": {
+      "company": {
+        "title": "Company",
+        "description": "The top-level container. Budgets, language, agents, projects, and issues all live under the company."
+      },
+      "project": {
+        "title": "Project",
+        "description": "A focused work area that groups issues and points agents at the right workspace or repository."
+      },
+      "agent": {
+        "title": "Agent",
+        "description": "An AI teammate with a role, reporting line, adapter configuration, and heartbeat schedule."
+      },
+      "issue": {
+        "title": "Issue",
+        "description": "The concrete unit of work an agent checks out, executes, comments on, and moves through statuses."
+      }
+    },
+    "statusFlow": {
+      "backlog": {
+        "label": "Backlog",
+        "description": "Use this for work that matters but is not ready to start yet."
+      },
+      "todo": {
+        "label": "Todo",
+        "description": "The task is ready and can be picked up by the assigned agent."
+      },
+      "inProgress": {
+        "label": "In Progress",
+        "description": "The issue has been checked out and one agent is actively working on it."
+      },
+      "done": {
+        "label": "Done",
+        "description": "The requested work is complete and the outcome has been reported back in comments."
+      },
+      "blocked": {
+        "label": "Blocked",
+        "description": "Use this when progress stopped because someone else, missing context, or an external dependency must unblock it."
+      }
+    },
     "company": "Company",
     "task": "Task",
     "back": "Back",
@@ -448,6 +601,7 @@
     "postComment": "Post comment"
   },
   "common": {
-    "auto": "Auto"
+    "auto": "Auto",
+    "none": "None"
   }
 }

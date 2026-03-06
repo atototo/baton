@@ -1,9 +1,21 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { useTranslation } from "react-i18next";
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -16,38 +28,80 @@ import { Button } from "@/components/ui/button";
 import { HelpCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 
+export type HintSpec =
+  | string
+  | {
+      text: ReactNode;
+      popoverContent?: ReactNode;
+      ariaLabel?: string;
+      popoverClassName?: string;
+    };
+
 /* ---- Help text for (?) tooltips ---- */
-export const help: Record<string, string> = {
-  name: "Display name for this agent.",
-  title: "Job title shown in the org chart.",
-  role: "Organizational role. Determines position and capabilities.",
-  reportsTo: "The agent this one reports to in the org hierarchy.",
-  capabilities: "Describes what this agent can do. Shown in the org chart and used for task routing.",
-  adapterType: "How this agent runs: local CLI (Claude/Codex), spawned process, or generic HTTP webhook.",
-  cwd: "Default working directory fallback for local adapters. Use an absolute path on the machine running Baton.",
-  promptTemplate: "The prompt sent to the agent on each heartbeat. Supports {{ agent.id }}, {{ agent.name }}, {{ agent.role }} variables.",
-  model: "Override the default model used by the adapter.",
-  thinkingEffort: "Control model reasoning depth. Supported values vary by adapter/model.",
-  chrome: "Enable Claude's Chrome integration by passing --chrome.",
-  dangerouslySkipPermissions: "Run Claude without permission prompts. Required for unattended operation.",
-  dangerouslyBypassSandbox: "Run Codex without sandbox restrictions. Required for filesystem/network access.",
-  search: "Enable Codex web search capability during runs.",
-  maxTurnsPerRun: "Maximum number of agentic turns (tool calls) per heartbeat run.",
-  command: "The command to execute (e.g. node, python).",
-  localCommand: "Override the path to the CLI command you want the adapter to call (e.g. /usr/local/bin/claude, codex).",
-  args: "Command-line arguments, comma-separated.",
-  extraArgs: "Extra CLI arguments for local adapters, comma-separated.",
-  envVars: "Environment variables injected into the adapter process. Use plain values or secret references.",
-  webhookUrl: "The URL that receives POST requests when the agent is invoked.",
-  heartbeatInterval: "Run this agent automatically on a timer. Useful for periodic tasks like checking for new work.",
-  intervalSec: "Seconds between automatic heartbeat invocations.",
-  timeoutSec: "Maximum seconds a run can take before being terminated. 0 means no timeout.",
-  graceSec: "Seconds to wait after sending interrupt before force-killing the process.",
-  wakeOnDemand: "Allow this agent to be woken by assignments, API calls, UI actions, or automated systems.",
-  cooldownSec: "Minimum seconds between consecutive heartbeat runs.",
-  maxConcurrentRuns: "Maximum number of heartbeat runs that can execute simultaneously for this agent.",
-  budgetMonthlyCents: "Monthly spending limit in cents. 0 means no limit.",
-};
+export function useHelpText() {
+  const { t } = useTranslation();
+
+  return {
+    name: t("help.name"),
+    title: t("help.title"),
+    role: t("help.role"),
+    reportsTo: t("help.reportsTo"),
+    capabilities: t("help.capabilities"),
+    adapterType: t("help.adapterType"),
+    cwd: t("help.cwd"),
+    promptTemplate: t("help.promptTemplate"),
+    model: t("help.model"),
+    thinkingEffort: t("help.thinkingEffort"),
+    chrome: t("help.chrome"),
+    dangerouslySkipPermissions: t("help.dangerouslySkipPermissions"),
+    dangerouslyBypassSandbox: t("help.dangerouslyBypassSandbox"),
+    search: t("help.search"),
+    maxTurnsPerRun: t("help.maxTurnsPerRun"),
+    command: t("help.command"),
+    localCommand: t("help.localCommand"),
+    args: t("help.args"),
+    extraArgs: t("help.extraArgs"),
+    envVars: t("help.envVars"),
+    webhookUrl: t("help.webhookUrl"),
+    heartbeatInterval: t("help.heartbeatInterval"),
+    intervalSec: t("help.intervalSec"),
+    timeoutSec: t("help.timeoutSec"),
+    graceSec: t("help.graceSec"),
+    wakeOnDemand: t("help.wakeOnDemand"),
+    cooldownSec: t("help.cooldownSec"),
+    maxConcurrentRuns: t("help.maxConcurrentRuns"),
+    budgetMonthlyCents: t("help.budgetMonthlyCents"),
+    bootstrapPrompt: t("help.bootstrapPrompt"),
+    instructionsFilePath: t("help.instructionsFilePath"),
+    issuePrefix: t("help.issuePrefix"),
+    locale: t("help.locale"),
+    requireBoardApprovalForNewAgents: t(
+      "help.requireBoardApprovalForNewAgents"
+    ),
+    leadAgentId: t("help.leadAgentId"),
+    projectStatus: t("help.projectStatus"),
+    targetDate: t("help.targetDate"),
+    workspaceLabel: t("help.workspaceLabel"),
+    workspaceTooltip: t("help.workspaceTooltip"),
+  } as const;
+}
+
+function normalizeHint(hint: HintSpec) {
+  if (typeof hint === "string") {
+    return {
+      text: hint,
+      popoverContent: undefined,
+      ariaLabel: "Help",
+      popoverClassName: undefined,
+    };
+  }
+  return {
+    text: hint.text,
+    popoverContent: hint.popoverContent,
+    ariaLabel: hint.ariaLabel ?? "Help",
+    popoverClassName: hint.popoverClassName,
+  };
+}
 
 export const adapterLabels: Record<string, string> = {
   claude_local: "Claude (local)",
@@ -59,34 +113,87 @@ export const adapterLabels: Record<string, string> = {
 };
 
 export const roleLabels: Record<string, string> = {
-  ceo: "CEO", cto: "CTO", cmo: "CMO", cfo: "CFO",
-  engineer: "Engineer", designer: "Designer", pm: "PM",
-  qa: "QA", devops: "DevOps", researcher: "Researcher", general: "General",
+  ceo: "CEO",
+  cto: "CTO",
+  cmo: "CMO",
+  cfo: "CFO",
+  engineer: "Engineer",
+  designer: "Designer",
+  pm: "PM",
+  qa: "QA",
+  devops: "DevOps",
+  researcher: "Researcher",
+  general: "General",
 };
 
 /* ---- Primitive components ---- */
 
-export function HintIcon({ text }: { text: string }) {
+function HintButton({ ariaLabel }: { ariaLabel: string }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button" className="inline-flex text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-          <HelpCircle className="h-3 w-3" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        {text}
-      </TooltipContent>
-    </Tooltip>
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      className="inline-flex text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+    >
+      <HelpCircle className="h-3 w-3" />
+    </button>
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function HintIcon({ hint }: { hint: HintSpec }) {
+  const { text, popoverContent, ariaLabel, popoverClassName } =
+    normalizeHint(hint);
+
+  if (!popoverContent) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <HintButton ariaLabel={ariaLabel} />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <HintButton ariaLabel={ariaLabel} />
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent
+        side="top"
+        align="start"
+        className={cn("w-[min(32rem,calc(100vw-2rem))] p-3", popoverClassName)}
+      >
+        {popoverContent}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: HintSpec;
+  children: ReactNode;
+}) {
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1">
         <label className="text-xs text-muted-foreground">{label}</label>
-        {hint && <HintIcon text={hint} />}
+        {hint && <HintIcon hint={hint} />}
       </div>
       {children}
     </div>
@@ -100,7 +207,7 @@ export function ToggleField({
   onChange,
 }: {
   label: string;
-  hint?: string;
+  hint?: HintSpec;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -108,7 +215,7 @@ export function ToggleField({
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-muted-foreground">{label}</span>
-        {hint && <HintIcon text={hint} />}
+        {hint && <HintIcon hint={hint} />}
       </div>
       <button
         className={cn(
@@ -141,13 +248,13 @@ export function ToggleWithNumber({
   showNumber,
 }: {
   label: string;
-  hint?: string;
+  hint?: HintSpec;
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
   number: number;
   onNumberChange: (v: number) => void;
   numberLabel: string;
-  numberHint?: string;
+  numberHint?: HintSpec;
   numberPrefix?: string;
   showNumber: boolean;
 }) {
@@ -156,7 +263,7 @@ export function ToggleWithNumber({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">{label}</span>
-          {hint && <HintIcon text={hint} />}
+          {hint && <HintIcon hint={hint} />}
         </div>
         <button
           className={cn(
@@ -183,7 +290,7 @@ export function ToggleWithNumber({
             onChange={(e) => onNumberChange(Number(e.target.value))}
           />
           <span>{numberLabel}</span>
-          {numberHint && <HintIcon text={numberHint} />}
+          {numberHint && <HintIcon hint={numberHint} />}
         </div>
       )}
     </div>
@@ -199,11 +306,11 @@ export function CollapsibleSection({
   children,
 }: {
   title: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   open: boolean;
   onToggle: () => void;
   bordered?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className={cn(bordered && "border-t border-border")}>
@@ -211,7 +318,11 @@ export function CollapsibleSection({
         className="flex items-center gap-2 w-full px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent/30 transition-colors"
         onClick={onToggle}
       >
-        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {open ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronRight className="h-3 w-3" />
+        )}
         {icon}
         {title}
       </button>
@@ -245,7 +356,9 @@ export function AutoExpandTextarea({
     el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`;
   }, [minHeight]);
 
-  useEffect(() => { adjustHeight(); }, [value, adjustHeight]);
+  useEffect(() => {
+    adjustHeight();
+  }, [value, adjustHeight]);
 
   return (
     <textarea
@@ -275,7 +388,10 @@ export function DraftInput({
   onCommit: (v: string) => void;
   immediate?: boolean;
   className?: string;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "className">) {
+} & Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange" | "className"
+>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
 
@@ -326,7 +442,9 @@ export function DraftTextarea({
     el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`;
   }, [minHeight]);
 
-  useEffect(() => { adjustHeight(); }, [draft, adjustHeight]);
+  useEffect(() => {
+    adjustHeight();
+  }, [draft, adjustHeight]);
 
   return (
     <textarea
@@ -360,7 +478,10 @@ export function DraftNumberInput({
   onCommit: (v: number) => void;
   immediate?: boolean;
   className?: string;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "className" | "type">) {
+} & Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange" | "className" | "type"
+>) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
 
@@ -402,8 +523,8 @@ export function ChoosePathButton() {
           <DialogHeader>
             <DialogTitle>Specify path manually</DialogTitle>
             <DialogDescription>
-              Browser security blocks apps from reading full local paths via a file picker.
-              Copy the absolute path and paste it into the input.
+              Browser security blocks apps from reading full local paths via a
+              file picker. Copy the absolute path and paste it into the input.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-sm">
@@ -411,7 +532,9 @@ export function ChoosePathButton() {
               <p className="font-medium">macOS (Finder)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                 <li>Find the folder in Finder.</li>
-                <li>Hold <kbd>Option</kbd> and right-click the folder.</li>
+                <li>
+                  Hold <kbd>Option</kbd> and right-click the folder.
+                </li>
                 <li>Click "Copy &lt;folder name&gt; as Pathname".</li>
                 <li>Paste the result into the path input.</li>
               </ol>
@@ -423,7 +546,9 @@ export function ChoosePathButton() {
               <p className="font-medium">Windows (File Explorer)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                 <li>Find the folder in File Explorer.</li>
-                <li>Hold <kbd>Shift</kbd> and right-click the folder.</li>
+                <li>
+                  Hold <kbd>Shift</kbd> and right-click the folder.
+                </li>
                 <li>Click "Copy as path".</li>
                 <li>Paste the result into the path input.</li>
               </ol>
@@ -434,8 +559,12 @@ export function ChoosePathButton() {
             <section className="space-y-1.5">
               <p className="font-medium">Terminal fallback (macOS/Linux)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                <li>Run <code>cd /path/to/folder</code>.</li>
-                <li>Run <code>pwd</code>.</li>
+                <li>
+                  Run <code>cd /path/to/folder</code>.
+                </li>
+                <li>
+                  Run <code>pwd</code>.
+                </li>
                 <li>Copy the output and paste it into the path input.</li>
               </ol>
             </section>
@@ -454,12 +583,20 @@ export function ChoosePathButton() {
 /**
  * Label + input rendered on the same line (inline layout for compact fields).
  */
-export function InlineField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function InlineField({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: HintSpec;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-1.5 shrink-0">
         <label className="text-xs text-muted-foreground">{label}</label>
-        {hint && <HintIcon text={hint} />}
+        {hint && <HintIcon hint={hint} />}
       </div>
       <div className="w-24 ml-auto">{children}</div>
     </div>

@@ -2,7 +2,7 @@ import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
   DraftInput,
-  help,
+  useHelpText,
 } from "../../components/agent-config-primitives";
 
 const inputClass =
@@ -16,6 +16,8 @@ export function HttpConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const help = useHelpText();
+
   return (
     <Field label="Webhook URL" hint={help.webhookUrl}>
       <DraftInput

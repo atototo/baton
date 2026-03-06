@@ -3,15 +3,12 @@ import {
   Field,
   ToggleField,
   DraftInput,
-  help,
+  useHelpText,
 } from "../../components/agent-config-primitives";
 import { ChoosePathButton } from "../../components/PathInstructionsModal";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
-const instructionsFileHint =
-  "Absolute path to a markdown file (e.g. AGENTS.md) that defines this agent's behavior. Injected into the system prompt at runtime.";
-
 export function CodexLocalConfigFields({
   isCreate,
   values,
@@ -20,12 +17,14 @@ export function CodexLocalConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const help = useHelpText();
   const bypassEnabled =
-    config.dangerouslyBypassApprovalsAndSandbox === true || config.dangerouslyBypassSandbox === true;
+    config.dangerouslyBypassApprovalsAndSandbox === true ||
+    config.dangerouslyBypassSandbox === true;
 
   return (
     <>
-      <Field label="Agent instructions file" hint={instructionsFileHint}>
+      <Field label="Agent instructions file" hint={help.instructionsFilePath}>
         <div className="flex items-center gap-2">
           <DraftInput
             value={
@@ -34,7 +33,7 @@ export function CodexLocalConfigFields({
                 : eff(
                     "adapterConfig",
                     "instructionsFilePath",
-                    String(config.instructionsFilePath ?? ""),
+                    String(config.instructionsFilePath ?? "")
                   )
             }
             onCommit={(v) =>
@@ -58,7 +57,7 @@ export function CodexLocalConfigFields({
             : eff(
                 "adapterConfig",
                 "dangerouslyBypassApprovalsAndSandbox",
-                bypassEnabled,
+                bypassEnabled
               )
         }
         onChange={(v) =>
@@ -76,9 +75,7 @@ export function CodexLocalConfigFields({
             : eff("adapterConfig", "search", !!config.search)
         }
         onChange={(v) =>
-          isCreate
-            ? set!({ search: v })
-            : mark("adapterConfig", "search", v)
+          isCreate ? set!({ search: v }) : mark("adapterConfig", "search", v)
         }
       />
     </>
