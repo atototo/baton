@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { approvalsApi } from "../api/approvals";
@@ -128,6 +129,7 @@ function FailedRunCard({
   issueById: Map<string, Issue>;
   agentName: string | null;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const issueId = readIssueIdFromRun(run);
@@ -178,7 +180,7 @@ function FailedRunCard({
           </Link>
         ) : (
           <span className="block text-sm text-muted-foreground">
-            {run.errorCode ? `Error code: ${run.errorCode}` : "No linked issue"}
+            {run.errorCode ? `Error code: ${run.errorCode}` : t("agents.noLinkedIssue")}
           </span>
         )}
 
@@ -196,7 +198,7 @@ function FailedRunCard({
               <StatusBadge status={run.status} />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {sourceLabel} run failed {timeAgo(run.createdAt)}
+              {sourceLabel} {t("agents.runFailed")} {timeAgo(run.createdAt)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -209,7 +211,7 @@ function FailedRunCard({
               disabled={retryRun.isPending}
             >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              {retryRun.isPending ? "Retrying…" : "Retry"}
+              {retryRun.isPending ? t("agents.retrying") : t("agents.retry")}
             </Button>
             <Button
               type="button"
@@ -219,7 +221,7 @@ function FailedRunCard({
               asChild
             >
               <Link to={`/agents/${run.agentId}/runs/${run.id}`}>
-                Open run
+                {t("agents.openRun")}
                 <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -236,7 +238,7 @@ function FailedRunCard({
 
         {retryRun.isError && (
           <div className="text-xs text-destructive">
-            {retryRun.error instanceof Error ? retryRun.error.message : "Failed to retry run"}
+            {retryRun.error instanceof Error ? retryRun.error.message : t("agents.failedToRetry")}
           </div>
         )}
       </div>
@@ -245,6 +247,7 @@ function FailedRunCard({
 }
 
 export function Inbox() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
@@ -264,7 +267,7 @@ export function Inbox() {
   });
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Inbox" }]);
+    setBreadcrumbs([{ label: t("nav.inbox") }]);
   }, [setBreadcrumbs]);
 
   const {
@@ -431,7 +434,7 @@ export function Inbox() {
   });
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={InboxIcon} message="Select a company to view inbox." />;
+    return <EmptyState icon={InboxIcon} message={t("inbox.selectCompany")} />;
   }
 
   const hasRunFailures = failedRuns.length > 0;
@@ -506,7 +509,7 @@ export function Inbox() {
                 value: "new",
                 label: (
                   <>
-                    New
+                    {t("inbox.new")}
                     {newItemCount > 0 && (
                       <span className="ml-1.5 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
                         {newItemCount}
@@ -515,7 +518,7 @@ export function Inbox() {
                   </>
                 ),
               },
-              { value: "all", label: "All" },
+              { value: "all", label: t("inbox.all") },
             ]}
           />
         </Tabs>
@@ -530,13 +533,13 @@ export function Inbox() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="everything">All categories</SelectItem>
-                <SelectItem value="assigned_to_me">Assigned to me</SelectItem>
-                <SelectItem value="join_requests">Join requests</SelectItem>
-                <SelectItem value="approvals">Approvals</SelectItem>
-                <SelectItem value="failed_runs">Failed runs</SelectItem>
-                <SelectItem value="alerts">Alerts</SelectItem>
-                <SelectItem value="stale_work">Stale work</SelectItem>
+                <SelectItem value="everything">{t("inbox.allCategories")}</SelectItem>
+                <SelectItem value="assigned_to_me">{t("inbox.assignedToMe")}</SelectItem>
+                <SelectItem value="join_requests">{t("inbox.joinRequests")}</SelectItem>
+                <SelectItem value="approvals">{t("inbox.approvals")}</SelectItem>
+                <SelectItem value="failed_runs">{t("inbox.failedRuns")}</SelectItem>
+                <SelectItem value="alerts">{t("inbox.alerts")}</SelectItem>
+                <SelectItem value="stale_work">{t("inbox.staleWork")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -549,9 +552,9 @@ export function Inbox() {
                   <SelectValue placeholder="Approval status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All approval statuses</SelectItem>
-                  <SelectItem value="actionable">Needs action</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="all">{t("inbox.allApprovalStatuses")}</SelectItem>
+                  <SelectItem value="actionable">{t("inbox.needsAction")}</SelectItem>
+                  <SelectItem value="resolved">{t("inbox.resolved")}</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -569,7 +572,7 @@ export function Inbox() {
       {allLoaded && visibleSections.length === 0 && (
         <EmptyState
           icon={InboxIcon}
-          message={tab === "new" ? "You're all caught up!" : "No inbox items match these filters."}
+          message={tab === "new" ? t("inbox.allCaughtUp") : t("inbox.noMatch")}
         />
       )}
 
@@ -578,7 +581,7 @@ export function Inbox() {
           {showSeparatorBefore("assigned_to_me") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Assigned To Me
+              {t("inbox.assignedToMe")}
             </h3>
             <div className="divide-y divide-border border border-border">
               {assignedToMeIssues.map((issue) => (
@@ -609,7 +612,7 @@ export function Inbox() {
           {showSeparatorBefore("approvals") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {tab === "new" ? "Approvals Needing Action" : "Approvals"}
+              {tab === "new" ? t("inbox.approvalsNeedingAction") : t("inbox.approvals")}
             </h3>
             <div className="grid gap-3">
               {approvalsToRender.map((approval) => (
@@ -637,7 +640,7 @@ export function Inbox() {
           {showSeparatorBefore("join_requests") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Join Requests
+              {t("inbox.joinRequests")}
             </h3>
             <div className="grid gap-3">
               {joinRequests.map((joinRequest) => (
@@ -646,8 +649,10 @@ export function Inbox() {
                     <div className="space-y-1">
                       <p className="text-sm font-medium">
                         {joinRequest.requestType === "human"
-                          ? "Human join request"
-                          : `Agent join request${joinRequest.agentName ? `: ${joinRequest.agentName}` : ""}`}
+                          ? t("inbox.humanJoinRequest")
+                          : joinRequest.agentName
+                            ? t("inbox.agentJoinRequestNamed", { name: joinRequest.agentName })
+                            : t("inbox.agentJoinRequest")}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         requested {timeAgo(joinRequest.createdAt)} from IP {joinRequest.requestIp}
@@ -668,14 +673,14 @@ export function Inbox() {
                         disabled={approveJoinMutation.isPending || rejectJoinMutation.isPending}
                         onClick={() => rejectJoinMutation.mutate(joinRequest)}
                       >
-                        Reject
+                        {t("inbox.reject")}
                       </Button>
                       <Button
                         size="sm"
                         disabled={approveJoinMutation.isPending || rejectJoinMutation.isPending}
                         onClick={() => approveJoinMutation.mutate(joinRequest)}
                       >
-                        Approve
+                        {t("inbox.approve")}
                       </Button>
                     </div>
                   </div>
@@ -691,7 +696,7 @@ export function Inbox() {
           {showSeparatorBefore("failed_runs") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Failed Runs
+              {t("inbox.failedRuns")}
             </h3>
             <div className="grid gap-3">
               {failedRuns.map((run) => (
@@ -712,7 +717,7 @@ export function Inbox() {
           {showSeparatorBefore("alerts") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Alerts
+              {t("inbox.alerts")}
             </h3>
             <div className="divide-y divide-border border border-border">
               {showAggregateAgentError && (
@@ -722,8 +727,9 @@ export function Inbox() {
                 >
                   <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
                   <span className="text-sm">
-                    <span className="font-medium">{dashboard!.agents.error}</span>{" "}
-                    {dashboard!.agents.error === 1 ? "agent has" : "agents have"} errors
+                    {dashboard!.agents.error === 1
+                      ? t("inbox.agentHasErrors", { count: dashboard!.agents.error })
+                      : t("inbox.agentsHaveErrors", { count: dashboard!.agents.error })}
                   </span>
                 </Link>
               )}
@@ -734,9 +740,7 @@ export function Inbox() {
                 >
                   <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-400" />
                   <span className="text-sm">
-                    Budget at{" "}
-                    <span className="font-medium">{dashboard!.costs.monthUtilizationPercent}%</span>{" "}
-                    utilization this month
+                    {t("inbox.budgetUtilization", { percent: dashboard!.costs.monthUtilizationPercent })}
                   </span>
                 </Link>
               )}
@@ -750,7 +754,7 @@ export function Inbox() {
           {showSeparatorBefore("stale_work") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Stale Work
+              {t("inbox.staleWork")}
             </h3>
             <div className="divide-y divide-border border border-border">
               {staleIssues.map((issue) => (

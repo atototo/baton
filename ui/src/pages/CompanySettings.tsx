@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { companiesApi } from "../api/companies";
@@ -11,6 +12,7 @@ import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import { Field, ToggleField, HintIcon } from "../components/agent-config-primitives";
 
 export function CompanySettings() {
+  const { t, i18n } = useTranslation();
   const { companies, selectedCompany, selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
@@ -94,14 +96,14 @@ export function CompanySettings() {
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? "Company", href: "/dashboard" },
-      { label: "Settings" },
+      { label: t("nav.settings") },
     ]);
   }, [setBreadcrumbs, selectedCompany?.name]);
 
   if (!selectedCompany) {
     return (
       <div className="text-sm text-muted-foreground">
-        No company selected. Select a company from the switcher above.
+        {t("settings.noCompanySelected")}
       </div>
     );
   }
@@ -118,16 +120,16 @@ export function CompanySettings() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-2">
         <Settings className="h-5 w-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">Company Settings</h1>
+        <h1 className="text-lg font-semibold">{t("settings.companySettings")}</h1>
       </div>
 
       {/* General */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          General
+          {t("settings.general")}
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
-          <Field label="Company name" hint="The display name for your company.">
+          <Field label={t("settings.companyName")} hint={t("settings.companyNameHint")}>
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               type="text"
@@ -135,12 +137,12 @@ export function CompanySettings() {
               onChange={(e) => setCompanyName(e.target.value)}
             />
           </Field>
-          <Field label="Description" hint="Optional description shown in the company profile.">
+          <Field label={t("settings.description")} hint={t("settings.descriptionHint")}>
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               type="text"
               value={description}
-              placeholder="Optional company description"
+              placeholder={t("settings.descriptionPlaceholder")}
               onChange={(e) => setDescription(e.target.value)}
             />
           </Field>
@@ -150,7 +152,7 @@ export function CompanySettings() {
       {/* Appearance */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Appearance
+          {t("settings.appearance")}
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
           <div className="flex items-start gap-4">
@@ -162,7 +164,7 @@ export function CompanySettings() {
               />
             </div>
             <div className="flex-1 space-y-2">
-              <Field label="Brand color" hint="Sets the hue for the company icon. Leave empty for auto-generated color.">
+              <Field label={t("settings.brandColor")} hint={t("settings.brandColorHint")}>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -179,7 +181,7 @@ export function CompanySettings() {
                         setBrandColor(v);
                       }
                     }}
-                    placeholder="Auto"
+                    placeholder={t("common.auto")}
                     className="w-28 rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm font-mono outline-none"
                   />
                   {brandColor && (
@@ -189,13 +191,32 @@ export function CompanySettings() {
                       onClick={() => setBrandColor("")}
                       className="text-xs text-muted-foreground"
                     >
-                      Clear
+                      {t("settings.clear")}
                     </Button>
                   )}
                 </div>
               </Field>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Language */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {t("settings.language")}
+        </div>
+        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+          <Field label={t("settings.language")} hint={t("settings.languageHint")}>
+            <select
+              className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+              value={i18n.language.startsWith("ko") ? "ko" : "en"}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
+            >
+              <option value="en">English</option>
+              <option value="ko">한국어</option>
+            </select>
+          </Field>
         </div>
       </div>
 
@@ -207,16 +228,16 @@ export function CompanySettings() {
             onClick={handleSaveGeneral}
             disabled={generalMutation.isPending || !companyName.trim()}
           >
-            {generalMutation.isPending ? "Saving..." : "Save changes"}
+            {generalMutation.isPending ? t("settings.saving") : t("settings.saveChanges")}
           </Button>
           {generalMutation.isSuccess && (
-            <span className="text-xs text-muted-foreground">Saved</span>
+            <span className="text-xs text-muted-foreground">{t("settings.saved")}</span>
           )}
           {generalMutation.isError && (
             <span className="text-xs text-destructive">
               {generalMutation.error instanceof Error
                 ? generalMutation.error.message
-                : "Failed to save"}
+                : t("settings.failedToSave")}
             </span>
           )}
         </div>
@@ -225,12 +246,12 @@ export function CompanySettings() {
       {/* Hiring */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Hiring
+          {t("settings.hiring")}
         </div>
         <div className="rounded-md border border-border px-4 py-3">
           <ToggleField
-            label="Require board approval for new hires"
-            hint="New agent hires stay pending until approved by board."
+            label={t("settings.requireApproval")}
+            hint={t("settings.requireApprovalHint")}
             checked={!!selectedCompany.requireBoardApprovalForNewAgents}
             onChange={(v) => settingsMutation.mutate(v)}
           />
@@ -240,16 +261,16 @@ export function CompanySettings() {
       {/* Invites */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Invites
+          {t("settings.invites")}
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Generate a link to invite humans or agents to this company.</span>
-            <HintIcon text="Invite links expire after 72 hours and allow both human and agent joins." />
+            <span className="text-xs text-muted-foreground">{t("settings.inviteHint")}</span>
+            <HintIcon text={t("settings.inviteLinkExpiry")} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending}>
-              {inviteMutation.isPending ? "Creating..." : "Create invite link"}
+              {inviteMutation.isPending ? t("settings.creating") : t("settings.createInviteLink")}
             </Button>
             {inviteLink && (
               <Button
@@ -259,14 +280,14 @@ export function CompanySettings() {
                   await navigator.clipboard.writeText(inviteLink);
                 }}
               >
-                Copy link
+                {t("settings.copyLink")}
               </Button>
             )}
           </div>
           {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
           {inviteLink && (
             <div className="rounded-md border border-border bg-muted/30 p-2">
-              <div className="text-xs text-muted-foreground">Share link</div>
+              <div className="text-xs text-muted-foreground">{t("settings.shareLink")}</div>
               <div className="mt-1 break-all font-mono text-xs">{inviteLink}</div>
             </div>
           )}
@@ -276,11 +297,11 @@ export function CompanySettings() {
       {/* Archive */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-amber-700 uppercase tracking-wide">
-          Archive
+          {t("settings.archive")}
         </div>
         <div className="space-y-3 rounded-md border border-amber-300/60 bg-amber-100/30 px-4 py-4">
           <p className="text-sm text-muted-foreground">
-            Archive this company to hide it from the sidebar. This persists in the database.
+            {t("settings.archiveDescription")}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -290,7 +311,7 @@ export function CompanySettings() {
               onClick={() => {
                 if (!selectedCompanyId) return;
                 const confirmed = window.confirm(
-                  `Archive company "${selectedCompany.name}"? It will be hidden from the sidebar.`,
+                  t("settings.archiveConfirm", { name: selectedCompany.name }),
                 );
                 if (!confirmed) return;
                 const nextCompanyId = companies.find((company) =>
@@ -299,16 +320,16 @@ export function CompanySettings() {
               }}
             >
               {archiveMutation.isPending
-                ? "Archiving..."
+                ? t("settings.archiving")
                 : selectedCompany.status === "archived"
-                  ? "Already archived"
-                  : "Archive company"}
+                  ? t("settings.alreadyArchived")
+                  : t("settings.archiveCompany")}
             </Button>
             {archiveMutation.isError && (
               <span className="text-xs text-destructive">
                 {archiveMutation.error instanceof Error
                   ? archiveMutation.error.message
-                  : "Failed to archive company"}
+                  : t("settings.failedToArchive")}
               </span>
             )}
           </div>

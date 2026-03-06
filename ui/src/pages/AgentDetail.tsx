@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, Link, useBeforeUnload } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agentsApi, type AgentKey, type ClaudeLoginResult } from "../api/agents";
@@ -110,11 +111,11 @@ function formatEnvForDisplay(envValue: unknown): string {
     .join("\n");
 }
 
-const sourceLabels: Record<string, string> = {
-  timer: "Timer",
-  assignment: "Assignment",
-  on_demand: "On-demand",
-  automation: "Automation",
+const sourceKeys: Record<string, string> = {
+  timer: "agentDetail.sourceTimer",
+  assignment: "agentDetail.sourceAssignment",
+  on_demand: "agentDetail.sourceOnDemand",
+  automation: "agentDetail.sourceAutomation",
 };
 
 const LIVE_SCROLL_BOTTOM_TOLERANCE_PX = 32;
@@ -225,6 +226,7 @@ function asNonEmptyString(value: unknown): string | null {
 }
 
 export function AgentDetail() {
+  const { t } = useTranslation();
   const { companyPrefix, agentId, tab: urlTab, runId: urlRunId } = useParams<{
     companyPrefix?: string;
     agentId: string;
@@ -391,7 +393,7 @@ export function AgentDetail() {
 
   useEffect(() => {
     const crumbs: { label: string; href?: string }[] = [
-      { label: "Agents", href: "/agents" },
+      { label: t("agentDetail.breadcrumbAgents"), href: "/agents" },
     ];
     const agentName = agent?.name ?? routeAgentRef ?? "Agent";
     if (activeView === "overview" && !urlRunId) {
@@ -399,12 +401,12 @@ export function AgentDetail() {
     } else {
       crumbs.push({ label: agentName, href: `/agents/${canonicalAgentRef}` });
       if (urlRunId) {
-        crumbs.push({ label: "Runs", href: `/agents/${canonicalAgentRef}/runs` });
-        crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
+        crumbs.push({ label: t("agentDetail.breadcrumbRuns"), href: `/agents/${canonicalAgentRef}/runs` });
+        crumbs.push({ label: t("agentDetail.breadcrumbRunId", { id: urlRunId.slice(0, 8) }) });
       } else if (activeView === "configure") {
-        crumbs.push({ label: "Configure" });
+        crumbs.push({ label: t("agentDetail.breadcrumbConfigure") });
       } else if (activeView === "runs") {
-        crumbs.push({ label: "Runs" });
+        crumbs.push({ label: t("agentDetail.breadcrumbRuns") });
       }
     }
     setBreadcrumbs(crumbs);
@@ -457,7 +459,7 @@ export function AgentDetail() {
             onClick={() => openNewIssue({ assigneeAgentId: agent.id })}
           >
             <Plus className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Assign Task</span>
+            <span className="hidden sm:inline">{t("agentDetail.assignTask")}</span>
           </Button>
           <Button
             variant="outline"
@@ -466,7 +468,7 @@ export function AgentDetail() {
             disabled={agentAction.isPending || isPendingApproval}
           >
             <Play className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Invoke</span>
+            <span className="hidden sm:inline">{t("agentDetail.invoke")}</span>
           </Button>
           {agent.status === "paused" ? (
             <Button
@@ -476,7 +478,7 @@ export function AgentDetail() {
               disabled={agentAction.isPending || isPendingApproval}
             >
               <Play className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Resume</span>
+              <span className="hidden sm:inline">{t("agentDetail.resume")}</span>
             </Button>
           ) : (
             <Button
@@ -486,7 +488,7 @@ export function AgentDetail() {
               disabled={agentAction.isPending || isPendingApproval}
             >
               <Pause className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Pause</span>
+              <span className="hidden sm:inline">{t("agentDetail.pause")}</span>
             </Button>
           )}
           <span className="hidden sm:inline"><StatusBadge status={agent.status} /></span>
@@ -499,7 +501,7 @@ export function AgentDetail() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
               </span>
-              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">Live</span>
+              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">{t("agentDetail.live")}</span>
             </Link>
           )}
 
@@ -519,7 +521,7 @@ export function AgentDetail() {
                 }}
               >
                 <Settings className="h-3 w-3" />
-                Configure Agent
+                {t("agentDetail.configureAgent")}
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
@@ -529,7 +531,7 @@ export function AgentDetail() {
                 }}
               >
                 <Copy className="h-3 w-3" />
-                Copy Agent ID
+                {t("agentDetail.copyAgentId")}
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
@@ -539,7 +541,7 @@ export function AgentDetail() {
                 }}
               >
                 <RotateCcw className="h-3 w-3" />
-                Reset Sessions
+                {t("agentDetail.resetSessions")}
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-destructive"
@@ -549,7 +551,7 @@ export function AgentDetail() {
                 }}
               >
                 <Trash2 className="h-3 w-3" />
-                Terminate
+                {t("agentDetail.terminate")}
               </button>
             </PopoverContent>
           </Popover>
@@ -559,7 +561,7 @@ export function AgentDetail() {
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
       {isPendingApproval && (
         <p className="text-sm text-amber-500">
-          This agent is pending board approval and cannot be invoked yet.
+          {t("agentDetail.pendingApproval")}
         </p>
       )}
 
@@ -580,14 +582,14 @@ export function AgentDetail() {
               onClick={() => cancelConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              Cancel
+              {t("agentDetail.cancel")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? t("agentDetail.saving") : t("agentDetail.save")}
             </Button>
           </div>
         </div>
@@ -606,14 +608,14 @@ export function AgentDetail() {
               onClick={() => cancelConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              Cancel
+              {t("agentDetail.cancel")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? t("agentDetail.saving") : t("agentDetail.save")}
             </Button>
           </div>
         </div>
@@ -672,6 +674,7 @@ function SummaryRow({ label, children }: { label: string; children: React.ReactN
 }
 
 function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: string }) {
+  const { t } = useTranslation();
   if (runs.length === 0) return null;
 
   const sorted = [...runs].sort(
@@ -697,13 +700,13 @@ function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: strin
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
             </span>
           )}
-          {isLive ? "Live Run" : "Latest Run"}
+          {isLive ? t("agentDetail.liveRun") : t("agentDetail.latestRun")}
         </h3>
         <Link
           to={`/agents/${agentId}/runs/${run.id}`}
           className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors no-underline"
         >
-          View details &rarr;
+          {t("agentDetail.viewDetails")} &rarr;
         </Link>
       </div>
 
@@ -725,7 +728,7 @@ function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: strin
               : run.invocationSource === "on_demand" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300"
               : "bg-muted text-muted-foreground"
           )}>
-            {sourceLabels[run.invocationSource] ?? run.invocationSource}
+            {t(sourceKeys[run.invocationSource] ?? "") || run.invocationSource}
           </span>
           <span className="ml-auto text-xs text-muted-foreground">{relativeTime(run.createdAt)}</span>
         </div>
@@ -761,6 +764,7 @@ function AgentOverview({
   agentId: string;
   agentRouteId: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-8">
       {/* Latest Run */}
@@ -768,16 +772,16 @@ function AgentOverview({
 
       {/* Charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <ChartCard title="Run Activity" subtitle="Last 14 days">
+        <ChartCard title={t("agentDetail.runActivity")} subtitle={t("agentDetail.last14Days")}>
           <RunActivityChart runs={runs} />
         </ChartCard>
-        <ChartCard title="Issues by Priority" subtitle="Last 14 days">
+        <ChartCard title={t("agentDetail.issuesByPriority")} subtitle={t("agentDetail.last14Days")}>
           <PriorityChart issues={assignedIssues} />
         </ChartCard>
-        <ChartCard title="Issues by Status" subtitle="Last 14 days">
+        <ChartCard title={t("agentDetail.issuesByStatus")} subtitle={t("agentDetail.last14Days")}>
           <IssueStatusChart issues={assignedIssues} />
         </ChartCard>
-        <ChartCard title="Success Rate" subtitle="Last 14 days">
+        <ChartCard title={t("agentDetail.successRate")} subtitle={t("agentDetail.last14Days")}>
           <SuccessRateChart runs={runs} />
         </ChartCard>
       </div>
@@ -785,13 +789,13 @@ function AgentOverview({
       {/* Recent Issues */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Recent Issues</h3>
+          <h3 className="text-sm font-medium">{t("agentDetail.recentIssues")}</h3>
           <Link to={`/issues?assignee=${agentId}`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-            See All &rarr;
+            {t("agentDetail.seeAll")} &rarr;
           </Link>
         </div>
         {assignedIssues.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No assigned issues.</p>
+          <p className="text-sm text-muted-foreground">{t("agentDetail.noAssignedIssues")}</p>
         ) : (
           <div className="border border-border rounded-lg">
             {assignedIssues.slice(0, 10).map((issue) => (
@@ -805,7 +809,7 @@ function AgentOverview({
             ))}
             {assignedIssues.length > 10 && (
               <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t border-border">
-                +{assignedIssues.length - 10} more issues
+                {t("agentDetail.moreIssues", { count: assignedIssues.length - 10 })}
               </div>
             )}
           </div>
@@ -814,7 +818,7 @@ function AgentOverview({
 
       {/* Costs */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Costs</h3>
+        <h3 className="text-sm font-medium">{t("agentDetail.costs")}</h3>
         <CostsSection runtimeState={runtimeState} runs={runs} />
       </div>
 
@@ -844,26 +848,27 @@ function ConfigSummary({
   reportsToAgent: Agent | null;
   directReports: Agent[];
 }) {
+  const { t } = useTranslation();
   const config = agent.adapterConfig as Record<string, unknown>;
   const promptText = typeof config?.promptTemplate === "string" ? config.promptTemplate : "";
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Configuration</h3>
+        <h3 className="text-sm font-medium">{t("agentDetail.configuration")}</h3>
         <Link
           to={`/agents/${agentRouteId}/configure`}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors no-underline"
         >
           <Settings className="h-3 w-3" />
-          Manage &rarr;
+          {t("agentDetail.manage")} &rarr;
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="border border-border rounded-lg p-4 space-y-3">
-          <h4 className="text-xs text-muted-foreground font-medium">Agent Details</h4>
+          <h4 className="text-xs text-muted-foreground font-medium">{t("agentDetail.agentDetails")}</h4>
           <div className="space-y-2 text-sm">
-            <SummaryRow label="Adapter">
+            <SummaryRow label={t("agentDetail.adapter")}>
               <span className="font-mono">{adapterLabels[agent.adapterType] ?? agent.adapterType}</span>
               {String(config?.model ?? "") !== "" && (
                 <span className="text-muted-foreground ml-1">
@@ -871,31 +876,31 @@ function ConfigSummary({
                 </span>
               )}
             </SummaryRow>
-            <SummaryRow label="Heartbeat">
+            <SummaryRow label={t("agentDetail.heartbeat")}>
               {(agent.runtimeConfig as Record<string, unknown>)?.heartbeat
                 ? (() => {
                     const hb = (agent.runtimeConfig as Record<string, unknown>).heartbeat as Record<string, unknown>;
-                    if (!hb.enabled) return <span className="text-muted-foreground">Disabled</span>;
+                    if (!hb.enabled) return <span className="text-muted-foreground">{t("agentDetail.disabled")}</span>;
                     const sec = Number(hb.intervalSec) || 300;
                     const maxConcurrentRuns = Math.max(1, Math.floor(Number(hb.maxConcurrentRuns) || 1));
                     const intervalLabel = sec >= 60 ? `${Math.round(sec / 60)} min` : `${sec}s`;
                     return (
                       <span>
-                        Every {intervalLabel}
-                        {maxConcurrentRuns > 1 ? ` (max ${maxConcurrentRuns} concurrent)` : ""}
+                        {t("agentDetail.everyInterval", { interval: intervalLabel })}
+                        {maxConcurrentRuns > 1 ? ` (${t("agentDetail.maxConcurrent", { count: maxConcurrentRuns })})` : ""}
                       </span>
                     );
                   })()
-                : <span className="text-muted-foreground">Not configured</span>
+                : <span className="text-muted-foreground">{t("agentDetail.notConfigured")}</span>
               }
             </SummaryRow>
-            <SummaryRow label="Last heartbeat">
+            <SummaryRow label={t("agentDetail.lastHeartbeat")}>
               {agent.lastHeartbeatAt
                 ? <span>{relativeTime(agent.lastHeartbeatAt)}</span>
-                : <span className="text-muted-foreground">Never</span>
+                : <span className="text-muted-foreground">{t("agentDetail.never")}</span>
               }
             </SummaryRow>
-            <SummaryRow label="Reports to">
+            <SummaryRow label={t("agentDetail.reportsTo")}>
               {reportsToAgent ? (
                 <Link
                   to={`/agents/${agentRouteRef(reportsToAgent)}`}
@@ -904,13 +909,13 @@ function ConfigSummary({
                   <Identity name={reportsToAgent.name} size="sm" />
                 </Link>
               ) : (
-                <span className="text-muted-foreground">Nobody (top-level)</span>
+                <span className="text-muted-foreground">{t("agentDetail.nobodyTopLevel")}</span>
               )}
             </SummaryRow>
           </div>
           {directReports.length > 0 && (
             <div className="pt-1">
-              <span className="text-xs text-muted-foreground">Direct reports</span>
+              <span className="text-xs text-muted-foreground">{t("agentDetail.directReports")}</span>
               <div className="mt-1 space-y-1">
                 {directReports.map((r) => (
                   <Link
@@ -930,14 +935,14 @@ function ConfigSummary({
           )}
           {agent.capabilities && (
             <div className="pt-1">
-              <span className="text-xs text-muted-foreground">Capabilities</span>
+              <span className="text-xs text-muted-foreground">{t("agentDetail.capabilities")}</span>
               <p className="text-sm mt-0.5">{agent.capabilities}</p>
             </div>
           )}
         </div>
         {promptText && (
           <div className="border border-border rounded-lg p-4 space-y-2">
-            <h4 className="text-xs text-muted-foreground font-medium">Prompt Template</h4>
+            <h4 className="text-xs text-muted-foreground font-medium">{t("agentDetail.promptTemplate")}</h4>
             <pre className="text-xs text-muted-foreground line-clamp-[12] font-mono whitespace-pre-wrap">{promptText}</pre>
           </div>
         )}
@@ -955,6 +960,7 @@ function CostsSection({
   runtimeState?: AgentRuntimeState;
   runs: HeartbeatRun[];
 }) {
+  const { t } = useTranslation();
   const runsWithCost = runs
     .filter((r) => {
       const u = r.usageJson as Record<string, unknown> | null;
@@ -968,19 +974,19 @@ function CostsSection({
         <div className="border border-border rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <span className="text-xs text-muted-foreground block">Input tokens</span>
+              <span className="text-xs text-muted-foreground block">{t("agentDetail.inputTokens")}</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalInputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Output tokens</span>
+              <span className="text-xs text-muted-foreground block">{t("agentDetail.outputTokens")}</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalOutputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Cached tokens</span>
+              <span className="text-xs text-muted-foreground block">{t("agentDetail.cachedTokens")}</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalCachedInputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Total cost</span>
+              <span className="text-xs text-muted-foreground block">{t("agentDetail.totalCost")}</span>
               <span className="text-lg font-semibold">{formatCents(runtimeState.totalCostCents)}</span>
             </div>
           </div>
@@ -991,11 +997,11 @@ function CostsSection({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-accent/20">
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Date</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Run</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Input</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Output</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Cost</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t("agentDetail.date")}</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t("agentDetail.run")}</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t("agentDetail.input")}</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t("agentDetail.output")}</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t("agentDetail.cost")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1045,6 +1051,7 @@ function AgentConfigurePage({
   onSavingChange: (saving: boolean) => void;
   updatePermissions: { mutate: (canCreate: boolean) => void; isPending: boolean };
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [revisionsOpen, setRevisionsOpen] = useState(false);
 
@@ -1074,7 +1081,7 @@ function AgentConfigurePage({
         companyId={companyId}
       />
       <div>
-        <h3 className="text-sm font-medium mb-3">API Keys</h3>
+        <h3 className="text-sm font-medium mb-3">{t("agentDetail.apiKeys")}</h3>
         <KeysTab agentId={agentId} companyId={companyId} />
       </div>
 
@@ -1088,13 +1095,13 @@ function AgentConfigurePage({
             ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           }
-          Configuration Revisions
+          {t("agentDetail.configRevisions")}
           <span className="text-xs font-normal text-muted-foreground">{configRevisions?.length ?? 0}</span>
         </button>
         {revisionsOpen && (
           <div className="mt-3">
             {(configRevisions ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No configuration revisions yet.</p>
+              <p className="text-sm text-muted-foreground">{t("agentDetail.noRevisions")}</p>
             ) : (
               <div className="space-y-2">
                 {(configRevisions ?? []).slice(0, 10).map((revision) => (
@@ -1114,12 +1121,12 @@ function AgentConfigurePage({
                         onClick={() => rollbackConfig.mutate(revision.id)}
                         disabled={rollbackConfig.isPending}
                       >
-                        Restore
+                        {t("agentDetail.restore")}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Changed:{" "}
-                      {revision.changedKeys.length > 0 ? revision.changedKeys.join(", ") : "no tracked changes"}
+                      {t("agentDetail.changed")}{" "}
+                      {revision.changedKeys.length > 0 ? revision.changedKeys.join(", ") : t("agentDetail.noTrackedChanges")}
                     </p>
                   </div>
                 ))}
@@ -1151,6 +1158,7 @@ function ConfigurationTab({
   onSavingChange: (saving: boolean) => void;
   updatePermissions: { mutate: (canCreate: boolean) => void; isPending: boolean };
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: adapterModels } = useQuery({
@@ -1187,10 +1195,10 @@ function ConfigurationTab({
       />
 
       <div>
-        <h3 className="text-sm font-medium mb-3">Permissions</h3>
+        <h3 className="text-sm font-medium mb-3">{t("agentDetail.permissions")}</h3>
         <div className="border border-border rounded-lg p-4">
           <div className="flex items-center justify-between text-sm">
-            <span>Can create new agents</span>
+            <span>{t("agentDetail.canCreateAgents")}</span>
             <Button
               variant={agent.permissions?.canCreateAgents ? "default" : "outline"}
               size="sm"
@@ -1200,7 +1208,7 @@ function ConfigurationTab({
               }
               disabled={updatePermissions.isPending}
             >
-              {agent.permissions?.canCreateAgents ? "Enabled" : "Disabled"}
+              {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
             </Button>
           </div>
         </div>
@@ -1212,6 +1220,7 @@ function ConfigurationTab({
 /* ---- Runs Tab ---- */
 
 function RunListItem({ run, isSelected, agentId }: { run: HeartbeatRun; isSelected: boolean; agentId: string }) {
+  const { t } = useTranslation();
   const statusInfo = runStatusIcons[run.status] ?? { icon: Clock, color: "text-neutral-400" };
   const StatusIcon = statusInfo.icon;
   const metrics = runMetrics(run);
@@ -1239,7 +1248,7 @@ function RunListItem({ run, isSelected, agentId }: { run: HeartbeatRun; isSelect
             : run.invocationSource === "on_demand" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300"
             : "bg-muted text-muted-foreground"
         )}>
-          {sourceLabels[run.invocationSource] ?? run.invocationSource}
+          {t(sourceKeys[run.invocationSource] ?? "") || run.invocationSource}
         </span>
         <span className="ml-auto text-[11px] text-muted-foreground shrink-0">
           {relativeTime(run.createdAt)}
@@ -1275,10 +1284,11 @@ function RunsTab({
   selectedRunId: string | null;
   adapterType: string;
 }) {
+  const { t } = useTranslation();
   const { isMobile } = useSidebar();
 
   if (runs.length === 0) {
-    return <p className="text-sm text-muted-foreground">No runs yet.</p>;
+    return <p className="text-sm text-muted-foreground">{t("agentDetail.noRuns")}</p>;
   }
 
   // Sort by created descending
@@ -1300,7 +1310,7 @@ function RunsTab({
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors no-underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to runs
+            {t("agentDetail.backToRuns")}
           </Link>
           <RunDetail key={selectedRun.id} run={selectedRun} agentRouteId={agentRouteId} adapterType={adapterType} />
         </div>
@@ -1343,6 +1353,7 @@ function RunsTab({
 /* ---- Run Detail (expanded) ---- */
 
 function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agentRouteId: string; adapterType: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const metrics = runMetrics(run);
@@ -1502,7 +1513,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                   onClick={() => cancelRun.mutate()}
                   disabled={cancelRun.isPending}
                 >
-                  {cancelRun.isPending ? "Cancelling…" : "Cancel"}
+                  {cancelRun.isPending ? t("agentDetail.cancelling") : t("agentDetail.cancel")}
                 </Button>
               )}
               {canResumeLostRun && (
@@ -1514,7 +1525,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                   disabled={resumeRun.isPending}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                  {resumeRun.isPending ? "Resuming…" : "Resume"}
+                  {resumeRun.isPending ? t("agentDetail.resuming") : t("agentDetail.resume")}
                 </Button>
               )}
               {canRetryRun && !canResumeLostRun && (
@@ -1526,18 +1537,18 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                   disabled={retryRun.isPending}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                  {retryRun.isPending ? "Retrying…" : "Retry"}
+                  {retryRun.isPending ? t("agentDetail.retrying") : t("agents.retry")}
                 </Button>
               )}
             </div>
             {resumeRun.isError && (
               <div className="text-xs text-destructive">
-                {resumeRun.error instanceof Error ? resumeRun.error.message : "Failed to resume run"}
+                {resumeRun.error instanceof Error ? resumeRun.error.message : t("agentDetail.failedToResumeRun")}
               </div>
             )}
             {retryRun.isError && (
               <div className="text-xs text-destructive">
-                {retryRun.error instanceof Error ? retryRun.error.message : "Failed to retry run"}
+                {retryRun.error instanceof Error ? retryRun.error.message : t("agentDetail.failedToRetryRun")}
               </div>
             )}
             {startTime && (
@@ -1553,7 +1564,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                 </div>
                 {displayDurationSec !== null && (
                   <div className="text-xs text-muted-foreground">
-                    Duration: {displayDurationSec >= 60 ? `${Math.floor(displayDurationSec / 60)}m ${displayDurationSec % 60}s` : `${displayDurationSec}s`}
+                    {t("agentDetail.duration")} {displayDurationSec >= 60 ? `${Math.floor(displayDurationSec / 60)}m ${displayDurationSec % 60}s` : `${displayDurationSec}s`}
                   </div>
                 )}
               </div>
@@ -1573,7 +1584,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                   onClick={() => runClaudeLogin.mutate()}
                   disabled={runClaudeLogin.isPending}
                 >
-                  {runClaudeLogin.isPending ? "Running claude login..." : "Login to Claude Code"}
+                  {runClaudeLogin.isPending ? t("agentDetail.runningClaudeLogin") : t("agentDetail.loginToClaude")}
                 </Button>
                 {runClaudeLogin.isError && (
                   <p className="text-xs text-destructive">
@@ -1584,7 +1595,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                 )}
                 {claudeLoginResult?.loginUrl && (
                   <p className="text-xs">
-                    Login URL:
+                    {t("agentDetail.loginUrl")}:
                     <a
                       href={claudeLoginResult.loginUrl}
                       className="text-blue-600 underline underline-offset-2 ml-1 break-all dark:text-blue-400"
@@ -1613,7 +1624,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
             )}
             {hasNonZeroExit && (
               <div className="text-xs text-red-600 dark:text-red-400">
-                Exit code {run.exitCode}
+                {t("agentDetail.exitCode")} {run.exitCode}
                 {run.signal && <span className="text-muted-foreground ml-1">(signal: {run.signal})</span>}
               </div>
             )}
@@ -1623,19 +1634,19 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
           {hasMetrics && (
             <div className="border-t sm:border-t-0 sm:border-l border-border p-4 grid grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-3 content-center">
               <div>
-                <div className="text-xs text-muted-foreground">Input</div>
+                <div className="text-xs text-muted-foreground">{t("agentDetail.input")}</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.input)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Output</div>
+                <div className="text-xs text-muted-foreground">{t("agentDetail.output")}</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.output)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Cached</div>
+                <div className="text-xs text-muted-foreground">{t("agentDetail.cachedTokens")}</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.cached)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Cost</div>
+                <div className="text-xs text-muted-foreground">{t("agentDetail.cost")}</div>
                 <div className="text-sm font-medium font-mono">{metrics.cost > 0 ? `$${metrics.cost.toFixed(4)}` : "-"}</div>
               </div>
             </div>
@@ -1650,20 +1661,20 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
               onClick={() => setSessionOpen((v) => !v)}
             >
               <ChevronRight className={cn("h-3 w-3 transition-transform", sessionOpen && "rotate-90")} />
-              Session
-              {sessionChanged && <span className="text-yellow-400 ml-1">(changed)</span>}
+              {t("agentDetail.session")}
+              {sessionChanged && <span className="text-yellow-400 ml-1">{t("agentDetail.sessionChanged")}</span>}
             </button>
             {sessionOpen && (
               <div className="px-4 pb-3 space-y-1 text-xs">
                 {run.sessionIdBefore && (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-12">{sessionChanged ? "Before" : "ID"}</span>
+                    <span className="text-muted-foreground w-12">{sessionChanged ? t("agentDetail.before") : t("agentDetail.id")}</span>
                     <CopyText text={run.sessionIdBefore} className="font-mono" />
                   </div>
                 )}
                 {sessionChanged && run.sessionIdAfter && (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-12">After</span>
+                    <span className="text-muted-foreground w-12">{t("agentDetail.after")}</span>
                     <CopyText text={run.sessionIdAfter} className="font-mono" />
                   </div>
                 )}
@@ -1683,14 +1694,14 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                       }}
                     >
                       {clearSessionsForTouchedIssues.isPending
-                        ? "clearing session..."
-                        : "clear session for these issues"}
+                        ? t("agentDetail.clearingSession")
+                        : t("agentDetail.clearSessionForIssues")}
                     </button>
                     {clearSessionsForTouchedIssues.isError && (
                       <p className="text-[11px] text-destructive mt-1">
                         {clearSessionsForTouchedIssues.error instanceof Error
                           ? clearSessionsForTouchedIssues.error.message
-                          : "Failed to clear sessions"}
+                          : t("agentDetail.failedToClearSessions")}
                       </p>
                     )}
                   </div>
