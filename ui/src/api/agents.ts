@@ -7,6 +7,8 @@ import type {
   HeartbeatRun,
   Approval,
   AgentConfigRevision,
+  PrincipalPermissionGrant,
+  PermissionKey,
 } from "@atototo/shared";
 import { isUuidLike, normalizeAgentUrlKey } from "@atototo/shared";
 import { ApiError, api } from "./client";
@@ -102,6 +104,19 @@ export const agentsApi = {
     api.patch<Agent>(agentPath(id, companyId), data),
   updatePermissions: (id: string, data: { canCreateAgents: boolean }, companyId?: string) =>
     api.patch<Agent>(agentPath(id, companyId, "/permissions"), data),
+  getPermissionGrants: (id: string, companyId: string) =>
+    api.get<PrincipalPermissionGrant[]>(
+      `/companies/${encodeURIComponent(companyId)}/agents/${encodeURIComponent(id)}/permissions`,
+    ),
+  updatePermissionGrants: (
+    id: string,
+    grants: Array<{ permissionKey: PermissionKey; scope: Record<string, unknown> | null }>,
+    companyId: string,
+  ) =>
+    api.patch<PrincipalPermissionGrant[]>(
+      `/companies/${encodeURIComponent(companyId)}/agents/${encodeURIComponent(id)}/permissions`,
+      { grants },
+    ),
   pause: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/pause"), {}),
   resume: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/resume"), {}),
   terminate: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/terminate"), {}),

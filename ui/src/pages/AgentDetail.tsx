@@ -56,7 +56,15 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
-import { isUuidLike, type Agent, type HeartbeatRun, type HeartbeatRunEvent, type AgentRuntimeState } from "@atototo/shared";
+import {
+  PERMISSION_KEYS,
+  isUuidLike,
+  type Agent,
+  type AgentRuntimeState,
+  type HeartbeatRun,
+  type HeartbeatRunEvent,
+  type PermissionKey,
+} from "@atototo/shared";
 import { agentRouteRef } from "../lib/utils";
 
 const runStatusIcons: Record<string, { icon: typeof CheckCircle2; color: string }> = {
@@ -1173,6 +1181,13 @@ function ConfigurationTab({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const permissionGrantsQuery = useQuery({
+    queryKey: companyId
+      ? queryKeys.agents.permissions(companyId, agent.id)
+      : ["agents", "permissions", "__disabled__", agent.id] as const,
+    queryFn: () => agentsApi.getPermissionGrants(agent.id, companyId!),
+    enabled: !!companyId,
+  });
 
   const { data: adapterModels } = useQuery({
     queryKey: ["adapter-models", agent.adapterType],
@@ -1187,6 +1202,19 @@ function ConfigurationTab({
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.configRevisions(agent.id) });
     },
   });
+
+  const updatePermissionGrants = useMutation({
+    mutationFn: (grants: Array<{ permissionKey: PermissionKey; scope: Record<string, unknown> | null }>) =>
+      agentsApi.updatePermissionGrants(agent.id, grants, companyId!),
+    onSuccess: () => {
+      if (companyId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.permissions(companyId, agent.id) });
+      }
+    },
+  });
+
+  const permissionGrants = permissionGrantsQuery.data ?? [];
+  const grantedPermissionKeys = new Set(permissionGrants.map((grant) => grant.permissionKey));
 
   useEffect(() => {
     onSavingChange(updateAgent.isPending);
@@ -1223,6 +1251,40 @@ function ConfigurationTab({
             >
               {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
             </Button>
+          </div>
+          <div className="mt-4 space-y-2 border-t border-border pt-4">
+            {permissionGrantsQuery.isError && (
+              <p className="text-xs text-destructive">
+                {permissionGrantsQuery.error instanceof Error
+                  ? permissionGrantsQuery.error.message
+                  : t("agentDetail.errors.updatePermissionsFailed")}
+              </p>
+            )}
+            {PERMISSION_KEYS.map((permissionKey) => {
+              const enabled = grantedPermissionKeys.has(permissionKey);
+              const nextGrants = enabled
+                ? permissionGrants.filter((grant) => grant.permissionKey !== permissionKey)
+                : [...permissionGrants, { permissionKey, scope: null }];
+              return (
+                <div key={permissionKey} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{t(`agentDetail.permissionLabels.${permissionKey}`)}</span>
+                  <Button
+                    variant={enabled ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => updatePermissionGrants.mutate(
+                      nextGrants.map((grant) => ({
+                        permissionKey: grant.permissionKey,
+                        scope: grant.scope ?? null,
+                      })),
+                    )}
+                    disabled={!companyId || permissionGrantsQuery.isLoading || updatePermissionGrants.isPending}
+                  >
+                    {enabled ? t("agentDetail.enabled") : t("agentDetail.disabled")}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

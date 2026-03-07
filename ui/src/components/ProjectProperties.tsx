@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Project } from "@atototo/shared";
+import { PROJECT_STATUSES, type Project } from "@atototo/shared";
 import { InlineHelp } from "./InlineHelp";
 import { StatusBadge } from "./StatusBadge";
 import { formatDate } from "../lib/utils";
+import { agentsApi } from "../api/agents";
 import { goalsApi } from "../api/goals";
 import { projectsApi } from "../api/projects";
 import { useCompany } from "../context/CompanyContext";
@@ -17,8 +18,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ExternalLink, Github, Plus, Trash2, X } from "lucide-react";
+import { ExternalLink, Github, Plus, Trash2, User, X } from "lucide-react";
 import { ChoosePathButton } from "./PathInstructionsModal";
+import { AgentIcon } from "./AgentIconPicker";
 import { HintIcon, useHelpText } from "./agent-config-primitives";
 
 interface ProjectPropertiesProps {
@@ -112,6 +114,8 @@ export function ProjectProperties({
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const [goalOpen, setGoalOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [leadOpen, setLeadOpen] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(
     null
   );
@@ -124,6 +128,25 @@ export function ProjectProperties({
     queryFn: () => goalsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
+  const projectStatuses = PROJECT_STATUSES.map((value) => ({
+    value,
+    label:
+      value === "backlog"
+        ? t("newProject.statuses.backlog")
+        : value === "planned"
+          ? t("newProject.statuses.planned")
+          : value === "in_progress"
+            ? t("newProject.statuses.inProgress")
+            : value === "completed"
+              ? t("newProject.statuses.completed")
+              : t("newProject.statuses.cancelled"),
+  }));
 
   const linkedGoalIds =
     project.goalIds.length > 0
@@ -143,6 +166,11 @@ export function ProjectProperties({
   const availableGoals = (allGoals ?? []).filter(
     (g) => !linkedGoalIds.includes(g.id)
   );
+  const availableAgents = (agents ?? []).filter((agent) => agent.status !== "terminated");
+  const leadAgent =
+    project.leadAgentId != null
+      ? availableAgents.find((agent) => agent.id === project.leadAgentId) ?? null
+      : null;
   const workspaces = project.workspaces ?? [];
 
   const invalidateProject = () => {
@@ -309,18 +337,90 @@ export function ProjectProperties({
     <div className="space-y-4">
       <div className="space-y-1">
         <PropertyRow label="Status" hint={help.projectStatus}>
-          <StatusBadge status={project.status} />
+          <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+            <PopoverTrigger asChild>
+              <button className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 -mx-1 transition-colors hover:bg-accent/50">
+                <StatusBadge status={project.status} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-44 p-1" align="end">
+              {projectStatuses.map((status) => (
+                <button
+                  key={status.value}
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
+                    status.value === project.status ? "bg-accent" : ""
+                  }`}
+                  onClick={() => {
+                    onUpdate?.({ status: status.value });
+                    setStatusOpen(false);
+                  }}
+                >
+                  <StatusBadge status={status.value} />
+                  <span className="truncate">{status.label}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         </PropertyRow>
         <PropertyRow label="Lead" hint={help.leadAgentId}>
-          {project.leadAgentId ? (
-            <span className="text-sm font-mono">
-              {project.leadAgentId.slice(0, 8)}
-            </span>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              {t("common.none")}
-            </span>
-          )}
+          <Popover open={leadOpen} onOpenChange={setLeadOpen}>
+            <PopoverTrigger asChild>
+              <button className="inline-flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 -mx-1 transition-colors hover:bg-accent/50">
+                {leadAgent ? (
+                  <>
+                    <AgentIcon
+                      icon={leadAgent.icon}
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                    <span className="truncate text-sm">{leadAgent.name}</span>
+                  </>
+                ) : project.leadAgentId ? (
+                  <span className="text-sm font-mono">
+                    {project.leadAgentId.slice(0, 8)}
+                  </span>
+                ) : (
+                  <>
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {t("common.none")}
+                    </span>
+                  </>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-1" align="end">
+              <button
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
+                  !project.leadAgentId ? "bg-accent" : ""
+                }`}
+                onClick={() => {
+                  onUpdate?.({ leadAgentId: null });
+                  setLeadOpen(false);
+                }}
+              >
+                <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                {t("projectProperties.noLead")}
+              </button>
+              {availableAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
+                    agent.id === project.leadAgentId ? "bg-accent" : ""
+                  }`}
+                  onClick={() => {
+                    onUpdate?.({ leadAgentId: agent.id });
+                    setLeadOpen(false);
+                  }}
+                >
+                  <AgentIcon
+                    icon={agent.icon}
+                    className="h-3 w-3 shrink-0 text-muted-foreground"
+                  />
+                  <span className="truncate">{agent.name}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         </PropertyRow>
         <div className="py-1.5">
           <div className="flex items-start justify-between gap-2">

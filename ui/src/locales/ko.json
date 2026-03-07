@@ -459,6 +459,7 @@
   "projectProperties": {
     "goal": "목표",
     "allGoalsLinked": "모든 목표가 연결되어 있습니다.",
+    "noLead": "리드 없음",
     "workspaces": "워크스페이스",
     "noWorkspace": "설정된 워크스페이스가 없습니다.",
     "deleteLocalFolder": "로컬 폴더 삭제",
@@ -521,6 +522,14 @@
     "noTrackedChanges": "추적된 변경 없음",
     "permissions": "권한",
     "canCreateAgents": "새 에이전트 생성 가능",
+    "permissionLabels": {
+      "agents:create": "에이전트 생성",
+      "users:invite": "사용자 초대",
+      "users:manage_permissions": "권한 관리",
+      "tasks:assign": "작업 할당",
+      "tasks:assign_scope": "범위 기반 작업 할당",
+      "joins:approve": "가입 승인"
+    },
     "noRuns": "아직 실행 기록이 없습니다.",
     "backToRuns": "실행 목록으로",
     "cancelling": "취소 중…",

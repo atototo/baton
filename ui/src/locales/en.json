@@ -459,6 +459,7 @@
   "projectProperties": {
     "goal": "Goal",
     "allGoalsLinked": "All goals linked.",
+    "noLead": "No lead",
     "workspaces": "Workspaces",
     "noWorkspace": "No workspace configured.",
     "deleteLocalFolder": "Delete local folder",
@@ -521,6 +522,14 @@
     "noTrackedChanges": "no tracked changes",
     "permissions": "Permissions",
     "canCreateAgents": "Can create new agents",
+    "permissionLabels": {
+      "agents:create": "Create agents",
+      "users:invite": "Invite users",
+      "users:manage_permissions": "Manage permissions",
+      "tasks:assign": "Assign tasks",
+      "tasks:assign_scope": "Assign scoped tasks",
+      "joins:approve": "Approve joins"
+    },
     "noRuns": "No runs yet.",
     "backToRuns": "Back to runs",
     "cancelling": "Cancelling…",
