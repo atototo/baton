@@ -30,6 +30,7 @@ import {
 import { buildProjectMentionHref, parseProjectMentionHref } from "@atototo/shared";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
+import { findMentionAtCursor } from "./markdown-mentions";
 
 /* ---- Mention types ---- */
 
@@ -113,36 +114,22 @@ function detectMention(container: HTMLElement): MentionState | null {
   const text = textNode.textContent ?? "";
   const offset = range.startOffset;
 
-  // Walk backwards from cursor to find @
-  let atPos = -1;
-  for (let i = offset - 1; i >= 0; i--) {
-    const ch = text[i];
-    if (ch === "@") {
-      if (i === 0 || /\s/.test(text[i - 1])) {
-        atPos = i;
-      }
-      break;
-    }
-    if (/\s/.test(ch)) break;
-  }
-
-  if (atPos === -1) return null;
-
-  const query = text.slice(atPos + 1, offset);
+  const mention = findMentionAtCursor(text, offset);
+  if (!mention) return null;
 
   // Get position relative to container
   const tempRange = document.createRange();
-  tempRange.setStart(textNode, atPos);
-  tempRange.setEnd(textNode, atPos + 1);
+  tempRange.setStart(textNode, mention.atPos);
+  tempRange.setEnd(textNode, mention.atPos + 1);
   const rect = tempRange.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
 
   return {
-    query,
+    query: mention.query,
     top: rect.bottom - containerRect.top,
     left: rect.left - containerRect.left,
     textNode: textNode as Text,
-    atPos,
+    atPos: mention.atPos,
     endPos: offset,
   };
 }

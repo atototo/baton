@@ -16,6 +16,7 @@ import {
   projects,
 } from "@atototo/db";
 import { extractProjectMentionIds } from "@atototo/shared";
+import { extractMentionedAgentIds } from "./issue-mentions.js";
 import { conflict, notFound, unprocessable } from "../errors.js";
 
 const ALL_ISSUE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
@@ -972,14 +973,9 @@ export function issueService(db: Db) {
       }),
 
     findMentionedAgents: async (companyId: string, body: string) => {
-      const re = /\B@([^\s@,!?.]+)/g;
-      const tokens = new Set<string>();
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(body)) !== null) tokens.add(m[1].toLowerCase());
-      if (tokens.size === 0) return [];
       const rows = await db.select({ id: agents.id, name: agents.name })
         .from(agents).where(eq(agents.companyId, companyId));
-      return rows.filter(a => tokens.has(a.name.toLowerCase())).map(a => a.id);
+      return extractMentionedAgentIds(body, rows);
     },
 
     findMentionedProjectIds: async (issueId: string) => {
