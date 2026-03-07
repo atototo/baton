@@ -53,8 +53,15 @@ import {
   ChevronDown,
   ArrowLeft,
   Settings,
+  HelpCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
 import {
   PERMISSION_KEYS,
@@ -1238,54 +1245,76 @@ function ConfigurationTab({
       <div>
         <h3 className="text-sm font-medium mb-3">{t("agentDetail.permissions")}</h3>
         <div className="border border-border rounded-lg p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span>{t("agentDetail.canCreateAgents")}</span>
-            <Button
-              variant={agent.permissions?.canCreateAgents ? "default" : "outline"}
-              size="sm"
-              className="h-7 px-2.5 text-xs"
-              onClick={() =>
-                updatePermissions.mutate(!Boolean(agent.permissions?.canCreateAgents))
-              }
-              disabled={updatePermissions.isPending}
-            >
-              {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
-            </Button>
-          </div>
-          <div className="mt-4 space-y-2 border-t border-border pt-4">
-            {permissionGrantsQuery.isError && (
-              <p className="text-xs text-destructive">
-                {permissionGrantsQuery.error instanceof Error
-                  ? permissionGrantsQuery.error.message
-                  : t("agentDetail.errors.updatePermissionsFailed")}
-              </p>
-            )}
-            {PERMISSION_KEYS.map((permissionKey) => {
-              const enabled = grantedPermissionKeys.has(permissionKey);
-              const nextGrants = enabled
-                ? permissionGrants.filter((grant) => grant.permissionKey !== permissionKey)
-                : [...permissionGrants, { permissionKey, scope: null }];
-              return (
-                <div key={permissionKey} className="flex items-center justify-between gap-3 text-sm">
-                  <span>{t(`agentDetail.permissionLabels.${permissionKey}`)}</span>
-                  <Button
-                    variant={enabled ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => updatePermissionGrants.mutate(
-                      nextGrants.map((grant) => ({
-                        permissionKey: grant.permissionKey,
-                        scope: grant.scope ?? null,
-                      })),
-                    )}
-                    disabled={!companyId || permissionGrantsQuery.isLoading || updatePermissionGrants.isPending}
-                  >
-                    {enabled ? t("agentDetail.enabled") : t("agentDetail.disabled")}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-1.5">
+                <span>{t("agentDetail.canCreateAgents")}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-56">
+                    {t("agentDetail.canCreateAgentsDescription")}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Button
+                variant={agent.permissions?.canCreateAgents ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={() =>
+                  updatePermissions.mutate(!Boolean(agent.permissions?.canCreateAgents))
+                }
+                disabled={updatePermissions.isPending}
+              >
+                {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
+              </Button>
+            </div>
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
+              {permissionGrantsQuery.isError && (
+                <p className="text-xs text-destructive">
+                  {permissionGrantsQuery.error instanceof Error
+                    ? permissionGrantsQuery.error.message
+                    : t("agentDetail.errors.updatePermissionsFailed")}
+                </p>
+              )}
+              {PERMISSION_KEYS.map((permissionKey) => {
+                const enabled = grantedPermissionKeys.has(permissionKey);
+                const nextGrants = enabled
+                  ? permissionGrants.filter((grant) => grant.permissionKey !== permissionKey)
+                  : [...permissionGrants, { permissionKey, scope: null }];
+                return (
+                  <div key={permissionKey} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span>{t(`agentDetail.permissionLabels.${permissionKey}`)}</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-56">
+                          {t(`agentDetail.permissionDescriptions.${permissionKey}`)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Button
+                      variant={enabled ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => updatePermissionGrants.mutate(
+                        nextGrants.map((grant) => ({
+                          permissionKey: grant.permissionKey,
+                          scope: grant.scope ?? null,
+                        })),
+                      )}
+                      disabled={!companyId || permissionGrantsQuery.isLoading || updatePermissionGrants.isPending}
+                    >
+                      {enabled ? t("agentDetail.enabled") : t("agentDetail.disabled")}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </TooltipProvider>
         </div>
       </div>
     </div>

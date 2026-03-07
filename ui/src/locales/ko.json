@@ -630,7 +630,16 @@
       "resumeSkipped": "현재 이 에이전트를 실행할 수 없어 재개 요청이 건너뛰어졌습니다.",
       "retrySkipped": "현재 이 에이전트를 실행할 수 없어 재시도 요청이 건너뛰어졌습니다.",
       "loadRunLogFailed": "실행 로그를 불러오지 못했습니다"
-    }
+    },
+    "permissionDescriptions": {
+      "agents:create": "새로운 AI 에이전트를 조직에 추가하거나 고용할 수 있습니다",
+      "users:invite": "외부 사용자를 워크스페이스에 초대할 수 있습니다",
+      "users:manage_permissions": "다른 에이전트나 사용자의 권한을 변경할 수 있습니다",
+      "tasks:assign": "작업을 에이전트나 사용자에게 할당할 수 있습니다",
+      "tasks:assign_scope": "특정 범위(프로젝트, 팀 등) 내에서만 작업을 할당할 수 있습니다",
+      "joins:approve": "조직 가입 요청을 승인하거나 거절할 수 있습니다"
+    },
+    "canCreateAgentsDescription": "에이전트를 직접 채용(hire)할 수 있는 최상위 권한입니다"
   },
   "inbox": {
     "selectCompany": "알림함을 보려면 회사를 선택하세요.",
