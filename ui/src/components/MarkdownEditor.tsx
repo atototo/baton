@@ -28,6 +28,7 @@ import {
   type RealmPlugin,
 } from "@mdxeditor/editor";
 import { buildProjectMentionHref, parseProjectMentionHref } from "@atototo/shared";
+import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 
 /* ---- Mention types ---- */
@@ -201,6 +202,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
   mentions,
   onSubmit,
 }: MarkdownEditorProps, forwardedRef) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<MDXEditorMethods>(null);
   const latestValueRef = useRef(value);
@@ -247,13 +249,13 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     const imageHandler = hasImageUpload
       ? async (file: File) => {
           const handler = imageUploadHandlerRef.current;
-          if (!handler) throw new Error("No image upload handler");
+          if (!handler) throw new Error(t("markdownEditor.noImageUploadHandler"));
           try {
             const src = await handler(file);
             setUploadError(null);
             return src;
           } catch (err) {
-            const message = err instanceof Error ? err.message : "Image upload failed";
+            const message = err instanceof Error ? err.message : t("markdownEditor.imageUploadFailed");
             setUploadError(message);
             throw err;
           }
@@ -278,7 +280,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       all.push(imagePlugin({ imageUploadHandler: imageHandler }));
     }
     return all;
-  }, [hasImageUpload]);
+  }, [hasImageUpload, t]);
 
   useEffect(() => {
     if (value !== latestValueRef.current) {

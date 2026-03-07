@@ -453,7 +453,7 @@ export function IssueDetail() {
 
   const uploadAttachment = useMutation({
     mutationFn: async (file: File) => {
-      if (!selectedCompanyId) throw new Error("No company selected");
+      if (!selectedCompanyId) throw new Error(t("issueDetail.noCompanySelected"));
       return issuesApi.uploadAttachment(selectedCompanyId, issueId!, file);
     },
     onSuccess: () => {
@@ -462,7 +462,7 @@ export function IssueDetail() {
       invalidateIssue();
     },
     onError: (err) => {
-      setAttachmentError(err instanceof Error ? err.message : "Upload failed");
+      setAttachmentError(err instanceof Error ? err.message : t("issueDetail.uploadFailed"));
     },
   });
 
@@ -474,7 +474,7 @@ export function IssueDetail() {
       invalidateIssue();
     },
     onError: (err) => {
-      setAttachmentError(err instanceof Error ? err.message : "Delete failed");
+      setAttachmentError(err instanceof Error ? err.message : t("issueDetail.deleteFailed"));
     },
   });
 

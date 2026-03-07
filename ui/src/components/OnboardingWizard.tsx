@@ -59,11 +59,17 @@ type AdapterType =
   | "process"
   | "http";
 
-const DEFAULT_TASK_DESCRIPTION = `Setup yourself as the CEO. Use the ceo persona found here: [https://github.com/atototo/baton/blob/main/companies/default/ceo/AGENTS.md](https://github.com/atototo/baton/blob/main/companies/default/ceo/AGENTS.md)
+function getDefaultAgentName(t: (key: string) => string) {
+  return t("onboarding.defaultAgentName");
+}
 
-Ensure you have a folder agents/ceo and then download this AGENTS.md as well as the sibling HEARTBEAT.md, SOUL.md, and TOOLS.md. and set that AGENTS.md as the path to your agents instruction file
+function getDefaultTaskTitle(t: (key: string) => string) {
+  return t("onboarding.defaultTaskTitle");
+}
 
-And after you've finished that, hire yourself a Founding Engineer agent`;
+function getDefaultTaskDescription(t: (key: string) => string) {
+  return t("onboarding.defaultTaskDescription");
+}
 
 export function OnboardingWizard() {
   const { t } = useTranslation();
@@ -85,7 +91,7 @@ export function OnboardingWizard() {
   const [companyGoal, setCompanyGoal] = useState("");
 
   // Step 2
-  const [agentName, setAgentName] = useState("CEO");
+  const [agentName, setAgentName] = useState(() => getDefaultAgentName(t));
   const [adapterType, setAdapterType] = useState<AdapterType>("claude_local");
   const [cwd, setCwd] = useState("");
   const [model, setModel] = useState("");
@@ -101,9 +107,9 @@ export function OnboardingWizard() {
   const [unsetAnthropicLoading, setUnsetAnthropicLoading] = useState(false);
 
   // Step 3
-  const [taskTitle, setTaskTitle] = useState("Create your CEO HEARTBEAT.md");
-  const [taskDescription, setTaskDescription] = useState(
-    DEFAULT_TASK_DESCRIPTION
+  const [taskTitle, setTaskTitle] = useState(() => getDefaultTaskTitle(t));
+  const [taskDescription, setTaskDescription] = useState(() =>
+    getDefaultTaskDescription(t)
   );
 
   // Auto-grow textarea for task description
@@ -195,7 +201,7 @@ export function OnboardingWizard() {
     setError(null);
     setCompanyName("");
     setCompanyGoal("");
-    setAgentName("CEO");
+    setAgentName(getDefaultAgentName(t));
     setAdapterType("claude_local");
     setCwd("");
     setModel("");
@@ -207,8 +213,8 @@ export function OnboardingWizard() {
     setAdapterEnvLoading(false);
     setForceUnsetAnthropicApiKey(false);
     setUnsetAnthropicLoading(false);
-    setTaskTitle("Create your CEO HEARTBEAT.md");
-    setTaskDescription(DEFAULT_TASK_DESCRIPTION);
+    setTaskTitle(getDefaultTaskTitle(t));
+    setTaskDescription(getDefaultTaskDescription(t));
     setCreatedCompanyId(null);
     setCreatedCompanyPrefix(null);
     setCreatedAgentId(null);
@@ -261,7 +267,7 @@ export function OnboardingWizard() {
   ): Promise<AdapterEnvironmentTestResult | null> {
     if (!createdCompanyId) {
       setAdapterEnvError(
-        "Create or select a company before testing adapter environment."
+        t("onboarding.errors.selectCompanyBeforeEnvTest")
       );
       return null;
     }
@@ -279,7 +285,9 @@ export function OnboardingWizard() {
       return result;
     } catch (err) {
       setAdapterEnvError(
-        err instanceof Error ? err.message : "Adapter environment test failed"
+        err instanceof Error
+          ? err.message
+          : t("onboarding.errors.adapterEnvTestFailed")
       );
       return null;
     } finally {
@@ -310,7 +318,9 @@ export function OnboardingWizard() {
 
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create company");
+      setError(
+        err instanceof Error ? err.message : t("onboarding.errors.createCompany")
+      );
     } finally {
       setLoading(false);
     }
@@ -347,7 +357,9 @@ export function OnboardingWizard() {
       });
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create agent");
+      setError(
+        err instanceof Error ? err.message : t("onboarding.errors.createAgent")
+      );
     } finally {
       setLoading(false);
     }
@@ -387,15 +399,13 @@ export function OnboardingWizard() {
 
       const result = await runAdapterEnvironmentTest(configWithUnset);
       if (result?.status === "fail") {
-        setError(
-          "Retried with ANTHROPIC_API_KEY unset in adapter config, but the environment test is still failing."
-        );
+        setError(t("onboarding.errors.unsetAnthropicRetryStillFailing"));
       }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to unset ANTHROPIC_API_KEY and retry."
+          : t("onboarding.errors.unsetAnthropicRetryFailed")
       );
     } finally {
       setUnsetAnthropicLoading(false);
@@ -421,7 +431,9 @@ export function OnboardingWizard() {
       });
       setStep(4);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create task");
+      setError(
+        err instanceof Error ? err.message : t("onboarding.errors.createTask")
+      );
     } finally {
       setLoading(false);
     }
@@ -477,7 +489,7 @@ export function OnboardingWizard() {
             className="absolute top-4 left-4 z-10 rounded-sm p-1.5 text-muted-foreground/60 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("onboarding.close")}</span>
           </button>
 
           {/* Left half — form */}
@@ -659,8 +671,8 @@ export function OnboardingWizard() {
                       value={i18n.language?.startsWith("ko") ? "ko" : "en"}
                       onChange={(e) => i18n.changeLanguage(e.target.value)}
                     >
-                      <option value="en">English</option>
-                      <option value="ko">한국어</option>
+                      <option value="en">{t("settings.languageEnglish")}</option>
+                      <option value="ko">{t("settings.languageKorean")}</option>
                     </select>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       {t("onboarding.languageHint")}
@@ -690,7 +702,7 @@ export function OnboardingWizard() {
                     </label>
                     <input
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                      placeholder="CEO"
+                      placeholder={t("onboarding.defaultAgentName")}
                       value={agentName}
                       onChange={(e) => setAgentName(e.target.value)}
                       autoFocus
@@ -808,7 +820,7 @@ export function OnboardingWizard() {
                           <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <input
                             className="w-full bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/50"
-                            placeholder="/path/to/project"
+                            placeholder={t("onboarding.workingDirectoryPlaceholder")}
                             value={cwd}
                             onChange={(e) => setCwd(e.target.value)}
                           />
@@ -911,10 +923,7 @@ export function OnboardingWizard() {
                       {shouldSuggestUnsetAnthropicApiKey && (
                         <div className="rounded-md border border-amber-300/60 bg-amber-50/40 px-2.5 py-2 space-y-2">
                           <p className="text-[11px] text-amber-900/90 leading-relaxed">
-                            Claude failed while{" "}
-                            <span className="font-mono">ANTHROPIC_API_KEY</span>{" "}
-                            is set. You can clear it in this CEO adapter config
-                            and retry the probe.
+                            {t("onboarding.anthropicKeyWarning")}
                           </p>
                           <Button
                             size="sm"
@@ -938,28 +947,30 @@ export function OnboardingWizard() {
                         </p>
                         <p className="text-muted-foreground font-mono break-all">
                           {adapterType === "cursor"
-                            ? `${effectiveAdapterCommand} -p --mode ask --output-format json \"Respond with hello.\"`
+                            ? `${effectiveAdapterCommand} -p --mode ask --output-format json "${t("onboarding.manualDebugPrompt")}"`
                             : adapterType === "codex_local"
                             ? `${effectiveAdapterCommand} exec --json -`
                             : adapterType === "opencode_local"
-                            ? `${effectiveAdapterCommand} run --format json \"Respond with hello.\"`
+                            ? `${effectiveAdapterCommand} run --format json "${t("onboarding.manualDebugPrompt")}"`
                             : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
                         </p>
                         <p className="text-muted-foreground">
                           {t("onboarding.prompt")}{" "}
-                          <span className="font-mono">Respond with hello.</span>
+                          <span className="font-mono">
+                            {t("onboarding.manualDebugPrompt")}
+                          </span>
                         </p>
                         {adapterType === "cursor" ||
                         adapterType === "codex_local" ||
                         adapterType === "opencode_local" ? (
                           <p className="text-muted-foreground">
-                            If auth fails, set{" "}
+                            {t("onboarding.authFailurePrefix")}{" "}
                             <span className="font-mono">
                               {adapterType === "cursor"
                                 ? "CURSOR_API_KEY"
                                 : "OPENAI_API_KEY"}
                             </span>{" "}
-                            in env or run{" "}
+                            {t("onboarding.authFailureMiddle")}{" "}
                             <span className="font-mono">
                               {adapterType === "cursor"
                                 ? "agent login"
@@ -967,13 +978,15 @@ export function OnboardingWizard() {
                                 ? "codex login"
                                 : "opencode auth login"}
                             </span>
-                            .
+                            {t("onboarding.authFailureSuffix")}
                           </p>
                         ) : (
                           <p className="text-muted-foreground">
-                            If login is required, run{" "}
-                            <span className="font-mono">claude login</span> and
-                            retry.
+                            {t("onboarding.loginRequiredPrefix")}{" "}
+                            <span className="font-mono">
+                              {t("onboarding.claudeLoginCommand")}
+                            </span>{" "}
+                            {t("onboarding.loginRequiredSuffix")}
                           </p>
                         )}
                       </div>
@@ -988,7 +1001,7 @@ export function OnboardingWizard() {
                         </label>
                         <input
                           className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                          placeholder="e.g. node, python"
+                          placeholder={t("onboarding.commandPlaceholder")}
                           value={command}
                           onChange={(e) => setCommand(e.target.value)}
                         />
@@ -999,7 +1012,7 @@ export function OnboardingWizard() {
                         </label>
                         <input
                           className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                          placeholder="e.g. script.js, --flag"
+                          placeholder={t("onboarding.argsPlaceholder")}
                           value={args}
                           onChange={(e) => setArgs(e.target.value)}
                         />
@@ -1014,7 +1027,7 @@ export function OnboardingWizard() {
                       </label>
                       <input
                         className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                        placeholder="https://..."
+                        placeholder={t("onboarding.webhookPlaceholder")}
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                       />

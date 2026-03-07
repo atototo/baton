@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "@/lib/router";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -31,6 +32,7 @@ import { getUIAdapter } from "../adapters";
 import { AgentIcon } from "./AgentIconPicker";
 
 export function NewAgentDialog() {
+  const { t } = useTranslation();
   const { newAgentOpen, closeNewAgent } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
@@ -142,7 +144,7 @@ export function NewAgentDialog() {
         className={cn("p-0 gap-0 overflow-hidden", expanded ? "sm:max-w-2xl" : "sm:max-w-lg")}
         onKeyDown={handleKeyDown}
       >
-        <DialogTitle className="sr-only">New agent</DialogTitle>
+        <DialogTitle className="sr-only">{t("newAgent.title")}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -152,7 +154,7 @@ export function NewAgentDialog() {
               </span>
             )}
             <span className="text-muted-foreground/60">&rsaquo;</span>
-            <span>New agent</span>
+            <span>{t("newAgent.title")}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon-xs" className="text-muted-foreground" onClick={() => setExpanded(!expanded)}>
@@ -169,7 +171,7 @@ export function NewAgentDialog() {
           <div className="px-4 pt-4 pb-2 shrink-0">
             <input
               className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
-              placeholder="Agent name"
+              placeholder={t("newAgent.agentName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -180,7 +182,7 @@ export function NewAgentDialog() {
           <div className="px-4 pb-2">
             <input
               className="w-full bg-transparent outline-none text-sm text-muted-foreground placeholder:text-muted-foreground/40"
-              placeholder="Title (e.g. VP of Engineering)"
+              placeholder={t("newAgent.titlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -231,12 +233,12 @@ export function NewAgentDialog() {
                   {currentReportsTo ? (
                     <>
                       <AgentIcon icon={currentReportsTo.icon} className="h-3 w-3 text-muted-foreground" />
-                      {`Reports to ${currentReportsTo.name}`}
+                      {t("newAgent.reportsToNamed", { name: currentReportsTo.name })}
                     </>
                   ) : (
                     <>
                       <User className="h-3 w-3 text-muted-foreground" />
-                      {isFirstAgent ? "Reports to: N/A (CEO)" : "Reports to..."}
+                      {isFirstAgent ? t("newAgent.reportsToCeo") : t("newAgent.reportsTo")}
                     </>
                   )}
                 </button>
@@ -249,7 +251,7 @@ export function NewAgentDialog() {
                   )}
                   onClick={() => { setReportsTo(""); setReportsToOpen(false); }}
                 >
-                  No manager
+                  {t("newAgent.noManager")}
                 </button>
                 {(agents ?? []).map((a) => (
                   <button
@@ -281,14 +283,14 @@ export function NewAgentDialog() {
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
           <span className="text-xs text-muted-foreground">
-            {isFirstAgent ? "This will be the CEO" : ""}
+            {isFirstAgent ? t("newAgent.thisWillBeCeo") : ""}
           </span>
           <Button
             size="sm"
             disabled={!name.trim() || createAgent.isPending}
             onClick={handleSubmit}
           >
-            {createAgent.isPending ? "Creating…" : "Create agent"}
+            {createAgent.isPending ? t("newAgent.creating") : t("newAgent.createAgent")}
           </Button>
         </div>
       </DialogContent>

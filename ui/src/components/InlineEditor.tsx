@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { MarkdownBody } from "./MarkdownBody";
@@ -23,11 +24,12 @@ export function InlineEditor({
   onSave,
   as: Tag = "span",
   className,
-  placeholder = "Click to edit...",
+  placeholder,
   multiline = false,
   imageUploadHandler,
   mentions,
 }: InlineEditorProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -73,6 +75,8 @@ export function InlineEditor({
     }
   }
 
+  const resolvedPlaceholder = placeholder ?? t("common.clickToEdit");
+
   if (editing) {
     if (multiline) {
       return (
@@ -80,7 +84,7 @@ export function InlineEditor({
           <MarkdownEditor
             value={draft}
             onChange={setDraft}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             contentClassName={className}
             imageUploadHandler={imageUploadHandler}
             mentions={mentions}
@@ -95,10 +99,10 @@ export function InlineEditor({
                 setEditing(false);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button size="sm" onClick={commit}>
-              Save
+              {t("common.save")}
             </Button>
           </div>
         </div>
@@ -142,7 +146,7 @@ export function InlineEditor({
       {value && multiline ? (
         <MarkdownBody>{value}</MarkdownBody>
       ) : (
-        value || placeholder
+        value || resolvedPlaceholder
       )}
     </DisplayTag>
   );

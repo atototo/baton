@@ -327,7 +327,7 @@ export function ProjectProperties({
             <span className="text-xs text-muted-foreground">Goals</span>
             <div className="flex flex-col items-end gap-1.5">
               {linkedGoals.length === 0 ? (
-                <span className="text-sm text-muted-foreground">None</span>
+                <span className="text-sm text-muted-foreground">{t("common.none")}</span>
               ) : (
                 <div className="flex flex-wrap justify-end gap-1.5 max-w-[220px]">
                   {linkedGoals.map((goal) => (
@@ -365,13 +365,13 @@ export function ProjectProperties({
                       disabled={availableGoals.length === 0}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Goal
+                      {t("projectProperties.goal")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56 p-1" align="end">
                     {availableGoals.length === 0 ? (
                       <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                        All goals linked.
+                        {t("projectProperties.allGoalsLinked")}
                       </div>
                     ) : (
                       availableGoals.map((goal) => (
@@ -406,7 +406,7 @@ export function ProjectProperties({
       <div className="space-y-1">
         <div className="py-1.5 space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Workspaces</span>
+            <span>{t("projectProperties.workspaces")}</span>
             <HintIcon
               hint={{
                 text: help.workspaceTooltip,
@@ -429,7 +429,7 @@ export function ProjectProperties({
           </InlineHelp>
           {workspaces.length === 0 ? (
             <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-              No workspace configured.
+              {t("projectProperties.noWorkspace")}
             </p>
           ) : (
             <div className="space-y-1">
@@ -444,7 +444,7 @@ export function ProjectProperties({
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => clearLocalWorkspace(workspace)}
-                        aria-label="Delete local folder"
+                        aria-label={t("projectProperties.deleteLocalFolder")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -468,7 +468,7 @@ export function ProjectProperties({
                         variant="ghost"
                         size="icon-xs"
                         onClick={() => clearRepoWorkspace(workspace)}
-                        aria-label="Delete workspace repo"
+                        aria-label={t("projectProperties.deleteWorkspaceRepo")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -488,7 +488,7 @@ export function ProjectProperties({
                 setWorkspaceError(null);
               }}
             >
-              Add workspace local folder
+              {t("projectProperties.addWorkspaceLocal")}
             </Button>
             <Button
               variant="outline"
@@ -499,7 +499,7 @@ export function ProjectProperties({
                 setWorkspaceError(null);
               }}
             >
-              Add workspace repo
+              {t("projectProperties.addWorkspaceRepo")}
             </Button>
           </div>
           {workspaceMode === "local" && (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Link } from "@/lib/router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type { LiveEvent } from "@atototo/shared";
 import { heartbeatsApi, type LiveRunForIssue } from "../api/heartbeats";
 import { getUIAdapter } from "../adapters";
@@ -202,6 +203,7 @@ function parsePersistedLogContent(
 }
 
 export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [cancellingRunIds, setCancellingRunIds] = useState(new Set<string>());
@@ -506,7 +508,7 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Run</span>
+              <span className="text-muted-foreground">{t("commentThread.run")}</span>
               <Link
                 to={`/agents/${run.agentId}/runs/${run.id}`}
                 className="inline-flex items-center rounded-md border border-border bg-accent/40 px-2 py-1 font-mono text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
@@ -527,7 +529,7 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
                   to={`/agents/${run.agentId}/runs/${run.id}`}
                   className="inline-flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-500 dark:text-cyan-300 dark:hover:text-cyan-200"
                 >
-                  Open run
+                  {t("agents.openRun")}
                   <ExternalLink className="h-2.5 w-2.5" />
                 </Link>
               </div>
@@ -536,13 +538,13 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
         ))
       ) : (
         <div className="flex items-center px-3 py-2 border-b border-border/50">
-          <span className="text-xs font-medium text-muted-foreground">Recent run updates</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("liveRuns.recentUpdates")}</span>
         </div>
       )}
 
       <div ref={bodyRef} className="max-h-[220px] overflow-y-auto p-2 font-mono text-[11px] space-y-1">
         {recent.length === 0 && (
-          <div className="text-xs text-muted-foreground">Waiting for run output...</div>
+          <div className="text-xs text-muted-foreground">{t("liveRuns.waitingForRunOutput")}</div>
         )}
         {recent.map((item, index) => (
           <div
