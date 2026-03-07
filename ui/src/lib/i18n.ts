@@ -13,6 +13,7 @@ i18n
       ko: { translation: ko },
     },
     fallbackLng: "en",
+    nsSeparator: false,
     interpolation: {
       escapeValue: false,
     },
