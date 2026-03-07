@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import type { IssueComment, Agent } from "@atototo/shared";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { WandSparkles } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { Identity } from "./Identity";
 import { InlineEntitySelector, type InlineEntityOption } from "./InlineEntitySelector";
 import { MarkdownBody } from "./MarkdownBody";
@@ -48,6 +48,19 @@ interface CommentThreadProps {
 
 const CLOSED_STATUSES = new Set(["done", "cancelled"]);
 const DRAFT_DEBOUNCE_MS = 800;
+
+function buildImageMarkdown(file: File, src: string): string {
+  const rawAlt = file.name.replace(/\.[^.]+$/, "").trim();
+  const alt = rawAlt || "image";
+  return `![${alt}](${src})`;
+}
+
+function appendToDraft(current: string, snippet: string): string {
+  if (!current.trim()) return snippet;
+  if (current.endsWith("\n\n")) return `${current}${snippet}`;
+  if (current.endsWith("\n")) return `${current}\n${snippet}`;
+  return `${current}\n\n${snippet}`;
+}
 
 function loadDraft(draftKey: string): string {
   try {
@@ -315,10 +328,16 @@ export function CommentThread({
 
   async function handleAttachFile(evt: ChangeEvent<HTMLInputElement>) {
     const file = evt.target.files?.[0];
-    if (!file || !onAttachImage) return;
+    if (!file) return;
     setAttaching(true);
     try {
-      await onAttachImage(file);
+      if (imageUploadHandler) {
+        const src = await imageUploadHandler(file);
+        setBody((current) => appendToDraft(current, buildImageMarkdown(file, src)));
+        requestAnimationFrame(() => editorRef.current?.focus());
+      } else if (onAttachImage) {
+        await onAttachImage(file);
+      }
     } finally {
       setAttaching(false);
       if (attachInputRef.current) attachInputRef.current.value = "";
@@ -347,7 +366,7 @@ export function CommentThread({
           contentClassName="min-h-[60px] text-sm"
         />
         <div className="flex items-center justify-end gap-3">
-          {onAttachImage && (
+          {(onAttachImage || imageUploadHandler) && (
             <div className="mr-auto flex items-center gap-3">
               <input
                 ref={attachInputRef}
@@ -358,12 +377,14 @@ export function CommentThread({
               />
               <Button
                 variant="ghost"
-                size="icon-sm"
+                size="sm"
                 onClick={() => attachInputRef.current?.click()}
                 disabled={attaching}
                 title={t("commentThread.attachImage")}
+                className="gap-1.5 text-xs text-muted-foreground"
               >
-                <WandSparkles className="h-4 w-4" />
+                <ImageIcon className="h-4 w-4" />
+                {t("commentThread.attachImage")}
               </Button>
             </div>
           )}
