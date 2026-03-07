@@ -630,7 +630,16 @@
       "resumeSkipped": "Resume request was skipped because the agent is not currently invokable.",
       "retrySkipped": "Retry was skipped because the agent is not currently invokable.",
       "loadRunLogFailed": "Failed to load run log"
-    }
+    },
+    "permissionDescriptions": {
+      "agents:create": "Can add or hire new AI agents to the organization",
+      "users:invite": "Can invite external users to the workspace",
+      "users:manage_permissions": "Can change the permissions of other agents or users",
+      "tasks:assign": "Can assign tasks to agents or users",
+      "tasks:assign_scope": "Can assign tasks only within specific scopes (project, team, etc.)",
+      "joins:approve": "Can approve or reject organization join requests"
+    },
+    "canCreateAgentsDescription": "Top-level permission allowing direct hiring of agents"
   },
   "inbox": {
     "selectCompany": "Select a company to view inbox.",
