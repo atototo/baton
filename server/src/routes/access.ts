@@ -25,7 +25,7 @@ import type { DeploymentExposure, DeploymentMode } from "@atototo/shared";
 import { forbidden, conflict, notFound, unauthorized, badRequest } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { accessService, agentService, logActivity } from "../services/index.js";
-import { assertCompanyAccess } from "./authz.js";
+import { assertCompanyAccess, getActorInfo } from "./authz.js";
 import { claimBoardOwnership, inspectBoardClaimChallenge } from "../board-claim.js";
 
 function hashToken(token: string) {
@@ -586,6 +586,49 @@ export function accessRoutes(
     if (!allowed) throw forbidden("Permission denied");
   }
 
+  async function actorManagesTargetAgent(
+    actorAgentId: string,
+    targetAgent: { companyId: string; reportsTo: string | null },
+  ) {
+    let currentManagerId = targetAgent.reportsTo;
+    while (currentManagerId) {
+      if (currentManagerId === actorAgentId) return true;
+      const manager = await agents.getById(currentManagerId);
+      if (!manager || manager.companyId !== targetAgent.companyId) return false;
+      currentManagerId = manager.reportsTo;
+    }
+    return false;
+  }
+
+  async function assertCanManageAgentPermissionGrants(
+    req: Request,
+    companyId: string,
+    targetAgentId: string,
+  ) {
+    assertCompanyAccess(req, companyId);
+    const targetAgent = await agents.getById(targetAgentId);
+    if (!targetAgent || targetAgent.companyId !== companyId) throw notFound("Agent not found");
+
+    if (req.actor.type === "board") {
+      if (isLocalImplicit(req)) return targetAgent;
+      const allowed = await access.canUser(companyId, req.actor.userId, "users:manage_permissions");
+      if (!allowed) throw forbidden("Permission denied");
+      return targetAgent;
+    }
+
+    if (!req.actor.agentId) throw forbidden();
+    const actorAgent = await agents.getById(req.actor.agentId);
+    if (!actorAgent || actorAgent.companyId !== companyId) {
+      throw forbidden("Agent key cannot access another company");
+    }
+    if (actorAgent.role === "ceo") return targetAgent;
+    const allowedByGrant = await access.hasPermission(companyId, "agent", actorAgent.id, "users:manage_permissions");
+    if (allowedByGrant) return targetAgent;
+    const managesTarget = await actorManagesTargetAgent(actorAgent.id, targetAgent);
+    if (managesTarget) return targetAgent;
+    throw forbidden("Only CEO or managers can manage agent permissions");
+  }
+
   router.get("/skills/index", (_req, res) => {
     res.json({
       skills: [
@@ -1060,6 +1103,50 @@ export function accessRoutes(
     const members = await access.listMembers(companyId);
     res.json(members);
   });
+
+  router.get("/companies/:companyId/agents/:agentId/permissions", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    const agentId = req.params.agentId as string;
+    await assertCanManageAgentPermissionGrants(req, companyId, agentId);
+    const grants = await access.listPrincipalGrants(companyId, "agent", agentId);
+    res.json(grants);
+  });
+
+  router.patch(
+    "/companies/:companyId/agents/:agentId/permissions",
+    validate(updateMemberPermissionsSchema),
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      const agentId = req.params.agentId as string;
+      const targetAgent = await assertCanManageAgentPermissionGrants(req, companyId, agentId);
+
+      await access.setPrincipalGrants(
+        companyId,
+        "agent",
+        agentId,
+        req.body.grants ?? [],
+        req.actor.userId ?? null,
+      );
+
+      const actor = getActorInfo(req);
+      await logActivity(db, {
+        companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        runId: actor.runId,
+        action: "agent.permission_grants_updated",
+        entityType: "agent",
+        entityId: targetAgent.id,
+        details: {
+          grants: req.body.grants ?? [],
+        },
+      });
+
+      const grants = await access.listPrincipalGrants(companyId, "agent", agentId);
+      res.json(grants);
+    },
+  );
 
   router.patch(
     "/companies/:companyId/members/:memberId/permissions",

@@ -65,6 +65,23 @@ export function accessService(db: Db) {
     return Boolean(grant);
   }
 
+  async function listPrincipalGrants(
+    companyId: string,
+    principalType: PrincipalType,
+    principalId: string,
+  ) {
+    return db
+      .select()
+      .from(principalPermissionGrants)
+      .where(
+        and(
+          eq(principalPermissionGrants.companyId, companyId),
+          eq(principalPermissionGrants.principalType, principalType),
+          eq(principalPermissionGrants.principalId, principalId),
+        ),
+      );
+  }
+
   async function canUser(
     companyId: string,
     userId: string | null | undefined,
@@ -255,6 +272,7 @@ export function accessService(db: Db) {
     isInstanceAdmin,
     canUser,
     hasPermission,
+    listPrincipalGrants,
     getMembership,
     ensureMembership,
     listMembers,
