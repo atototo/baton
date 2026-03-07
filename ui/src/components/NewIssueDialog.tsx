@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { useToast } from "../context/ToastContext";
@@ -149,22 +150,8 @@ function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-const statuses = [
-  { value: "backlog", label: "Backlog", color: issueStatusText.backlog ?? issueStatusTextDefault },
-  { value: "todo", label: "Todo", color: issueStatusText.todo ?? issueStatusTextDefault },
-  { value: "in_progress", label: "In Progress", color: issueStatusText.in_progress ?? issueStatusTextDefault },
-  { value: "in_review", label: "In Review", color: issueStatusText.in_review ?? issueStatusTextDefault },
-  { value: "done", label: "Done", color: issueStatusText.done ?? issueStatusTextDefault },
-];
-
-const priorities = [
-  { value: "critical", label: "Critical", icon: AlertTriangle, color: priorityColor.critical ?? priorityColorDefault },
-  { value: "high", label: "High", icon: ArrowUp, color: priorityColor.high ?? priorityColorDefault },
-  { value: "medium", label: "Medium", icon: Minus, color: priorityColor.medium ?? priorityColorDefault },
-  { value: "low", label: "Low", icon: ArrowDown, color: priorityColor.low ?? priorityColorDefault },
-];
-
 export function NewIssueDialog() {
+  const { t } = useTranslation();
   const { newIssueOpen, newIssueDefaults, closeNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany } = useCompany();
   const { pushToast } = useToast();
@@ -455,18 +442,31 @@ export function NewIssueDialog() {
   }
 
   const hasDraft = title.trim().length > 0 || description.trim().length > 0;
+  const statuses = [
+    { value: "backlog", label: t("newIssue.statuses.backlog"), color: issueStatusText.backlog ?? issueStatusTextDefault },
+    { value: "todo", label: t("newIssue.statuses.todo"), color: issueStatusText.todo ?? issueStatusTextDefault },
+    { value: "in_progress", label: t("newIssue.statuses.inProgress"), color: issueStatusText.in_progress ?? issueStatusTextDefault },
+    { value: "in_review", label: t("newIssue.statuses.inReview"), color: issueStatusText.in_review ?? issueStatusTextDefault },
+    { value: "done", label: t("newIssue.statuses.done"), color: issueStatusText.done ?? issueStatusTextDefault },
+  ];
+  const priorities = [
+    { value: "critical", label: t("newIssue.priorities.critical"), icon: AlertTriangle, color: priorityColor.critical ?? priorityColorDefault },
+    { value: "high", label: t("newIssue.priorities.high"), icon: ArrowUp, color: priorityColor.high ?? priorityColorDefault },
+    { value: "medium", label: t("newIssue.priorities.medium"), icon: Minus, color: priorityColor.medium ?? priorityColorDefault },
+    { value: "low", label: t("newIssue.priorities.low"), icon: ArrowDown, color: priorityColor.low ?? priorityColorDefault },
+  ];
   const currentStatus = statuses.find((s) => s.value === status) ?? statuses[1]!;
   const currentPriority = priorities.find((p) => p.value === priority);
   const currentAssignee = (agents ?? []).find((a) => a.id === assigneeId);
   const currentProject = orderedProjects.find((project) => project.id === projectId);
   const assigneeOptionsTitle =
     assigneeAdapterType === "claude_local"
-      ? "Claude options"
+      ? t("newIssue.assigneeOptions.claude")
       : assigneeAdapterType === "codex_local"
-        ? "Codex options"
+        ? t("newIssue.assigneeOptions.codex")
         : assigneeAdapterType === "opencode_local"
-          ? "OpenCode options"
-        : "Agent options";
+          ? t("newIssue.assigneeOptions.openCode")
+        : t("newIssue.assigneeOptions.agent");
   const thinkingEffortOptions =
     assigneeAdapterType === "codex_local"
       ? ISSUE_THINKING_EFFORT_OPTIONS.codex_local
@@ -521,7 +521,7 @@ export function NewIssueDialog() {
         )}
         onKeyDown={handleKeyDown}
       >
-        <DialogTitle className="sr-only">New issue</DialogTitle>
+        <DialogTitle className="sr-only">{t("newIssue.title")}</DialogTitle>
         {/* Header bar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -579,7 +579,7 @@ export function NewIssueDialog() {
               </PopoverContent>
             </Popover>
             <span className="text-muted-foreground/60">&rsaquo;</span>
-            <span>New issue</span>
+            <span>{t("newIssue.title")}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -605,7 +605,7 @@ export function NewIssueDialog() {
         <div className="px-4 pt-4 pb-2 shrink-0">
           <textarea
             className="w-full text-lg font-semibold bg-transparent outline-none resize-none overflow-hidden placeholder:text-muted-foreground/50"
-            placeholder="Issue title"
+            placeholder={t("newIssue.issueTitle")}
             rows={1}
             value={title}
             onChange={(e) => {
@@ -630,15 +630,15 @@ export function NewIssueDialog() {
         <div className="px-4 pb-2 shrink-0">
           <div className="overflow-x-auto">
             <div className="inline-flex min-w-max items-center gap-2 text-sm text-muted-foreground">
-              <span>For</span>
+              <span>{t("newIssue.for")}</span>
               <InlineEntitySelector
                 ref={assigneeSelectorRef}
                 value={assigneeId}
                 options={assigneeOptions}
-                placeholder="Assignee"
-                noneLabel="No assignee"
-                searchPlaceholder="Search assignees..."
-                emptyMessage="No assignees found."
+                placeholder={t("newIssue.assignee")}
+                noneLabel={t("newIssue.noAssignee")}
+                searchPlaceholder={t("newIssue.searchAssignees")}
+                emptyMessage={t("newIssue.noAssigneesFound")}
                 onChange={setAssigneeId}
                 onConfirm={() => {
                   projectSelectorRef.current?.focus();
@@ -650,7 +650,7 @@ export function NewIssueDialog() {
                       <span className="truncate">{option.label}</span>
                     </>
                   ) : (
-                    <span className="text-muted-foreground">Assignee</span>
+                    <span className="text-muted-foreground">{t("newIssue.assignee")}</span>
                   )
                 }
                 renderOption={(option) => {
@@ -664,15 +664,15 @@ export function NewIssueDialog() {
                   );
                 }}
               />
-              <span>in</span>
+              <span>{t("newIssue.in")}</span>
               <InlineEntitySelector
                 ref={projectSelectorRef}
                 value={projectId}
                 options={projectOptions}
-                placeholder="Project"
-                noneLabel="No project"
-                searchPlaceholder="Search projects..."
-                emptyMessage="No projects found."
+                placeholder={t("newIssue.project")}
+                noneLabel={t("newIssue.noProject")}
+                searchPlaceholder={t("newIssue.searchProjects")}
+                emptyMessage={t("newIssue.noProjectsFound")}
                 onChange={setProjectId}
                 onConfirm={() => {
                   descriptionEditorRef.current?.focus();
@@ -687,7 +687,7 @@ export function NewIssueDialog() {
                       <span className="truncate">{option.label}</span>
                     </>
                   ) : (
-                    <span className="text-muted-foreground">Project</span>
+                    <span className="text-muted-foreground">{t("newIssue.project")}</span>
                   )
                 }
                 renderOption={(option) => {
@@ -720,19 +720,19 @@ export function NewIssueDialog() {
             {assigneeOptionsOpen && (
               <div className="mt-2 rounded-md border border-border p-3 bg-muted/20 space-y-3">
                 <div className="space-y-1.5">
-                  <div className="text-xs text-muted-foreground">Model</div>
+                  <div className="text-xs text-muted-foreground">{t("newIssue.model")}</div>
                   <InlineEntitySelector
                     value={assigneeModelOverride}
                     options={modelOverrideOptions}
-                    placeholder="Default model"
-                    noneLabel="Default model"
-                    searchPlaceholder="Search models..."
-                    emptyMessage="No models found."
+                    placeholder={t("newIssue.defaultModel")}
+                    noneLabel={t("newIssue.defaultModel")}
+                    searchPlaceholder={t("newIssue.searchModels")}
+                    emptyMessage={t("newIssue.noModelsFound")}
                     onChange={setAssigneeModelOverride}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <div className="text-xs text-muted-foreground">Thinking effort</div>
+                  <div className="text-xs text-muted-foreground">{t("newIssue.thinkingEffort")}</div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {thinkingEffortOptions.map((option) => (
                       <button
@@ -750,7 +750,7 @@ export function NewIssueDialog() {
                 </div>
                 {assigneeAdapterType === "claude_local" && (
                   <div className="flex items-center justify-between rounded-md border border-border px-2 py-1.5">
-                    <div className="text-xs text-muted-foreground">Enable Chrome (--chrome)</div>
+                    <div className="text-xs text-muted-foreground">{t("newIssue.enableChrome")}</div>
                     <button
                       className={cn(
                         "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
@@ -768,7 +768,7 @@ export function NewIssueDialog() {
                   </div>
                 )}
                 <div className="flex items-center justify-between rounded-md border border-border px-2 py-1.5">
-                  <div className="text-xs text-muted-foreground">Use project workspace</div>
+                  <div className="text-xs text-muted-foreground">{t("newIssue.useProjectWorkspace")}</div>
                   <button
                     className={cn(
                       "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
@@ -795,7 +795,7 @@ export function NewIssueDialog() {
             ref={descriptionEditorRef}
             value={description}
             onChange={setDescription}
-            placeholder="Add description..."
+            placeholder={t("newIssue.addDescription")}
             bordered={false}
             mentions={mentionOptions}
             contentClassName={cn("text-sm text-muted-foreground", expanded ? "min-h-[220px]" : "min-h-[120px]")}
@@ -845,7 +845,7 @@ export function NewIssueDialog() {
                 ) : (
                   <>
                     <Minus className="h-3 w-3 text-muted-foreground" />
-                    Priority
+                    {t("newIssue.priority")}
                   </>
                 )}
               </button>
@@ -870,7 +870,7 @@ export function NewIssueDialog() {
           {/* Labels chip (placeholder) */}
           <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors text-muted-foreground">
             <Tag className="h-3 w-3" />
-            Labels
+            {t("newIssue.labels")}
           </button>
 
           {/* Attach image chip */}
@@ -887,7 +887,7 @@ export function NewIssueDialog() {
             disabled={uploadDescriptionImage.isPending}
           >
             <WandSparkles className="h-3 w-3" />
-            {uploadDescriptionImage.isPending ? "Uploading..." : "Image"}
+            {uploadDescriptionImage.isPending ? t("newIssue.uploading") : t("newIssue.image")}
           </button>
 
           {/* More (dates) */}
@@ -900,11 +900,11 @@ export function NewIssueDialog() {
             <PopoverContent className="w-44 p-1" align="start">
               <button className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                Start date
+                {t("newIssue.startDate")}
               </button>
               <button className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                Due date
+                {t("newIssue.dueDate")}
               </button>
             </PopoverContent>
           </Popover>
@@ -919,14 +919,14 @@ export function NewIssueDialog() {
             onClick={discardDraft}
             disabled={!hasDraft && !loadDraft()}
           >
-            Discard Draft
+            {t("newIssue.discardDraft")}
           </Button>
           <Button
             size="sm"
             disabled={!title.trim() || createIssue.isPending}
             onClick={handleSubmit}
           >
-            {createIssue.isPending ? "Creating..." : "Create Issue"}
+            {createIssue.isPending ? t("newIssue.creating") : t("newIssue.createIssue")}
           </Button>
         </div>
       </DialogContent>

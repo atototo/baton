@@ -111,7 +111,7 @@ export function CompanySettings() {
     },
     onError: (err) => {
       setInviteError(
-        err instanceof Error ? err.message : "Failed to create invite"
+        err instanceof Error ? err.message : t("settings.failedToCreateInvite")
       );
     },
   });
@@ -286,8 +286,8 @@ export function CompanySettings() {
                 i18n.changeLanguage(v);
               }}
             >
-              <option value="en">English</option>
-              <option value="ko">한국어</option>
+              <option value="en">{t("settings.languageEnglish")}</option>
+              <option value="ko">{t("settings.languageKorean")}</option>
             </select>
           </Field>
         </div>

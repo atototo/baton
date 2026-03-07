@@ -98,12 +98,15 @@ function redactEnvValue(key: string, value: unknown): string {
   }
 }
 
-function formatEnvForDisplay(envValue: unknown): string {
+function formatEnvForDisplay(
+  envValue: unknown,
+  labels: { unableToParse: string; empty: string }
+): string {
   const env = asRecord(envValue);
-  if (!env) return "<unable-to-parse>";
+  if (!env) return labels.unableToParse;
 
   const keys = Object.keys(env);
-  if (keys.length === 0) return "<empty>";
+  if (keys.length === 0) return labels.empty;
 
   return keys
     .sort()
@@ -322,7 +325,9 @@ export function AgentDetail() {
 
   const agentAction = useMutation({
     mutationFn: async (action: "invoke" | "pause" | "resume" | "terminate") => {
-      if (!agentLookupRef) return Promise.reject(new Error("No agent reference"));
+      if (!agentLookupRef) {
+        return Promise.reject(new Error(t("agentDetail.errors.noAgentReference")));
+      }
       switch (action) {
         case "invoke": return agentsApi.invoke(agentLookupRef, resolvedCompanyId ?? undefined);
         case "pause": return agentsApi.pause(agentLookupRef, resolvedCompanyId ?? undefined);
@@ -347,7 +352,7 @@ export function AgentDetail() {
       }
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : "Action failed");
+      setActionError(err instanceof Error ? err.message : t("agentDetail.errors.actionFailed"));
     },
   });
 
@@ -371,7 +376,9 @@ export function AgentDetail() {
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.taskSessions(agentLookupRef) });
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : "Failed to reset session");
+      setActionError(
+        err instanceof Error ? err.message : t("agentDetail.errors.resetSessionFailed")
+      );
     },
   });
 
@@ -387,7 +394,9 @@ export function AgentDetail() {
       }
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : "Failed to update permissions");
+      setActionError(
+        err instanceof Error ? err.message : t("agentDetail.errors.updatePermissionsFailed")
+      );
     },
   });
 
@@ -395,7 +404,7 @@ export function AgentDetail() {
     const crumbs: { label: string; href?: string }[] = [
       { label: t("agentDetail.breadcrumbAgents"), href: "/agents" },
     ];
-    const agentName = agent?.name ?? routeAgentRef ?? "Agent";
+    const agentName = agent?.name ?? routeAgentRef ?? t("agentDetail.defaultAgentLabel");
     if (activeView === "overview" && !urlRunId) {
       crumbs.push({ label: agentName });
     } else {
@@ -1400,7 +1409,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
         payload: resumePayload,
       }, run.companyId);
       if (!("id" in result)) {
-        throw new Error("Resume request was skipped because the agent is not currently invokable.");
+        throw new Error(t("agentDetail.errors.resumeSkipped"));
       }
       return result;
     },
@@ -1432,7 +1441,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
         payload: retryPayload,
       }, run.companyId);
       if (!("id" in result)) {
-        throw new Error("Retry was skipped because the agent is not currently invokable.");
+        throw new Error(t("agentDetail.errors.retrySkipped"));
       }
       return result;
     },
@@ -1594,7 +1603,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
                   <p className="text-xs text-destructive">
                     {runClaudeLogin.error instanceof Error
                       ? runClaudeLogin.error.message
-                      : "Failed to run Claude login"}
+                      : t("agentDetail.failedToRunClaudeLogin")}
                   </p>
                 )}
                 {claudeLoginResult?.loginUrl && (
@@ -1741,7 +1750,9 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
       {/* stderr excerpt for failed runs */}
       {run.stderrExcerpt && (
         <div className="space-y-1">
-          <span className="text-xs font-medium text-red-600 dark:text-red-400">stderr</span>
+          <span className="text-xs font-medium text-red-600 dark:text-red-400">
+            {t("agentDetail.transcriptLabels.stderr")}
+          </span>
           <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-3 text-xs font-mono text-red-700 dark:text-red-300 overflow-x-auto whitespace-pre-wrap">{run.stderrExcerpt}</pre>
         </div>
       )}
@@ -1749,7 +1760,9 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
       {/* stdout excerpt when no log is available */}
       {run.stdoutExcerpt && !run.logRef && (
         <div className="space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">stdout</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {t("agentDetail.transcriptLabels.stdout")}
+          </span>
           <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{run.stdoutExcerpt}</pre>
         </div>
       )}
@@ -1763,6 +1776,7 @@ function RunDetail({ run, agentRouteId, adapterType }: { run: HeartbeatRun; agen
 /* ---- Log Viewer ---- */
 
 function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: string }) {
+  const { t } = useTranslation();
   const [events, setEvents] = useState<HeartbeatRunEvent[]>([]);
   const [logLines, setLogLines] = useState<Array<{ ts: string; stream: "stdout" | "stderr" | "system"; chunk: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -1943,7 +1957,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
         }
       } catch (err) {
         if (!cancelled) {
-          setLogError(err instanceof Error ? err.message : "Failed to load run log");
+          setLogError(
+            err instanceof Error ? err.message : t("agentDetail.errors.loadRunLogFailed")
+          );
         }
       } finally {
         if (!cancelled) setLogLoading(false);
@@ -2003,11 +2019,11 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
   const transcript = useMemo(() => buildTranscript(logLines, adapter.parseStdoutLine), [logLines, adapter]);
 
   if (loading && logLoading) {
-    return <p className="text-xs text-muted-foreground">Loading run logs...</p>;
+    return <p className="text-xs text-muted-foreground">{t("agentDetail.loadingRunLogs")}</p>;
   }
 
   if (events.length === 0 && logLines.length === 0 && !logError) {
-    return <p className="text-xs text-muted-foreground">No log events.</p>;
+    return <p className="text-xs text-muted-foreground">{t("agentDetail.noLogEvents")}</p>;
   }
 
   const levelColors: Record<string, string> = {
@@ -2026,16 +2042,30 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
     <div className="space-y-3">
       {adapterInvokePayload && (
         <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">Invocation</div>
+          <div className="text-xs font-medium text-muted-foreground">
+            {t("agentDetail.invocation")}
+          </div>
           {typeof adapterInvokePayload.adapterType === "string" && (
-            <div className="text-xs"><span className="text-muted-foreground">Adapter: </span>{adapterInvokePayload.adapterType}</div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">
+                {t("agentDetail.adapterLabel")}
+              </span>
+              {adapterInvokePayload.adapterType}
+            </div>
           )}
           {typeof adapterInvokePayload.cwd === "string" && (
-            <div className="text-xs break-all"><span className="text-muted-foreground">Working dir: </span><span className="font-mono">{adapterInvokePayload.cwd}</span></div>
+            <div className="text-xs break-all">
+              <span className="text-muted-foreground">
+                {t("agentDetail.workingDirLabel")}
+              </span>
+              <span className="font-mono">{adapterInvokePayload.cwd}</span>
+            </div>
           )}
           {typeof adapterInvokePayload.command === "string" && (
             <div className="text-xs break-all">
-              <span className="text-muted-foreground">Command: </span>
+              <span className="text-muted-foreground">
+                {t("agentDetail.commandLabel")}
+              </span>
               <span className="font-mono">
                 {[
                   adapterInvokePayload.command,
@@ -2048,7 +2078,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {Array.isArray(adapterInvokePayload.commandNotes) && adapterInvokePayload.commandNotes.length > 0 && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Command notes</div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {t("agentDetail.commandNotes")}
+              </div>
               <ul className="list-disc pl-5 space-y-1">
                 {adapterInvokePayload.commandNotes
                   .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
@@ -2062,7 +2094,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.prompt !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Prompt</div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {t("agentDetail.prompt")}
+              </div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap">
                 {typeof adapterInvokePayload.prompt === "string"
                   ? adapterInvokePayload.prompt
@@ -2072,7 +2106,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.context !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Context</div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {t("agentDetail.context")}
+              </div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(adapterInvokePayload.context, null, 2)}
               </pre>
@@ -2080,9 +2116,14 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.env !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Environment</div>
+              <div className="text-xs text-muted-foreground mb-1">
+                {t("agentDetail.environment")}
+              </div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap font-mono">
-                {formatEnvForDisplay(adapterInvokePayload.env)}
+                {formatEnvForDisplay(adapterInvokePayload.env, {
+                  unableToParse: t("agentDetail.unableToParse"),
+                  empty: t("agentDetail.empty"),
+                })}
               </pre>
             </div>
           )}
@@ -2091,7 +2132,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
-          Transcript ({transcript.length})
+          {t("agentDetail.transcript", { count: transcript.length })}
         </span>
         <div className="flex items-center gap-2">
           {isLive && !isFollowing && (
@@ -2106,7 +2147,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
                 lastMetricsRef.current = readScrollMetrics(container);
               }}
             >
-              Jump to live
+              {t("agentDetail.jumpToLive")}
             </Button>
           )}
           {isLive && (
@@ -2115,14 +2156,14 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
               </span>
-              Live
+              {t("agentDetail.live")}
             </span>
           )}
         </div>
       </div>
       <div className="bg-neutral-100 dark:bg-neutral-950 rounded-lg p-3 font-mono text-xs space-y-0.5 overflow-x-hidden">
         {transcript.length === 0 && !run.logRef && (
-          <div className="text-neutral-500">No persisted transcript for this run.</div>
+          <div className="text-neutral-500">{t("agentDetail.noPersistedTranscript")}</div>
         )}
         {transcript.map((entry, idx) => {
           const time = new Date(entry.ts).toLocaleTimeString("en-US", { hour12: false });
@@ -2136,7 +2177,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-assistant-${idx}`} className={cn(grid, "py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-green-700 dark:text-green-300")}>assistant</span>
+                <span className={cn(lblCell, "text-green-700 dark:text-green-300")}>
+                  {t("agentDetail.transcriptLabels.assistant")}
+                </span>
                 <span className={cn(contentCell, "text-green-900 dark:text-green-100")}>{entry.text}</span>
               </div>
             );
@@ -2146,7 +2189,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-thinking-${idx}`} className={cn(grid, "py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-green-600/60 dark:text-green-300/60")}>thinking</span>
+                <span className={cn(lblCell, "text-green-600/60 dark:text-green-300/60")}>
+                  {t("agentDetail.transcriptLabels.thinking")}
+                </span>
                 <span className={cn(contentCell, "text-green-800/60 dark:text-green-100/60 italic")}>{entry.text}</span>
               </div>
             );
@@ -2156,7 +2201,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-user-${idx}`} className={cn(grid, "py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-neutral-500 dark:text-neutral-400")}>user</span>
+                <span className={cn(lblCell, "text-neutral-500 dark:text-neutral-400")}>
+                  {t("agentDetail.transcriptLabels.user")}
+                </span>
                 <span className={cn(contentCell, "text-neutral-700 dark:text-neutral-300")}>{entry.text}</span>
               </div>
             );
@@ -2166,7 +2213,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-tool-${idx}`} className={cn(grid, "gap-y-1 py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-yellow-700 dark:text-yellow-300")}>tool_call</span>
+                <span className={cn(lblCell, "text-yellow-700 dark:text-yellow-300")}>
+                  {t("agentDetail.transcriptLabels.toolCall")}
+                </span>
                 <span className="text-yellow-900 dark:text-yellow-100 min-w-0">{entry.name}</span>
                 <pre className={cn(expandCell, "bg-neutral-200 dark:bg-neutral-900 rounded p-2 text-[11px] overflow-x-auto whitespace-pre-wrap text-neutral-800 dark:text-neutral-200")}>
                   {JSON.stringify(entry.input, null, 2)}
@@ -2179,8 +2228,14 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-toolres-${idx}`} className={cn(grid, "gap-y-1 py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, entry.isError ? "text-red-600 dark:text-red-300" : "text-purple-600 dark:text-purple-300")}>tool_result</span>
-                {entry.isError ? <span className="text-red-600 dark:text-red-400 min-w-0">error</span> : <span />}
+                <span className={cn(lblCell, entry.isError ? "text-red-600 dark:text-red-300" : "text-purple-600 dark:text-purple-300")}>
+                  {t("agentDetail.transcriptLabels.toolResult")}
+                </span>
+                {entry.isError ? (
+                  <span className="text-red-600 dark:text-red-400 min-w-0">
+                    {t("agentDetail.transcriptLabels.error")}
+                  </span>
+                ) : <span />}
                 <pre className={cn(expandCell, "bg-neutral-100 dark:bg-neutral-900 rounded p-2 text-[11px] overflow-x-auto whitespace-pre-wrap text-neutral-700 dark:text-neutral-300 max-h-60 overflow-y-auto")}>
                   {(() => { try { return JSON.stringify(JSON.parse(entry.content), null, 2); } catch { return entry.content; } })()}
                 </pre>
@@ -2192,8 +2247,17 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-init-${idx}`} className={grid}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-blue-700 dark:text-blue-300")}>init</span>
-                <span className={cn(contentCell, "text-blue-900 dark:text-blue-100")}>model: {entry.model}{entry.sessionId ? `, session: ${entry.sessionId}` : ""}</span>
+                <span className={cn(lblCell, "text-blue-700 dark:text-blue-300")}>
+                  {t("agentDetail.transcriptLabels.init")}
+                </span>
+                <span className={cn(contentCell, "text-blue-900 dark:text-blue-100")}>
+                  {t("agentDetail.initSummary", {
+                    model: entry.model,
+                    sessionSuffix: entry.sessionId
+                      ? `, ${t("agentDetail.session").toLowerCase()}: ${entry.sessionId}`
+                      : "",
+                  })}
+                </span>
               </div>
             );
           }
@@ -2202,14 +2266,24 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
             return (
               <div key={`${entry.ts}-result-${idx}`} className={cn(grid, "gap-y-1 py-0.5")}>
                 <span className={tsCell}>{time}</span>
-                <span className={cn(lblCell, "text-cyan-700 dark:text-cyan-300")}>result</span>
+                <span className={cn(lblCell, "text-cyan-700 dark:text-cyan-300")}>
+                  {t("agentDetail.transcriptLabels.result")}
+                </span>
                 <span className={cn(contentCell, "text-cyan-900 dark:text-cyan-100")}>
-                  tokens in={formatTokens(entry.inputTokens)} out={formatTokens(entry.outputTokens)} cached={formatTokens(entry.cachedTokens)} cost=${entry.costUsd.toFixed(6)}
+                  {t("agentDetail.resultSummary", {
+                    input: formatTokens(entry.inputTokens),
+                    output: formatTokens(entry.outputTokens),
+                    cached: formatTokens(entry.cachedTokens),
+                    cost: entry.costUsd.toFixed(6),
+                  })}
                 </span>
                 {(entry.subtype || entry.isError || entry.errors.length > 0) && (
                   <div className={cn(expandCell, "text-red-600 dark:text-red-300 whitespace-pre-wrap break-words")}>
-                    subtype={entry.subtype || "unknown"} is_error={entry.isError ? "true" : "false"}
-                    {entry.errors.length > 0 ? ` errors=${entry.errors.join(" | ")}` : ""}
+                    {t("agentDetail.resultMeta", {
+                      subtype: entry.subtype || t("agentDetail.unknown"),
+                      isError: entry.isError ? "true" : "false",
+                      errors: entry.errors.length > 0 ? ` errors=${entry.errors.join(" | ")}` : "",
+                    })}
                   </div>
                 )}
                 {entry.text && (
@@ -2221,9 +2295,11 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
           const rawText = entry.text;
           const label =
-            entry.kind === "stderr" ? "stderr" :
-            entry.kind === "system" ? "system" :
-            "stdout";
+            entry.kind === "stderr"
+              ? t("agentDetail.transcriptLabels.stderr")
+              : entry.kind === "system"
+              ? t("agentDetail.transcriptLabels.system")
+              : t("agentDetail.transcriptLabels.stdout");
           const color =
             entry.kind === "stderr" ? "text-red-600 dark:text-red-300" :
             entry.kind === "system" ? "text-blue-600 dark:text-blue-300" :
@@ -2242,16 +2318,22 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       {(run.status === "failed" || run.status === "timed_out") && (
         <div className="rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 p-3 space-y-2">
-          <div className="text-xs font-medium text-red-700 dark:text-red-300">Failure details</div>
+          <div className="text-xs font-medium text-red-700 dark:text-red-300">
+            {t("agentDetail.failureDetails")}
+          </div>
           {run.error && (
             <div className="text-xs text-red-600 dark:text-red-200">
-              <span className="text-red-700 dark:text-red-300">Error: </span>
+              <span className="text-red-700 dark:text-red-300">
+                {t("agentDetail.errorLabel")}
+              </span>
               {run.error}
             </div>
           )}
           {run.stderrExcerpt && run.stderrExcerpt.trim() && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stderr excerpt</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">
+                {t("agentDetail.stderrExcerpt")}
+              </div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {run.stderrExcerpt}
               </pre>
@@ -2259,7 +2341,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {run.resultJson && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">adapter result JSON</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">
+                {t("agentDetail.adapterResultJson")}
+              </div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {JSON.stringify(run.resultJson, null, 2)}
               </pre>
@@ -2267,7 +2351,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {run.stdoutExcerpt && run.stdoutExcerpt.trim() && !run.resultJson && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stdout excerpt</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">
+                {t("agentDetail.stdoutExcerpt")}
+              </div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {run.stdoutExcerpt}
               </pre>
@@ -2278,7 +2364,9 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       {events.length > 0 && (
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Events ({events.length})</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            {t("agentDetail.events", { count: events.length })}
+          </div>
           <div className="bg-neutral-100 dark:bg-neutral-950 rounded-lg p-3 font-mono text-xs space-y-0.5">
             {events.map((evt) => {
               const color = evt.color
@@ -2310,6 +2398,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 /* ---- Keys Tab ---- */
 
 function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [newKeyName, setNewKeyName] = useState("");
   const [newToken, setNewToken] = useState<string | null>(null);
@@ -2322,7 +2411,12 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
   });
 
   const createKey = useMutation({
-    mutationFn: () => agentsApi.createKey(agentId, newKeyName.trim() || "Default", companyId),
+    mutationFn: () =>
+      agentsApi.createKey(
+        agentId,
+        newKeyName.trim() || t("agentDetail.defaultKeyName"),
+        companyId
+      ),
     onSuccess: (data) => {
       setNewToken(data.token);
       setTokenVisible(true);
@@ -2354,7 +2448,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       {newToken && (
         <div className="border border-yellow-300 dark:border-yellow-600/40 bg-yellow-50 dark:bg-yellow-500/5 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-            API key created — copy it now, it will not be shown again.
+            {t("agentDetail.apiKeyCreated")}
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 bg-neutral-100 dark:bg-neutral-950 rounded px-3 py-1.5 text-xs font-mono text-green-700 dark:text-green-300 truncate">
@@ -2364,7 +2458,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
               variant="ghost"
               size="icon-sm"
               onClick={() => setTokenVisible((v) => !v)}
-              title={tokenVisible ? "Hide" : "Show"}
+              title={tokenVisible ? t("agentDetail.hide") : t("agentDetail.show")}
             >
               {tokenVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
@@ -2372,11 +2466,11 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
               variant="ghost"
               size="icon-sm"
               onClick={copyToken}
-              title="Copy"
+              title={t("agentDetail.copy")}
             >
               <Copy className="h-3.5 w-3.5" />
             </Button>
-            {copied && <span className="text-xs text-green-400">Copied!</span>}
+            {copied && <span className="text-xs text-green-400">{t("agentDetail.copied")}</span>}
           </div>
           <Button
             variant="ghost"
@@ -2384,7 +2478,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
             className="text-muted-foreground text-xs"
             onClick={() => setNewToken(null)}
           >
-            Dismiss
+            {t("agentDetail.dismiss")}
           </Button>
         </div>
       )}
@@ -2393,14 +2487,14 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       <div className="border border-border rounded-lg p-4 space-y-3">
         <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
           <Key className="h-3.5 w-3.5" />
-          Create API Key
+          {t("agentDetail.createApiKey")}
         </h3>
         <p className="text-xs text-muted-foreground">
-          API keys allow this agent to authenticate calls to the Baton server.
+          {t("agentDetail.createApiKeyDesc")}
         </p>
         <div className="flex items-center gap-2">
           <Input
-            placeholder="Key name (e.g. production)"
+            placeholder={t("agentDetail.keyNamePlaceholder")}
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             className="h-8 text-sm"
@@ -2414,22 +2508,22 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
             disabled={createKey.isPending}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Create
+            {t("agentDetail.create")}
           </Button>
         </div>
       </div>
 
       {/* Active keys */}
-      {isLoading && <p className="text-sm text-muted-foreground">Loading keys...</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">{t("agentDetail.loadingKeys")}</p>}
 
       {!isLoading && activeKeys.length === 0 && !newToken && (
-        <p className="text-sm text-muted-foreground">No active API keys.</p>
+        <p className="text-sm text-muted-foreground">{t("agentDetail.noActiveApiKeys")}</p>
       )}
 
       {activeKeys.length > 0 && (
         <div>
           <h3 className="text-xs font-medium text-muted-foreground mb-2">
-            Active Keys
+            {t("agentDetail.activeKeys")}
           </h3>
           <div className="border border-border rounded-lg divide-y divide-border">
             {activeKeys.map((key: AgentKey) => (
@@ -2437,7 +2531,9 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                 <div>
                   <span className="text-sm font-medium">{key.name}</span>
                   <span className="text-xs text-muted-foreground ml-3">
-                    Created {formatDate(key.createdAt)}
+                    {t("agentDetail.createdAt", {
+                      date: formatDate(key.createdAt),
+                    })}
                   </span>
                 </div>
                 <Button
@@ -2447,7 +2543,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                   onClick={() => revokeKey.mutate(key.id)}
                   disabled={revokeKey.isPending}
                 >
-                  Revoke
+                  {t("agentDetail.revoke")}
                 </Button>
               </div>
             ))}
@@ -2459,7 +2555,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       {revokedKeys.length > 0 && (
         <div>
           <h3 className="text-xs font-medium text-muted-foreground mb-2">
-            Revoked Keys
+            {t("agentDetail.revokedKeys")}
           </h3>
           <div className="border border-border rounded-lg divide-y divide-border opacity-50">
             {revokedKeys.map((key: AgentKey) => (
@@ -2467,7 +2563,9 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                 <div>
                   <span className="text-sm line-through">{key.name}</span>
                   <span className="text-xs text-muted-foreground ml-3">
-                    Revoked {key.revokedAt ? formatDate(key.revokedAt) : ""}
+                    {t("agentDetail.revokedAt", {
+                      date: key.revokedAt ? formatDate(key.revokedAt) : "",
+                    })}
                   </span>
                 </div>
               </div>

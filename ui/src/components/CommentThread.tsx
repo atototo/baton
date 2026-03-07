@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { IssueComment, Agent } from "@atototo/shared";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { WandSparkles } from "lucide-react";
 import { Identity } from "./Identity";
@@ -104,8 +105,9 @@ const TimelineList = memo(function TimelineList({
   agentMap?: Map<string, Agent>;
   highlightCommentId?: string | null;
 }) {
+  const { t } = useTranslation();
   if (timeline.length === 0) {
-    return <p className="text-sm text-muted-foreground">No comments or runs yet.</p>;
+    return <p className="text-sm text-muted-foreground">{t("commentThread.noCommentsOrRuns")}</p>;
   }
 
   return (
@@ -127,7 +129,7 @@ const TimelineList = memo(function TimelineList({
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Run</span>
+                <span className="text-muted-foreground">{t("commentThread.run")}</span>
                 <Link
                   to={`/agents/${run.agentId}/runs/${run.runId}`}
                   className="inline-flex items-center rounded-md border border-border bg-accent/40 px-2 py-1 font-mono text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
@@ -205,6 +207,7 @@ export function CommentThread({
   currentAssigneeValue = "",
   mentions: providedMentions,
 }: CommentThreadProps) {
+  const { t } = useTranslation();
   const [body, setBody] = useState("");
   const [reopen, setReopen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -326,7 +329,7 @@ export function CommentThread({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold">Comments &amp; Runs ({timeline.length})</h3>
+      <h3 className="text-sm font-semibold">{t("commentThread.commentsAndRuns", { count: timeline.length })}</h3>
 
       <TimelineList timeline={timeline} agentMap={agentMap} highlightCommentId={highlightCommentId} />
 
@@ -337,7 +340,7 @@ export function CommentThread({
           ref={editorRef}
           value={body}
           onChange={setBody}
-          placeholder="Leave a comment..."
+          placeholder={t("commentThread.leaveComment")}
           mentions={mentions}
           onSubmit={handleSubmit}
           imageUploadHandler={imageUploadHandler}
@@ -358,7 +361,7 @@ export function CommentThread({
                 size="icon-sm"
                 onClick={() => attachInputRef.current?.click()}
                 disabled={attaching}
-                title="Attach image"
+                title={t("commentThread.attachImage")}
               >
                 <WandSparkles className="h-4 w-4" />
               </Button>
@@ -379,7 +382,7 @@ export function CommentThread({
             <InlineEntitySelector
               value={reassignTarget}
               options={reassignOptions}
-              placeholder="Assignee"
+              placeholder={t("commentThread.assignee")}
               noneLabel="No assignee"
               searchPlaceholder="Search assignees..."
               emptyMessage="No assignees found."

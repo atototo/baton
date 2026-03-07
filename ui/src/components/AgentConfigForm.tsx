@@ -178,7 +178,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const createSecret = useMutation({
     mutationFn: (input: { name: string; value: string }) => {
       if (!selectedCompanyId)
-        throw new Error("Select a company to create secrets");
+        throw new Error(t("agentConfig.errors.selectCompanyCreateSecrets"));
       return secretsApi.create(selectedCompanyId, input);
     },
     onSuccess: () => {
@@ -198,7 +198,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       namespace: string;
     }) => {
       if (!selectedCompanyId)
-        throw new Error("Select a company to upload images");
+        throw new Error(t("agentConfig.errors.selectCompanyUploadImages"));
       return assetsApi.uploadImage(selectedCompanyId, file, namespace);
     },
   });
@@ -369,7 +369,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const testEnvironment = useMutation({
     mutationFn: async () => {
       if (!selectedCompanyId) {
-        throw new Error("Select a company to test adapter environment");
+        throw new Error(t("agentConfig.errors.selectCompanyTestEnvironment"));
       }
       return agentsApi.testEnvironment(selectedCompanyId, adapterType, {
         adapterConfig: buildAdapterConfigForTest(),
@@ -427,14 +427,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         <div className="sticky top-0 z-10 flex items-center justify-end px-4 py-2 bg-background/90 backdrop-blur-sm border-b border-primary/20">
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              Unsaved changes
+              {t("agentConfig.unsavedChanges")}
             </span>
             <Button
               size="sm"
               onClick={handleSave}
               disabled={!isCreate && props.isSaving}
             >
-              {!isCreate && props.isSaving ? "Saving..." : "Save"}
+              {!isCreate && props.isSaving ? t("agentConfig.saving") : t("agentConfig.save")}
             </Button>
           </div>
         </div>
@@ -444,10 +444,10 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       {!isCreate && (
         <div className={cn(!cards && "border-b border-border")}>
           {cards ? (
-            <h3 className="text-sm font-medium mb-3">Identity</h3>
+            <h3 className="text-sm font-medium mb-3">{t("agentConfig.identity")}</h3>
           ) : (
             <div className="px-4 py-2 text-xs font-medium text-muted-foreground">
-              Identity
+              {t("agentConfig.identity")}
             </div>
           )}
           <div
@@ -457,25 +457,25 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 : "px-4 pb-3 space-y-3"
             )}
           >
-            <Field label="Name" hint={help.name}>
+            <Field label={t("agentConfig.name")} hint={help.name}>
               <DraftInput
                 value={eff("identity", "name", props.agent.name)}
                 onCommit={(v) => mark("identity", "name", v)}
                 immediate
                 className={inputClass}
-                placeholder="Agent name"
+                placeholder={t("agentConfig.agentName")}
               />
             </Field>
-            <Field label="Title" hint={help.title}>
+            <Field label={t("agentConfig.title")} hint={help.title}>
               <DraftInput
                 value={eff("identity", "title", props.agent.title ?? "")}
                 onCommit={(v) => mark("identity", "title", v || null)}
                 immediate
                 className={inputClass}
-                placeholder="e.g. VP of Engineering"
+                placeholder={t("agentConfig.titlePlaceholder")}
               />
             </Field>
-            <Field label="Capabilities" hint={help.capabilities}>
+            <Field label={t("agentConfig.capabilities")} hint={help.capabilities}>
               <MarkdownEditor
                 value={eff(
                   "identity",
@@ -483,7 +483,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   props.agent.capabilities ?? ""
                 )}
                 onChange={(v) => mark("identity", "capabilities", v || null)}
-                placeholder="Describe what this agent can do..."
+                placeholder={t("agentConfig.capabilitiesPlaceholder")}
                 contentClassName="min-h-[44px] text-sm font-mono"
                 imageUploadHandler={async (file) => {
                   const asset = await uploadMarkdownImage.mutateAsync({
@@ -495,7 +495,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               />
             </Field>
             {isLocal && (
-              <Field label="Prompt Template" hint={help.promptTemplate}>
+              <Field label={t("agentConfig.promptTemplate")} hint={help.promptTemplate}>
                 <MarkdownEditor
                   value={eff(
                     "adapterConfig",
@@ -505,7 +505,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   onChange={(v) =>
                     mark("adapterConfig", "promptTemplate", v || undefined)
                   }
-                  placeholder="You are agent {{ agent.name }}. Your role is {{ agent.role }}..."
+                  placeholder={t("agentConfig.promptTemplatePlaceholder")}
                   contentClassName="min-h-[88px] text-sm font-mono"
                   imageUploadHandler={async (file) => {
                     const namespace = `agents/${props.agent.id}/prompt-template`;
@@ -537,10 +537,10 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           )}
         >
           {cards ? (
-            <h3 className="text-sm font-medium">Adapter</h3>
+            <h3 className="text-sm font-medium">{t("agentConfig.adapter")}</h3>
           ) : (
             <span className="text-xs font-medium text-muted-foreground">
-              Adapter
+              {t("agentConfig.adapter")}
             </span>
           )}
           <Button
@@ -551,7 +551,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
             onClick={() => testEnvironment.mutate()}
             disabled={testEnvironment.isPending || !selectedCompanyId}
           >
-            {testEnvironment.isPending ? "Testing..." : "Test environment"}
+            {testEnvironment.isPending ? t("agentConfig.testing") : t("agentConfig.testEnvironment")}
           </Button>
         </div>
         <div
@@ -577,7 +577,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               </li>
             </ul>
           </InlineHelp>
-          <Field label="Adapter type" hint={help.adapterType}>
+          <Field label={t("agentConfig.adapterType")} hint={help.adapterType}>
             <AdapterTypeDropdown
               value={adapterType}
               onChange={(t) => {
@@ -634,7 +634,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
             <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {testEnvironment.error instanceof Error
                 ? testEnvironment.error.message
-                : "Environment test failed"}
+                : t("agentConfig.errors.environmentTestFailed")}
             </div>
           )}
 
@@ -644,7 +644,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
 
           {/* Working directory */}
           {isLocal && (
-            <Field label="Working directory" hint={help.cwd}>
+            <Field label={t("agentConfig.workingDirectory")} hint={help.cwd}>
               <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
                 <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <DraftInput
@@ -660,7 +660,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   }
                   immediate
                   className="w-full bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
-                  placeholder="/path/to/project"
+                  placeholder={t("agentConfig.workingDirectoryPlaceholder")}
                 />
                 <ChoosePathButton />
               </div>
@@ -669,11 +669,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
 
           {/* Prompt template (create mode only — edit mode shows this in Identity) */}
           {isLocal && isCreate && (
-            <Field label="Prompt Template" hint={help.promptTemplate}>
+            <Field label={t("agentConfig.promptTemplate")} hint={help.promptTemplate}>
               <MarkdownEditor
                 value={val!.promptTemplate}
                 onChange={(v) => set!({ promptTemplate: v })}
-                placeholder="You are agent {{ agent.name }}. Your role is {{ agent.role }}..."
+                placeholder={t("agentConfig.promptTemplatePlaceholder")}
                 contentClassName="min-h-[88px] text-sm font-mono"
                 imageUploadHandler={async (file) => {
                   const namespace = "agents/drafts/prompt-template";
@@ -697,11 +697,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         <div className={cn(!cards && "border-b border-border")}>
           {cards ? (
             <h3 className="text-sm font-medium mb-3">
-              Permissions &amp; Configuration
+              {t("agentConfig.permissionsAndConfiguration")}
             </h3>
           ) : (
             <div className="px-4 py-2 text-xs font-medium text-muted-foreground">
-              Permissions &amp; Configuration
+              {t("agentConfig.permissionsAndConfiguration")}
             </div>
           )}
           <div
@@ -711,7 +711,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 : "px-4 pb-3 space-y-3"
             )}
           >
-            <Field label="Command" hint={help.localCommand}>
+            <Field label={t("agentConfig.command")} hint={help.localCommand}>
               <DraftInput
                 value={
                   isCreate
@@ -772,7 +772,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 </p>
               )}
             <Field
-              label="Bootstrap prompt (first run)"
+              label={t("agentConfig.bootstrapPrompt")}
               hint={help.bootstrapPrompt}
             >
               <MarkdownEditor
@@ -794,7 +794,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                         v || undefined
                       )
                 }
-                placeholder="Optional initial setup prompt for the first run"
+                placeholder={t("agentConfig.bootstrapPromptPlaceholder")}
                 contentClassName="min-h-[44px] text-sm font-mono"
                 imageUploadHandler={async (file) => {
                   const namespace = isCreate
@@ -812,7 +812,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               <ClaudeLocalAdvancedFields {...adapterFieldProps} />
             )}
 
-            <Field label="Extra args (comma-separated)" hint={help.extraArgs}>
+            <Field label={t("agentConfig.extraArgs")} hint={help.extraArgs}>
               <DraftInput
                 value={
                   isCreate
@@ -834,11 +834,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 }
                 immediate
                 className={inputClass}
-                placeholder="e.g. --verbose, --foo=bar"
+                placeholder={t("agentConfig.extraArgsPlaceholder")}
               />
             </Field>
 
-            <Field label="Environment variables" hint={help.envVars}>
+            <Field label={t("agentConfig.environmentVariables")} hint={help.envVars}>
               <EnvVarEditor
                 value={
                   isCreate
@@ -871,7 +871,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
             {/* Edit-only: timeout + grace period */}
             {!isCreate && (
               <>
-                <Field label="Timeout (sec)" hint={help.timeoutSec}>
+                <Field label={t("agentConfig.timeoutSec")} hint={help.timeoutSec}>
                   <DraftNumberInput
                     value={eff(
                       "adapterConfig",
@@ -884,7 +884,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   />
                 </Field>
                 <Field
-                  label="Interrupt grace period (sec)"
+                  label={t("agentConfig.interruptGracePeriodSec")}
                   hint={help.graceSec}
                 >
                   <DraftNumberInput
@@ -909,11 +909,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         <div className={cn(!cards && "border-b border-border")}>
           {cards ? (
             <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
-              <Heart className="h-3 w-3" /> Run Policy
+              <Heart className="h-3 w-3" /> {t("agentConfig.runPolicy")}
             </h3>
           ) : (
             <div className="px-4 py-2 text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Heart className="h-3 w-3" /> Run Policy
+              <Heart className="h-3 w-3" /> {t("agentConfig.runPolicy")}
             </div>
           )}
           <div
@@ -924,14 +924,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
             )}
           >
             <ToggleWithNumber
-              label="Heartbeat on interval"
+              label={t("agentConfig.heartbeatOnInterval")}
               hint={help.heartbeatInterval}
               checked={val!.heartbeatEnabled}
               onCheckedChange={(v) => set!({ heartbeatEnabled: v })}
               number={val!.intervalSec}
               onNumberChange={(v) => set!({ intervalSec: v })}
               numberLabel="sec"
-              numberPrefix="Run heartbeat every"
+              numberPrefix={t("agentConfig.runHeartbeatEvery")}
               numberHint={help.intervalSec}
               showNumber={val!.heartbeatEnabled}
             />
@@ -941,11 +941,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
         <div className={cn(!cards && "border-b border-border")}>
           {cards ? (
             <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
-              <Heart className="h-3 w-3" /> Run Policy
+              <Heart className="h-3 w-3" /> {t("agentConfig.runPolicy")}
             </h3>
           ) : (
             <div className="px-4 py-2 text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Heart className="h-3 w-3" /> Run Policy
+              <Heart className="h-3 w-3" /> {t("agentConfig.runPolicy")}
             </div>
           )}
           <div
@@ -957,7 +957,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               className={cn(cards ? "p-4 space-y-3" : "px-4 pb-3 space-y-3")}
             >
               <ToggleWithNumber
-                label="Heartbeat on interval"
+                label={t("agentConfig.heartbeatOnInterval")}
                 hint={help.heartbeatInterval}
                 checked={eff(
                   "heartbeat",
@@ -972,7 +972,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 )}
                 onNumberChange={(v) => mark("heartbeat", "intervalSec", v)}
                 numberLabel="sec"
-                numberPrefix="Run heartbeat every"
+                numberPrefix={t("agentConfig.runHeartbeatEvery")}
                 numberHint={help.intervalSec}
                 showNumber={eff(
                   "heartbeat",
@@ -982,14 +982,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               />
             </div>
             <CollapsibleSection
-              title="Advanced Run Policy"
+              title={t("agentConfig.advancedRunPolicy")}
               bordered={cards}
               open={runPolicyAdvancedOpen}
               onToggle={() => setRunPolicyAdvancedOpen(!runPolicyAdvancedOpen)}
             >
               <div className="space-y-3">
                 <ToggleField
-                  label="Wake on demand"
+                  label={t("agentConfig.wakeOnDemand")}
                   hint={help.wakeOnDemand}
                   checked={eff(
                     "heartbeat",
@@ -998,7 +998,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   )}
                   onChange={(v) => mark("heartbeat", "wakeOnDemand", v)}
                 />
-                <Field label="Cooldown (sec)" hint={help.cooldownSec}>
+                <Field label={t("agentConfig.cooldownSec")} hint={help.cooldownSec}>
                   <DraftNumberInput
                     value={eff(
                       "heartbeat",
@@ -1011,7 +1011,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   />
                 </Field>
                 <Field
-                  label="Max concurrent runs"
+                  label={t("agentConfig.maxConcurrentRuns")}
                   hint={help.maxConcurrentRuns}
                 >
                   <DraftNumberInput
@@ -1039,12 +1039,13 @@ function AdapterEnvironmentResult({
 }: {
   result: AdapterEnvironmentTestResult;
 }) {
+  const { t } = useTranslation();
   const statusLabel =
     result.status === "pass"
-      ? "Passed"
+      ? t("agentConfig.passed")
       : result.status === "warn"
-      ? "Warnings"
-      : "Failed";
+      ? t("agentConfig.warnings")
+      : t("agentConfig.failed");
   const statusClass =
     result.status === "pass"
       ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
@@ -1078,7 +1079,7 @@ function AdapterEnvironmentResult({
             )}
             {check.hint && (
               <span className="block opacity-90 break-words">
-                Hint: {check.hint}
+                {t("agentConfig.hintPrefix")} {check.hint}
               </span>
             )}
           </div>
@@ -1117,6 +1118,7 @@ function AdapterTypeDropdown({
   value: string;
   onChange: (type: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -1147,7 +1149,7 @@ function AdapterTypeDropdown({
             <span>{item.label}</span>
             {item.comingSoon && (
               <span className="text-[10px] text-muted-foreground">
-                Coming soon
+                {t("agentConfig.comingSoon")}
               </span>
             )}
           </button>
@@ -1168,6 +1170,7 @@ function EnvVarEditor({
   onCreateSecret: (name: string, value: string) => Promise<CompanySecret>;
   onChange: (env: Record<string, EnvBinding> | undefined) => void;
 }) {
+  const { t } = useTranslation();
   type Row = {
     key: string;
     source: "plain" | "secret";
@@ -1313,7 +1316,7 @@ function EnvVarEditor({
     if (!key || plain.length === 0) return;
 
     const suggested = defaultSecretName(key) || "secret";
-    const name = window.prompt("Secret name", suggested)?.trim();
+    const name = window.prompt(t("agentConfig.secretName"), suggested)?.trim();
     if (!name) return;
 
     try {
@@ -1325,7 +1328,7 @@ function EnvVarEditor({
       });
     } catch (err) {
       setSealError(
-        err instanceof Error ? err.message : "Failed to create secret"
+        err instanceof Error ? err.message : t("agentConfig.errors.failedToCreateSecret")
       );
     }
   }
@@ -1339,7 +1342,7 @@ function EnvVarEditor({
           <div key={i} className="flex items-center gap-1.5">
             <input
               className={cn(inputClass, "flex-[2]")}
-              placeholder="KEY"
+              placeholder={t("agentConfig.key")}
               value={row.key}
               onChange={(e) => updateRow(i, { key: e.target.value })}
             />
@@ -1353,8 +1356,8 @@ function EnvVarEditor({
                 })
               }
             >
-              <option value="plain">Plain</option>
-              <option value="secret">Secret</option>
+              <option value="plain">{t("agentConfig.plain")}</option>
+              <option value="secret">{t("agentConfig.secret")}</option>
             </select>
             {row.source === "secret" ? (
               <>
@@ -1363,7 +1366,7 @@ function EnvVarEditor({
                   value={row.secretId}
                   onChange={(e) => updateRow(i, { secretId: e.target.value })}
                 >
-                  <option value="">Select secret...</option>
+                  <option value="">{t("agentConfig.selectSecret")}</option>
                   {secrets.map((secret) => (
                     <option key={secret.id} value={secret.id}>
                       {secret.name}
@@ -1375,16 +1378,16 @@ function EnvVarEditor({
                   className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors shrink-0"
                   onClick={() => sealRow(i)}
                   disabled={!row.key.trim() || !row.plainValue}
-                  title="Create secret from current plain value"
+                  title={t("agentConfig.createSecretFromPlain")}
                 >
-                  New
+                  {t("agentConfig.new")}
                 </button>
               </>
             ) : (
               <>
                 <input
                   className={cn(inputClass, "flex-[3]")}
-                  placeholder="value"
+                  placeholder={t("agentConfig.value")}
                   value={row.plainValue}
                   onChange={(e) => updateRow(i, { plainValue: e.target.value })}
                 />
@@ -1393,9 +1396,9 @@ function EnvVarEditor({
                   className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors shrink-0"
                   onClick={() => sealRow(i)}
                   disabled={!row.key.trim() || !row.plainValue}
-                  title="Store value as secret and replace with reference"
+                  title={t("agentConfig.storeValueAsSecret")}
                 >
-                  Seal
+                  {t("agentConfig.seal")}
                 </button>
               </>
             )}
@@ -1415,7 +1418,7 @@ function EnvVarEditor({
       })}
       {sealError && <p className="text-[11px] text-destructive">{sealError}</p>}
       <p className="text-[11px] text-muted-foreground/60">
-        BATON_* variables are injected automatically at runtime.
+        {t("agentConfig.autoInjected")}
       </p>
     </div>
   );
@@ -1434,6 +1437,7 @@ function ModelDropdown({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const help = useHelpText();
   const [modelSearch, setModelSearch] = useState("");
   const selected = models.find((m) => m.id === value);
@@ -1444,7 +1448,7 @@ function ModelDropdown({
   });
 
   return (
-    <Field label="Model" hint={help.model}>
+    <Field label={t("agentConfig.model")} hint={help.model}>
       <Popover
         open={open}
         onOpenChange={(nextOpen) => {
@@ -1455,7 +1459,7 @@ function ModelDropdown({
         <PopoverTrigger asChild>
           <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
             <span className={cn(!value && "text-muted-foreground")}>
-              {selected ? selected.label : value || "Default"}
+              {selected ? selected.label : value || t("agentConfig.defaultModel")}
             </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground" />
           </button>
@@ -1466,7 +1470,7 @@ function ModelDropdown({
         >
           <input
             className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
-            placeholder="Search models..."
+            placeholder={t("agentConfig.searchModels")}
             value={modelSearch}
             onChange={(e) => setModelSearch(e.target.value)}
             autoFocus
@@ -1482,7 +1486,7 @@ function ModelDropdown({
                 onOpenChange(false);
               }}
             >
-              Default
+              {t("agentConfig.defaultModel")}
             </button>
             {filteredModels.map((m) => (
               <button
@@ -1504,7 +1508,7 @@ function ModelDropdown({
             ))}
             {filteredModels.length === 0 && (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                No models found.
+                {t("agentConfig.noModelsFound")}
               </p>
             )}
           </div>
@@ -1527,16 +1531,17 @@ function ThinkingEffortDropdown({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const help = useHelpText();
   const selected = options.find((option) => option.id === value) ?? options[0];
 
   return (
-    <Field label="Thinking effort" hint={help.thinkingEffort}>
+    <Field label={t("agentConfig.thinkingEffort")} hint={help.thinkingEffort}>
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
           <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
             <span className={cn(!value && "text-muted-foreground")}>
-              {selected?.label ?? "Auto"}
+              {selected?.label ?? t("agentConfig.auto")}
             </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground" />
           </button>

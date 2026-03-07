@@ -94,7 +94,7 @@ export function ApprovalDetail() {
       refresh();
       navigate(`/approvals/${approvalId}?resolved=approved`, { replace: true });
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Approve failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToApprove")),
   });
 
   const rejectMutation = useMutation({
@@ -103,7 +103,7 @@ export function ApprovalDetail() {
       setError(null);
       refresh();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Reject failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToReject")),
   });
 
   const revisionMutation = useMutation({
@@ -112,7 +112,7 @@ export function ApprovalDetail() {
       setError(null);
       refresh();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Revision request failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToRequestRevision")),
   });
 
   const resubmitMutation = useMutation({
@@ -121,7 +121,7 @@ export function ApprovalDetail() {
       setError(null);
       refresh();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Resubmit failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToResubmit")),
   });
 
   const addCommentMutation = useMutation({
@@ -131,7 +131,7 @@ export function ApprovalDetail() {
       setError(null);
       refresh();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Comment failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToComment")),
   });
 
   const deleteAgentMutation = useMutation({
@@ -141,7 +141,7 @@ export function ApprovalDetail() {
       refresh();
       navigate("/approvals");
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Delete failed"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToDeleteAgent")),
   });
 
   if (isLoading) return <PageSkeleton variant="detail" />;
