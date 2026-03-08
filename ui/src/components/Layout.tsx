@@ -207,11 +207,11 @@ export function Layout() {
         />
       )}
 
-      {/* Left: AgentTree (240px) — 기존 CompanyRail + Sidebar 통합 */}
+      {/* Left: AgentTree (260px) — 기존 CompanyRail + Sidebar 통합 */}
       {isMobile ? (
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[240px] overflow-hidden pt-[env(safe-area-inset-top)] transition-transform duration-100 ease-out",
+            "fixed inset-y-0 left-0 z-50 w-[260px] overflow-hidden pt-[env(safe-area-inset-top)] transition-transform duration-100 ease-out",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -221,10 +221,10 @@ export function Layout() {
         <div
           className={cn(
             "h-full shrink-0 transition-[width] duration-100 ease-out overflow-hidden",
-            sidebarOpen ? "w-[240px]" : "w-0",
+            sidebarOpen ? "w-[260px]" : "w-0",
           )}
         >
-          <div className="h-full w-[240px]">
+          <div className="h-full w-[260px]">
             <AgentTree />
           </div>
         </div>
