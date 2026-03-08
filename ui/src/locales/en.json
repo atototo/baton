@@ -189,6 +189,16 @@
     "updatedTitle": "updated the title",
     "updatedDescription": "updated the description"
   },
+  "propertiesPanel": {
+    "title": "Live Activity Stream",
+    "subtitle": "Switch between activity and properties in the right panel.",
+    "latestEvents": "Latest control-plane events",
+    "openActivity": "Open page",
+    "loading": "Loading activity...",
+    "error": "Failed to load activity.",
+    "propertiesUnavailable": "Properties are not available on this screen.",
+    "hidePanel": "Collapse right panel"
+  },
   "issuesList": {
     "newIssue": "New Issue",
     "searchPlaceholder": "Search issues...",
