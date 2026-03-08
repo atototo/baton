@@ -94,6 +94,8 @@
   /* 에이전트 토큰 */
   --agent-active: #4f46e5;
   --agent-idle: #818cf8;
+  /* 목업 추가 토큰 */
+  --border-mid: #d9d9dc;
 }
 
 .dark {
@@ -138,6 +140,8 @@
   /* 에이전트 토큰 */
   --agent-active: #818cf8;
   --agent-idle: #6366f1;
+  /* 목업 추가 토큰 */
+  --border-mid: #333339;
 }
 
 @layer base {
@@ -207,6 +211,12 @@
 /* Expandable dialog transition for max-width changes */
 [data-slot="dialog-content"] {
   transition: max-width 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Kanban live dot blink */
+@keyframes kblink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
 }
 
 /* Dashboard activity row entry motion */

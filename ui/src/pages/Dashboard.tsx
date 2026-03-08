@@ -214,7 +214,7 @@ export function Dashboard() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-1 sm:gap-2">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             <MetricCard
               icon={Bot}
               value={data.agents.active + data.agents.running + data.agents.paused + data.agents.error}
@@ -269,7 +269,7 @@ export function Dashboard() {
           {/* 활성 이슈 요약 리스트 — 목업 스타일 */}
           {recentIssues.filter((i) => ["in_progress", "blocked", "in_review"].includes(i.status)).length > 0 && (
             <div>
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
                 {t("dashboard.activeIssues")}
               </h3>
               <div className="flex flex-col gap-[1px]">
@@ -327,10 +327,10 @@ export function Dashboard() {
             {/* Recent Activity */}
             {recentActivity.length > 0 && (
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
                   {t("dashboard.recentActivity")}
                 </h3>
-                <div className="border border-border divide-y divide-border overflow-hidden">
+                <div className="bg-card border border-border divide-y divide-border overflow-hidden rounded-lg">
                   {recentActivity.map((event) => (
                     <ActivityRow
                       key={event.id}
@@ -347,20 +347,20 @@ export function Dashboard() {
 
             {/* Recent Tasks */}
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
                 {t("dashboard.recentTasks")}
               </h3>
               {recentIssues.length === 0 ? (
-                <div className="border border-border p-4">
+                <div className="bg-card border border-border rounded-lg p-4">
                   <p className="text-sm text-muted-foreground">{t("dashboard.noTasksYet")}</p>
                 </div>
               ) : (
-                <div className="border border-border divide-y divide-border overflow-hidden">
+                <div className="bg-card border border-border divide-y divide-border overflow-hidden rounded-lg">
                   {recentIssues.slice(0, 10).map((issue) => (
                     <Link
                       key={issue.id}
                       to={`/issues/${issue.identifier ?? issue.id}`}
-                      className="px-4 py-2 text-sm cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit block"
+                      className="px-3.5 py-2.5 text-[13px] cursor-pointer hover:bg-accent/40 transition-colors no-underline text-inherit block"
                     >
                       <div className="flex gap-3">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
@@ -378,7 +378,7 @@ export function Dashboard() {
                             })()}
                           </p>
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0 pt-0.5">
+                        <span className="text-[11px] text-muted-foreground shrink-0 pt-0.5">
                           {timeAgo(issue.updatedAt)}
                         </span>
                       </div>

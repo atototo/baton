@@ -18,11 +18,8 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { AlertTriangle } from "lucide-react";
-import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { Identity } from "./Identity";
-import { issueStatusText } from "../lib/status-colors";
 import type { Issue } from "@atototo/shared";
 
 const boardStatuses = [
@@ -34,6 +31,17 @@ const boardStatuses = [
   "done",
   "cancelled",
 ];
+
+// 목업 기준 컬럼 헤더 도트 색상
+const statusDotColor: Record<string, string> = {
+  backlog: "bg-[#9ca3af]",
+  todo: "bg-[#6b7280]",
+  in_progress: "bg-[var(--status-active)]",
+  in_review: "bg-[var(--status-review)]",
+  blocked: "bg-[var(--status-blocked)]",
+  done: "bg-[var(--status-done)]",
+  cancelled: "bg-neutral-400",
+};
 
 interface Agent {
   id: string;
@@ -64,21 +72,16 @@ function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const isBlocked = status === "blocked";
 
-  const coloredStatuses = ["in_progress", "in_review", "blocked", "done"];
-  const headerTextClass = coloredStatuses.includes(status)
-    ? issueStatusText[status]
-    : "text-muted-foreground";
+  const dotClass = statusDotColor[status] ?? "bg-muted-foreground";
 
   return (
     <div className="flex flex-col min-w-[248px] w-[248px] shrink-0">
-      <div className="flex items-center gap-1.5 px-1.5 pt-1 pb-2">
-        <StatusIcon status={status} />
-        <span className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${headerTextClass}`}>
+      {/* 목업 스타일: 8px 컬러 도트 + 11px uppercase 타이틀 + 카운트 */}
+      <div className="flex items-center gap-[7px] px-1.5 pt-1 pb-2">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
           {t(`statusLabels.${status}`, { defaultValue: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) })}
         </span>
-        {isBlocked && (
-          <AlertTriangle className="h-3 w-3 text-[var(--status-blocked)] shrink-0" />
-        )}
         <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
           {issues.length}
         </span>
@@ -86,7 +89,7 @@ function KanbanColumn({
       <div
         ref={setNodeRef}
         className={`flex-1 min-h-[60px] rounded-[7px] p-1 space-y-[5px] transition-colors ${
-          isOver ? "bg-accent/60" : isBlocked ? "bg-red-500/[0.04] border border-red-500/10" : "bg-secondary"
+          isOver ? "bg-accent/60" : isBlocked ? "bg-red-500/[0.04] border border-red-500/10" : "bg-secondary/80"
         }`}
       >
         <SortableContext
@@ -149,13 +152,13 @@ function KanbanCard({
       {...listeners}
       className={`relative rounded-[6px] border bg-card cursor-grab active:cursor-grabbing transition-all ${
         isDragging && !isOverlay ? "opacity-30" : ""
-      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-border/80 hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"} ${
-        isBlockedStatus ? "border-l-[3px] border-l-red-500" : ""
+      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-[var(--border-mid,#d9d9dc)] hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"} ${
+        isBlockedStatus ? "border-l-[3px] border-l-[var(--status-blocked)]" : ""
       }`}
     >
       <Link
         to={`/issues/${issue.identifier ?? issue.id}`}
-        className="block no-underline text-inherit px-3 pt-2.5 pb-2.5"
+        className="block no-underline text-inherit px-[12px] pt-[10px] pb-[10px]"
         onClick={(e) => {
           if (isDragging) e.preventDefault();
         }}
@@ -165,10 +168,10 @@ function KanbanCard({
             {issue.identifier ?? issue.id.slice(0, 8)}
           </span>
           {isLive && (
-            <span className="ml-auto flex h-[6px] w-[6px] shrink-0">
-              <span className="animate-ping absolute inline-flex h-[6px] w-[6px] rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-[6px] w-[6px] bg-blue-500" />
-            </span>
+            <span
+              className="ml-auto w-[6px] h-[6px] rounded-full bg-[var(--status-active)] shrink-0"
+              style={{ animation: "kblink 1.8s ease-in-out infinite" }}
+            />
           )}
         </div>
         <p className="text-[12px] leading-[1.45] line-clamp-2 mb-[9px] text-foreground">{issue.title}</p>
@@ -270,7 +273,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-[10px] overflow-x-auto pb-4 -mx-2 px-2">
         {boardStatuses.map((status) => (
           <KanbanColumn
             key={status}
