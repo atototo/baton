@@ -45,25 +45,31 @@ export function ActiveAgentsPanel({ companyId }: ActiveAgentsPanelProps) {
     return map;
   }, [issues]);
 
+  const activeCount = runs.filter(isRunActive).length;
+  const attentionCount = runs.filter((run) => run.status === "failed" || run.status === "timed_out").length;
+
   return (
-    <div>
-      <h3 className="section-title mb-2.5">
+    <section aria-labelledby="dashboard-active-runs">
+      <h3 id="dashboard-active-runs" className="sr-only">
         {t("dashboard.activeRuns")}
       </h3>
       {isPending ? (
-        <div className="rounded-xl border border-border bg-card px-4 py-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           {t("propertiesPanel.loading")}
         </div>
       ) : isError ? (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {t("propertiesPanel.error")}
         </div>
       ) : runs.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-4 py-4">
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
           <p className="text-sm text-muted-foreground">{t("liveRuns.noRecentRuns")}</p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2">
+          <span className="shrink-0 border-r border-border pr-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("dashboard.activeRuns")}
+          </span>
           {runs.map((run) => (
             <RunStatusPill
               key={run.id}
@@ -72,9 +78,12 @@ export function ActiveAgentsPanel({ companyId }: ActiveAgentsPanelProps) {
               isActive={isRunActive(run)}
             />
           ))}
+          <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+            {t("dashboard.runSummary", { active: activeCount, attention: attentionCount })}
+          </span>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -99,7 +108,7 @@ function RunStatusPill({
     <Link
       to={`/agents/${run.agentId}/runs/${run.id}`}
       className={cn(
-        "flex min-w-[220px] max-w-full items-center gap-3 rounded-xl border px-3 py-2.5 no-underline transition-colors hover:bg-accent/40",
+        "flex min-w-[170px] max-w-full items-center gap-2 rounded-md border px-2 py-1.5 no-underline transition-colors hover:bg-accent/40",
         statusTone,
       )}
       aria-label={`${run.agentName} ${run.status}`}
@@ -108,7 +117,7 @@ function RunStatusPill({
         <Identity name={run.agentName} size="sm" />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-foreground">{run.agentName}</span>
+            <span className="truncate text-[11px] font-medium text-foreground">{run.agentName}</span>
             <span
               className={cn(
                 "inline-flex h-2 w-2 shrink-0 rounded-full",
@@ -121,7 +130,7 @@ function RunStatusPill({
               aria-hidden="true"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
             {issueLabel ? <span className="truncate font-mono">{issueLabel}</span> : null}
             <span>{relativeTime(run.finishedAt ?? run.createdAt)}</span>
           </div>
@@ -130,7 +139,7 @@ function RunStatusPill({
       <div className="shrink-0 text-right">
         <span
           className={cn(
-            "inline-flex rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]",
+            "inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]",
             isActive
               ? "bg-blue-500/12 text-blue-700 dark:text-blue-300"
               : run.status === "failed" || run.status === "timed_out"

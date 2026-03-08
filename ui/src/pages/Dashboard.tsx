@@ -33,50 +33,89 @@ function getRecentIssues(issues: Issue[]): Issue[] {
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function DashboardIssueRow({
   issue,
   assigneeName,
   compact = false,
+  emphasized = false,
 }: {
   issue: Issue;
   assigneeName: string | null;
   compact?: boolean;
+  emphasized?: boolean;
 }) {
   return (
     <Link
       to={`/issues/${issue.identifier ?? issue.id}`}
       className={cn(
-        "block rounded-lg border bg-card text-inherit no-underline transition-all hover:border-border/80 hover:bg-accent/30",
-        issue.status === "blocked"
-          ? "border-red-500/15 bg-red-500/[0.03] border-l-[3px] border-l-[var(--status-blocked)]"
-          : "border-border",
+        "block rounded-lg border bg-card text-inherit no-underline transition-all hover:border-border/80 hover:bg-accent/20",
+        emphasized
+          ? "border-red-500/18 bg-red-500/[0.04]"
+          : issue.status === "blocked"
+            ? "border-red-500/15 bg-red-500/[0.03] border-l-[3px] border-l-[var(--status-blocked)]"
+            : "border-border",
         compact ? "px-3 py-2" : "px-3.5 py-2.5",
       )}
     >
-      <div className="flex gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <div className="mt-0.5 flex shrink-0 items-center gap-2">
-            <PriorityIcon priority={issue.priority} />
-            <StatusIcon status={issue.status} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                {issue.identifier ?? issue.id.slice(0, 8)}
-              </span>
-              <p className="truncate text-[13px] text-foreground">{issue.title}</p>
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-              {assigneeName ? <Identity name={assigneeName} size="sm" /> : null}
-              <StatusBadge status={issue.status} />
-            </div>
-          </div>
+      <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2">
+          <PriorityIcon priority={issue.priority} />
+          <StatusIcon status={issue.status} />
+          <span className="w-[60px] shrink-0 font-mono text-[11px] text-muted-foreground">
+            {issue.identifier ?? issue.id.slice(0, 8)}
+          </span>
         </div>
-        <span className="shrink-0 pt-0.5 text-[11px] text-muted-foreground">
+        <p className="min-w-0 flex-1 truncate text-[13px] text-foreground">{issue.title}</p>
+        {assigneeName ? (
+          <span className="hidden shrink-0 items-center gap-1 rounded-md border border-border bg-[var(--bg-overlay)] px-1.5 py-1 text-[10px] text-muted-foreground sm:inline-flex">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] bg-primary/10 text-[9px] font-bold text-primary">
+              {getInitials(assigneeName)}
+            </span>
+            <span className="max-w-[110px] truncate">{assigneeName}</span>
+          </span>
+        ) : null}
+        <span className="shrink-0">
+          <StatusBadge status={issue.status} />
+        </span>
+        <span className="shrink-0 text-[10px] text-muted-foreground sm:text-[11px]">
           {timeAgo(issue.updatedAt)}
         </span>
       </div>
+      {!compact && assigneeName ? (
+        <div className="mt-1 sm:hidden">
+          <Identity name={assigneeName} size="sm" />
+        </div>
+      ) : null}
     </Link>
+  );
+}
+
+function DashboardSectionTitle({
+  title,
+  count,
+}: {
+  title: string;
+  count?: number;
+}) {
+  return (
+    <div className="mb-2.5 flex items-center gap-2">
+      <h3 className="section-title mb-0 after:hidden">{title}</h3>
+      {typeof count === "number" ? (
+        <span className="rounded bg-[var(--bg-overlay)] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          {count}
+        </span>
+      ) : null}
+      <div className="h-px flex-1 bg-border" />
+    </div>
   );
 }
 
@@ -134,6 +173,7 @@ export function Dashboard() {
   const recentIssues = issues ? getRecentIssues(issues) : [];
   const blockedIssues = recentIssues.filter((issue) => issue.status === "blocked");
   const activeIssues = recentIssues.filter((issue) => ["in_progress", "in_review"].includes(issue.status));
+  const completedIssues = recentIssues.filter((issue) => issue.status === "done");
   const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
 
   useEffect(() => {
@@ -358,6 +398,67 @@ export function Dashboard() {
             />
           </div>
 
+          {blockedIssues.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-red-500/15 bg-red-500/[0.035]">
+              <div className="flex items-center gap-2 border-b border-red-500/10 px-3.5 py-2.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--status-blocked)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-blocked)]" aria-hidden="true" />
+                {t("dashboard.blockedIssues")}
+                <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold">
+                  {blockedIssues.length}
+                </span>
+                <span className="ml-auto text-[10px] font-normal normal-case tracking-normal text-[var(--status-blocked)]/80">
+                  {t("dashboard.immediateAttention")}
+                </span>
+              </div>
+              <div className="space-y-px px-2 py-1.5">
+                {blockedIssues.slice(0, 4).map((issue) => (
+                  <DashboardIssueRow
+                    key={issue.id}
+                    issue={issue}
+                    assigneeName={agentName(issue.assigneeAgentId ?? null)}
+                    compact
+                    emphasized
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="space-y-4">
+              {activeIssues.length > 0 && (
+                <div className="min-w-0">
+                  <DashboardSectionTitle title={t("dashboard.activeIssues")} count={activeIssues.length} />
+                  <div className="grid gap-2">
+                    {activeIssues.slice(0, 6).map((issue) => (
+                      <DashboardIssueRow
+                        key={issue.id}
+                        issue={issue}
+                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {completedIssues.length > 0 && (
+                <div className="min-w-0">
+                  <DashboardSectionTitle title={t("dashboard.completedIssues")} count={completedIssues.length} />
+                  <div className="grid gap-2">
+                    {completedIssues.slice(0, 4).map((issue) => (
+                      <DashboardIssueRow
+                        key={issue.id}
+                        issue={issue}
+                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-6">
             <div className="lg:col-span-3">
               <ChartCard title={t("dashboard.runActivity")} subtitle={t("dashboard.last14Days")}>
@@ -381,71 +482,30 @@ export function Dashboard() {
             </div>
           </div>
 
-          {blockedIssues.length > 0 && (
-            <div>
-              <h3 className="section-title mb-2.5">
-                {t("dashboard.blockedIssues")}
-              </h3>
-              <div className="grid gap-2">
-                {blockedIssues.slice(0, 4).map((issue) => (
-                  <DashboardIssueRow
-                    key={issue.id}
-                    issue={issue}
-                    assigneeName={agentName(issue.assigneeAgentId ?? null)}
-                    compact
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div className="space-y-4">
-              {activeIssues.length > 0 && (
-                <div className="min-w-0">
-                  <h3 className="section-title mb-2.5">
-                    {t("dashboard.activeIssues")}
-                  </h3>
-                  <div className="grid gap-2">
-                    {activeIssues.slice(0, 6).map((issue) => (
-                      <DashboardIssueRow
-                        key={issue.id}
-                        issue={issue}
-                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
-                      />
-                    ))}
-                  </div>
+            <div className="min-w-0">
+              <DashboardSectionTitle title={t("dashboard.recentTasks")} />
+              {recentIssues.length === 0 ? (
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-sm text-muted-foreground">{t("dashboard.noTasksYet")}</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 rounded-xl border border-border bg-card p-1.5">
+                  {recentIssues.slice(0, 8).map((issue) => (
+                    <DashboardIssueRow
+                      key={issue.id}
+                      issue={issue}
+                      assigneeName={agentName(issue.assigneeAgentId ?? null)}
+                      compact
+                    />
+                  ))}
                 </div>
               )}
-
-              <div className="min-w-0">
-                <h3 className="section-title mb-2.5">
-                  {t("dashboard.recentTasks")}
-                </h3>
-                {recentIssues.length === 0 ? (
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">{t("dashboard.noTasksYet")}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 rounded-xl border border-border bg-card p-1.5">
-                    {recentIssues.slice(0, 8).map((issue) => (
-                      <DashboardIssueRow
-                        key={issue.id}
-                        issue={issue}
-                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
-                        compact
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
-            {recentActivity.length > 0 && (
-              <div className="min-w-0">
-                <h3 className="section-title mb-2.5">
-                  {t("dashboard.recentActivity")}
-                </h3>
+            <div className="min-w-0">
+              <DashboardSectionTitle title={t("dashboard.recentActivity")} />
+              {recentActivity.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
                   {recentActivity.map((event) => (
                     <ActivityRow
@@ -458,8 +518,12 @@ export function Dashboard() {
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-sm text-muted-foreground">{t("activity.empty")}</p>
+                </div>
+              )}
+            </div>
           </div>
 
         </>
