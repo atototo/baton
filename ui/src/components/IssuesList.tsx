@@ -276,43 +276,44 @@ export function IssuesList({
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 sm:gap-3">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Button size="sm" variant="outline" onClick={() => openNewIssue(newIssueDefaults())}>
-            <Plus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">{t("issuesList.newIssue")}</span>
-          </Button>
-          <div className="relative w-48 sm:w-64 md:w-80">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={issueSearch}
-              onChange={(e) => setIssueSearch(e.target.value)}
-              placeholder={t("issuesList.searchPlaceholder")}
-              className="pl-7 text-xs sm:text-sm"
-              aria-label={t("issuesList.searchPlaceholder")}
-            />
-          </div>
+      {/* Toolbar — 목업 스타일 */}
+      <div className="flex items-center gap-2">
+        {/* View mode toggle */}
+        <div className="flex items-center border border-border rounded-[6px] overflow-hidden">
+          <button
+            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "list" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
+            onClick={() => updateView({ viewMode: "list" })}
+            title={t("issuesList.listView")}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("issuesList.listView")}</span>
+          </button>
+          <button
+            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "board" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
+            onClick={() => updateView({ viewMode: "board" })}
+            title={t("issuesList.boardView")}
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("issuesList.boardView")}</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          {/* View mode toggle */}
-          <div className="flex items-center border border-border rounded-md overflow-hidden mr-1">
-            <button
-              className={`p-1.5 transition-colors ${viewState.viewMode === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              onClick={() => updateView({ viewMode: "list" })}
-              title={t("issuesList.listView")}
-            >
-              <List className="h-3.5 w-3.5" />
-            </button>
-            <button
-              className={`p-1.5 transition-colors ${viewState.viewMode === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              onClick={() => updateView({ viewMode: "board" })}
-              title={t("issuesList.boardView")}
-            >
-              <Columns3 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+        {/* 검색 */}
+        <div className="relative w-40 sm:w-56">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={issueSearch}
+            onChange={(e) => setIssueSearch(e.target.value)}
+            placeholder={t("issuesList.searchPlaceholder")}
+            className="pl-7 h-[30px] text-xs"
+            aria-label={t("issuesList.searchPlaceholder")}
+          />
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-[18px] bg-border" />
+
+        <div className="flex items-center gap-1 shrink-0">
 
           {/* Filter */}
           <Popover>
@@ -529,6 +530,17 @@ export function IssuesList({
             </Popover>
           )}
         </div>
+
+        {/* 이슈 카운트 */}
+        <span className="text-xs text-muted-foreground px-2 py-1 rounded-[5px] bg-secondary ml-auto tabular-nums shrink-0">
+          {filtered.length}
+        </span>
+
+        {/* 새 이슈 버튼 */}
+        <Button size="sm" onClick={() => openNewIssue(newIssueDefaults())} className="shrink-0">
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          <span className="hidden sm:inline">{t("issuesList.newIssue")}</span>
+        </Button>
       </div>
 
       {isLoading && <PageSkeleton variant="issues-list" />}

@@ -62,10 +62,10 @@ export function SidebarNavItem({
       {badge != null && badge > 0 && (
         <span
           className={cn(
-            "ml-auto rounded-full px-1.5 py-0.5 text-xs leading-none",
+            "ml-auto min-w-[18px] rounded-[10px] px-1.5 py-px text-center text-[10px] font-semibold leading-none",
             badgeTone === "danger"
-              ? "bg-red-600/90 text-red-50"
-              : "bg-primary text-primary-foreground",
+              ? "bg-red-500/10 text-red-600 dark:text-red-400"
+              : "bg-accent text-muted-foreground",
           )}
         >
           {badge}
