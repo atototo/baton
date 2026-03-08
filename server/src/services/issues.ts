@@ -70,9 +70,15 @@ type IssueActiveRunRow = {
 type IssueWithLabels = IssueRow & { labels: IssueLabelRow[]; labelIds: string[] };
 type IssueWithLabelsAndRun = IssueWithLabels & { activeRun: IssueActiveRunRow | null };
 
-function sameRunLock(checkoutRunId: string | null, actorRunId: string | null) {
-  if (actorRunId) return checkoutRunId === actorRunId;
-  return checkoutRunId == null;
+export function issueRunOwnershipMatches(
+  checkoutRunId: string | null,
+  executionRunId: string | null,
+  actorRunId: string | null,
+) {
+  if (actorRunId) {
+    return checkoutRunId === actorRunId || (checkoutRunId == null && executionRunId === actorRunId);
+  }
+  return checkoutRunId == null && executionRunId == null;
 }
 
 const TERMINAL_HEARTBEAT_RUN_STATUSES = new Set(["succeeded", "failed", "cancelled", "timed_out"]);
@@ -632,7 +638,7 @@ export function issueService(db: Db) {
       if (
         current.assigneeAgentId === agentId &&
         current.status === "in_progress" &&
-        sameRunLock(current.checkoutRunId, checkoutRunId)
+        issueRunOwnershipMatches(current.checkoutRunId, current.executionRunId, checkoutRunId)
       ) {
         const row = await db.select().from(issues).where(eq(issues.id, id)).then((rows) => rows[0]!);
         const [enriched] = await withIssueLabels(db, [row]);
@@ -655,6 +661,7 @@ export function issueService(db: Db) {
           status: issues.status,
           assigneeAgentId: issues.assigneeAgentId,
           checkoutRunId: issues.checkoutRunId,
+          executionRunId: issues.executionRunId,
         })
         .from(issues)
         .where(eq(issues.id, id))
@@ -665,7 +672,7 @@ export function issueService(db: Db) {
       if (
         current.status === "in_progress" &&
         current.assigneeAgentId === actorAgentId &&
-        sameRunLock(current.checkoutRunId, actorRunId)
+          issueRunOwnershipMatches(current.checkoutRunId, current.executionRunId ?? null, actorRunId)
       ) {
         return { ...current, adoptedFromRunId: null as string | null };
       }
@@ -718,7 +725,7 @@ export function issueService(db: Db) {
         existing.status === "in_progress" &&
         existing.assigneeAgentId === actorAgentId &&
         existing.checkoutRunId &&
-        !sameRunLock(existing.checkoutRunId, actorRunId ?? null)
+        !issueRunOwnershipMatches(existing.checkoutRunId, existing.executionRunId ?? null, actorRunId ?? null)
       ) {
         throw conflict("Only checkout run can release issue", {
           issueId: existing.id,
