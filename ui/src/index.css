@@ -57,90 +57,90 @@
 :root {
   color-scheme: light;
   --radius: 0.375rem;
-  /* 목업 기준 — Linear/Notion 스타일 뉴트럴 팔레트 */
-  --background: #f5f4ef;
-  --foreground: #19171a;
+  /* 목업 기준 — 비즈니스 인디고 팔레트 (Linear 스타일) */
+  --background: #f7f7f8;
+  --foreground: #1a1a2e;
   --card: #ffffff;
-  --card-foreground: #19171a;
+  --card-foreground: #1a1a2e;
   --popover: #ffffff;
-  --popover-foreground: #19171a;
-  --primary: #0f766e;
+  --popover-foreground: #1a1a2e;
+  --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  --secondary: #ece9e0;
-  --secondary-foreground: #19171a;
-  --muted: #efede6;
-  --muted-foreground: #625d66;
-  --accent: #e7e2d7;
-  --accent-foreground: #19171a;
+  --secondary: #f0f0f2;
+  --secondary-foreground: #1a1a2e;
+  --muted: #f0f0f2;
+  --muted-foreground: #a1a1aa;
+  --accent: #ebebed;
+  --accent-foreground: #1a1a2e;
   --destructive: #dc2626;
   --destructive-foreground: #dc2626;
-  --border: #ddd7ca;
-  --input: #ddd7ca;
-  --ring: #0f766e;
+  --border: #e5e5e7;
+  --input: #e5e5e7;
+  --ring: #4f46e5;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: #fcfbf8;
-  --sidebar-foreground: #19171a;
-  --sidebar-primary: #0f766e;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a2e;
+  --sidebar-primary: #4f46e5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ece9e0;
-  --sidebar-accent-foreground: #19171a;
-  --sidebar-border: #ddd7ca;
-  --sidebar-ring: #0f766e;
+  --sidebar-accent: #ebebed;
+  --sidebar-accent-foreground: #1a1a2e;
+  --sidebar-border: #e5e5e7;
+  --sidebar-ring: #4f46e5;
   /* 상태 토큰 */
   --status-active: #2563eb;
   --status-blocked: #dc2626;
   --status-done: #16a34a;
   --status-review: #7c3aed;
   --priority-critical: #dc2626;
-  --priority-high: #f97316;
+  --priority-high: #ea580c;
   --priority-medium: #eab308;
   --priority-low: #6b7280;
   /* 에이전트 토큰 */
-  --agent-active: #0f766e;
-  --agent-idle: #14b8a6;
+  --agent-active: #4f46e5;
+  --agent-idle: #6b7280;
   /* 목업 추가 토큰 */
-  --border-mid: #d3ccbe;
-  --bg-overlay: rgba(25, 23, 26, 0.045);
+  --border-mid: #d9d9dc;
+  --bg-overlay: #f0f0f2;
 }
 
 .dark {
   /* 목업 기준 — 다크 팔레트 */
-  --background: #121417;
-  --foreground: #f4f1ea;
-  --card: #1a1d21;
+  --background: #111113;
+  --foreground: #fafafa;
+  --card: #18181b;
   --card-foreground: #fafafa;
-  --popover: #1a1d21;
+  --popover: #18181b;
   --popover-foreground: #fafafa;
-  --primary: #5eead4;
-  --primary-foreground: #042f2e;
-  --secondary: #22272d;
+  --primary: #818cf8;
+  --primary-foreground: #1e1b4b;
+  --secondary: #222226;
   --secondary-foreground: #fafafa;
-  --muted: #20242a;
-  --muted-foreground: #a8a29e;
-  --accent: #252a30;
+  --muted: #222226;
+  --muted-foreground: #52525b;
+  --accent: #28282d;
   --accent-foreground: #fafafa;
   --destructive: #7f1d1d;
   --destructive-foreground: #f87171;
-  --border: #2e353d;
-  --input: #2e353d;
-  --ring: #5eead4;
+  --border: #2a2a30;
+  --input: #2a2a30;
+  --ring: #818cf8;
   --chart-1: oklch(0.65 0.25 280);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #171a1d;
+  --sidebar: #18181b;
   --sidebar-foreground: #fafafa;
-  --sidebar-primary: #5eead4;
-  --sidebar-primary-foreground: #042f2e;
-  --sidebar-accent: #252a30;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #1e1b4b;
+  --sidebar-accent: #28282d;
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #2e353d;
-  --sidebar-ring: #5eead4;
+  --sidebar-border: #2a2a30;
+  --sidebar-ring: #818cf8;
   /* 상태 토큰 */
   --status-active: #60a5fa;
   --status-blocked: #f87171;
@@ -151,11 +151,11 @@
   --priority-medium: #facc15;
   --priority-low: #9ca3af;
   /* 에이전트 토큰 */
-  --agent-active: #5eead4;
-  --agent-idle: #14b8a6;
+  --agent-active: #818cf8;
+  --agent-idle: #71717a;
   /* 목업 추가 토큰 */
-  --border-mid: #37404a;
-  --bg-overlay: rgba(255, 255, 255, 0.055);
+  --border-mid: #333339;
+  --bg-overlay: #222226;
 }
 
 @layer base {
