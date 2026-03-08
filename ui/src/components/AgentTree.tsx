@@ -49,6 +49,7 @@ import { useDialog } from "../context/DialogContext";
 import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
 import { agentsApi } from "../api/agents";
+import { approvalsApi } from "../api/approvals";
 import { authApi } from "../api/auth";
 import { heartbeatsApi } from "../api/heartbeats";
 import { issuesApi } from "../api/issues";
@@ -57,7 +58,6 @@ import { sidebarBadgesApi } from "../api/sidebarBadges";
 import { queryKeys } from "../lib/queryKeys";
 import { cn, agentRouteRef, agentUrl, projectRouteRef } from "../lib/utils";
 import { useProjectOrder } from "../hooks/useProjectOrder";
-import { AgentIcon } from "./AgentIconPicker";
 import { CompanyPatternIcon } from "./CompanyPatternIcon";
 import { SidebarNavItem } from "./SidebarNavItem";
 import {
@@ -167,12 +167,7 @@ function statusDotClass(status: string): string {
     case "running":
       return "bg-blue-500";
     case "error":
-    case "blocked":
       return "bg-red-500";
-    case "paused":
-      return "bg-amber-500";
-    case "pending_approval":
-      return "bg-violet-500";
     default:
       return "hidden";
   }
@@ -183,6 +178,22 @@ function agentInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+function agentSecondaryText(params: {
+  agent: Agent;
+  inProgressIssue?: Issue;
+  blockedIssue?: Issue;
+  blockedIssueHasPendingApproval: boolean;
+}): string {
+  const { agent, inProgressIssue, blockedIssue, blockedIssueHasPendingApproval } = params;
+  if (blockedIssue || agent.status === "error") {
+    return blockedIssue && blockedIssueHasPendingApproval ? "차단됨 — 승인 대기" : "차단됨";
+  }
+  if (inProgressIssue) {
+    return inProgressIssue.identifier ?? inProgressIssue.title;
+  }
+  return "대기 중";
 }
 
 // ─── SortableCompanyItem ──────────────────────────────────────────────────────
@@ -394,10 +405,24 @@ export function AgentTree() {
     enabled: !!selectedCompanyId,
   });
   const { data: activeIssues } = useQuery({
-    queryKey: [...queryKeys.issues.list(selectedCompanyId!), "agent-tree", "in_progress"],
-    queryFn: () => issuesApi.list(selectedCompanyId!, { status: "in_progress" }),
+    queryKey: [...queryKeys.issues.list(selectedCompanyId!), "agent-tree", "in_progress", "blocked"],
+    queryFn: () => issuesApi.list(selectedCompanyId!, { status: "in_progress,blocked" }),
     enabled: !!selectedCompanyId,
     refetchInterval: 10_000,
+  });
+  const { data: pendingApprovals } = useQuery({
+    queryKey: queryKeys.approvals.list(selectedCompanyId!, "pending"),
+    queryFn: () => approvalsApi.list(selectedCompanyId!, "pending"),
+    enabled: !!selectedCompanyId,
+    refetchInterval: 10_000,
+  });
+  const pendingApprovalIssueQueries = useQueries({
+    queries: (pendingApprovals ?? []).map((approval) => ({
+      queryKey: queryKeys.approvals.issues(approval.id),
+      queryFn: () => approvalsApi.listIssues(approval.id),
+      enabled: !!selectedCompanyId,
+      refetchInterval: 10_000,
+    })),
   });
   const liveCountByAgent = useMemo(() => {
     const counts = new Map<string, number>();
@@ -408,13 +433,31 @@ export function AgentTree() {
     const filtered = (agents ?? []).filter((a: Agent) => a.status !== "terminated");
     return flattenAgentTree(buildAgentTree(filtered));
   }, [agents]);
-  const activeIssueByAgentId = useMemo(() => {
+  const inProgressIssueByAgentId = useMemo(() => {
     const map = new Map<string, Issue>();
     for (const issue of activeIssues ?? []) {
-      if (issue.assigneeAgentId && !map.has(issue.assigneeAgentId)) map.set(issue.assigneeAgentId, issue);
+      if (issue.status !== "in_progress" || !issue.assigneeAgentId || map.has(issue.assigneeAgentId)) continue;
+      map.set(issue.assigneeAgentId, issue);
     }
     return map;
   }, [activeIssues]);
+  const blockedIssueByAgentId = useMemo(() => {
+    const map = new Map<string, Issue>();
+    for (const issue of activeIssues ?? []) {
+      if (issue.status !== "blocked" || !issue.assigneeAgentId || map.has(issue.assigneeAgentId)) continue;
+      map.set(issue.assigneeAgentId, issue);
+    }
+    return map;
+  }, [activeIssues]);
+  const blockedIssueIdsWithPendingApproval = useMemo(() => {
+    const result = new Set<string>();
+    pendingApprovalIssueQueries.forEach((query) => {
+      for (const issue of query.data ?? []) {
+        if (issue.status === "blocked") result.add(issue.id);
+      }
+    });
+    return result;
+  }, [pendingApprovalIssueQueries]);
   const agentMatch = location.pathname.match(/^\/(?:[^/]+\/)?agents\/([^/]+)/);
   const activeAgentId = agentMatch?.[1] ?? null;
 
@@ -574,10 +617,19 @@ export function AgentTree() {
             <div className="mt-0.5 flex max-h-[320px] flex-col overflow-y-auto">
               {visibleAgents.map(({ agent, depth }: AgentTreeNode) => {
                 const runCount = liveCountByAgent.get(agent.id) ?? 0;
-                const activeIssue = activeIssueByAgentId.get(agent.id);
+                const inProgressIssue = inProgressIssueByAgentId.get(agent.id);
+                const blockedIssue = blockedIssueByAgentId.get(agent.id);
                 const isActive = activeAgentId === agentRouteRef(agent);
-                const dotClass = statusDotClass(agent.status);
+                const dotClass = blockedIssue ? "bg-red-500" : statusDotClass(agent.status);
                 const showDot = dotClass !== "hidden";
+                const secondaryText = agentSecondaryText({
+                  agent,
+                  inProgressIssue,
+                  blockedIssue,
+                  blockedIssueHasPendingApproval: blockedIssue
+                    ? blockedIssueIdsWithPendingApproval.has(blockedIssue.id)
+                    : false,
+                });
                 return (
                   <NavLink
                     key={agent.id}
@@ -604,11 +656,7 @@ export function AgentTree() {
                         agentAvClass(agent.status),
                       )}
                     >
-                      {agent.icon ? (
-                        <AgentIcon icon={agent.icon} className="h-3.5 w-3.5" />
-                      ) : (
-                        agentInitials(agent.name)
-                      )}
+                      {agentInitials(agent.name)}
                       {showDot && (
                         <span
                           className={cn(
@@ -628,15 +676,9 @@ export function AgentTree() {
                           </span>
                         )}
                       </span>
-                      <span className="mt-0.5 block truncate text-[10px] leading-none text-muted-foreground">
-                        {agent.role}
+                      <span className="mt-1 block truncate text-[10px] leading-none text-muted-foreground">
+                        {secondaryText}
                       </span>
-                      {activeIssue && (
-                        <span className="mt-1 flex items-center gap-1 truncate text-[11px] leading-none text-foreground/70">
-                          <CircleDot className="h-3 w-3 shrink-0 text-primary" />
-                          <span className="truncate">{activeIssue.identifier ?? activeIssue.title}</span>
-                        </span>
-                      )}
                     </span>
                   </NavLink>
                 );
