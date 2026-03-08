@@ -40,18 +40,26 @@
   --radius-md: 0.5rem;
   --radius-lg: 0px;
   --radius-xl: 0px;
+  /* 상태 색상 */
+  --color-status-active: var(--status-active);
+  --color-status-blocked: var(--status-blocked);
+  --color-status-done: var(--status-done);
+  --color-status-review: var(--status-review);
+  /* 에이전트 색상 */
+  --color-agent-active: var(--agent-active);
+  --color-agent-idle: var(--agent-idle);
 }
 
 :root {
   color-scheme: light;
-  --radius: 0;
+  --radius: 0.375rem;
   --background: oklch(0.955 0.018 280);
   --foreground: oklch(0.18 0.02 280);
   --card: oklch(0.975 0.014 280);
   --card-foreground: oklch(0.18 0.02 280);
   --popover: oklch(0.975 0.014 280);
   --popover-foreground: oklch(0.18 0.02 280);
-  --primary: oklch(0.35 0.18 280);
+  --primary: oklch(0.49 0.24 264);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.95 0.015 280);
   --secondary-foreground: oklch(0.25 0.03 280);
@@ -71,12 +79,20 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.94 0.02 280);
   --sidebar-foreground: oklch(0.2 0.02 280);
-  --sidebar-primary: oklch(0.35 0.18 280);
+  --sidebar-primary: oklch(0.49 0.24 264);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* 상태 토큰 */
+  --status-active: #2563eb;
+  --status-blocked: #dc2626;
+  --status-done: #16a34a;
+  --status-review: #7c3aed;
+  /* 에이전트 토큰 */
+  --agent-active: oklch(0.49 0.24 264);
+  --agent-idle: oklch(0.65 0.06 264);
 }
 
 .dark {
@@ -86,7 +102,7 @@
   --card-foreground: oklch(0.95 0.02 280);
   --popover: oklch(0.19 0.025 280);
   --popover-foreground: oklch(0.95 0.02 280);
-  --primary: oklch(0.7 0.18 280);
+  --primary: oklch(0.72 0.20 264);
   --primary-foreground: oklch(0.15 0.02 280);
   --secondary: oklch(0.22 0.04 280);
   --secondary-foreground: oklch(0.9 0.03 280);
@@ -106,12 +122,20 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.16 0.025 280);
   --sidebar-foreground: oklch(0.92 0.03 280);
-  --sidebar-primary: oklch(0.7 0.2 280);
+  --sidebar-primary: oklch(0.72 0.20 264);
   --sidebar-primary-foreground: oklch(0.98 0 0);
   --sidebar-accent: oklch(0.25 0.06 280);
   --sidebar-accent-foreground: oklch(0.95 0.02 280);
   --sidebar-border: oklch(0.3 0.05 280);
   --sidebar-ring: oklch(0.55 0.15 280);
+  /* 상태 토큰 */
+  --status-active: #60a5fa;
+  --status-blocked: #f87171;
+  --status-done: #4ade80;
+  --status-review: #a78bfa;
+  /* 에이전트 토큰 */
+  --agent-active: oklch(0.72 0.20 264);
+  --agent-idle: oklch(0.50 0.08 264);
 }
 
 @layer base {

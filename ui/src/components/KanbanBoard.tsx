@@ -17,6 +17,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { AlertTriangle } from "lucide-react";
 import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { Identity } from "./Identity";
@@ -62,14 +63,18 @@ function KanbanColumn({
   liveIssueIds?: Set<string>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
+  const isBlocked = status === "blocked";
 
   return (
-    <div className="flex flex-col min-w-[260px] w-[260px] shrink-0">
+    <div className={`flex flex-col min-w-[260px] w-[260px] shrink-0 rounded-md ${isBlocked ? "border-l-2 border-red-500" : ""}`}>
       <div className="flex items-center gap-2 px-2 py-2 mb-1">
         <StatusIcon status={status} />
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {statusLabel(status)}
         </span>
+        {isBlocked && (
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+        )}
         <span className="text-xs text-muted-foreground/60 ml-auto tabular-nums">
           {issues.length}
         </span>
@@ -77,7 +82,7 @@ function KanbanColumn({
       <div
         ref={setNodeRef}
         className={`flex-1 min-h-[120px] rounded-md p-1 space-y-1 transition-colors ${
-          isOver ? "bg-accent/40" : "bg-muted/20"
+          isOver ? "bg-accent/40" : isBlocked ? "bg-red-500/5" : "bg-muted/20"
         }`}
       >
         <SortableContext
@@ -136,10 +141,16 @@ function KanbanCard({
       style={style}
       {...attributes}
       {...listeners}
-      className={`rounded-md border bg-card p-2.5 cursor-grab active:cursor-grabbing transition-shadow ${
+      className={`relative rounded-md border bg-card p-2.5 cursor-grab active:cursor-grabbing transition-shadow ${
         isDragging && !isOverlay ? "opacity-30" : ""
       } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:shadow-sm"}`}
     >
+      {isLive && (
+        <span className="absolute top-2 right-2 flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+        </span>
+      )}
       <Link
         to={`/issues/${issue.identifier ?? issue.id}`}
         className="block no-underline text-inherit"
@@ -152,12 +163,6 @@ function KanbanCard({
           <span className="text-xs text-muted-foreground font-mono shrink-0">
             {issue.identifier ?? issue.id.slice(0, 8)}
           </span>
-          {isLive && (
-            <span className="relative flex h-2 w-2 shrink-0 mt-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-            </span>
-          )}
         </div>
         <p className="text-sm leading-snug line-clamp-2 mb-2">{issue.title}</p>
         <div className="flex items-center gap-2">

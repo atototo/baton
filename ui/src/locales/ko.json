@@ -189,6 +189,16 @@
     "updatedTitle": "제목을 수정했습니다",
     "updatedDescription": "설명을 수정했습니다"
   },
+  "propertiesPanel": {
+    "title": "라이브 액티비티 스트림",
+    "subtitle": "우측 패널에서 활동과 속성을 전환합니다.",
+    "latestEvents": "최신 컨트롤 플레인 이벤트",
+    "openActivity": "전체 보기",
+    "loading": "활동을 불러오는 중...",
+    "error": "활동을 불러오지 못했습니다.",
+    "propertiesUnavailable": "이 화면에서는 속성을 표시할 수 없습니다.",
+    "hidePanel": "우측 패널 접기"
+  },
   "issuesList": {
     "newIssue": "새 이슈",
     "searchPlaceholder": "이슈 검색...",
