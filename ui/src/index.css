@@ -48,100 +48,114 @@
   /* 에이전트 색상 */
   --color-agent-active: var(--agent-active);
   --color-agent-idle: var(--agent-idle);
+  --color-priority-critical: var(--priority-critical);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
 }
 
 :root {
   color-scheme: light;
   --radius: 0.375rem;
   /* 목업 기준 — Linear/Notion 스타일 뉴트럴 팔레트 */
-  --background: #f7f7f8;
-  --foreground: #1a1a2e;
+  --background: #f5f4ef;
+  --foreground: #19171a;
   --card: #ffffff;
-  --card-foreground: #1a1a2e;
+  --card-foreground: #19171a;
   --popover: #ffffff;
-  --popover-foreground: #1a1a2e;
-  --primary: #4f46e5;
+  --popover-foreground: #19171a;
+  --primary: #0f766e;
   --primary-foreground: #ffffff;
-  --secondary: #f0f0f2;
-  --secondary-foreground: #1a1a2e;
-  --muted: #f0f0f2;
-  --muted-foreground: #52525b;
-  --accent: #ebebed;
-  --accent-foreground: #1a1a2e;
+  --secondary: #ece9e0;
+  --secondary-foreground: #19171a;
+  --muted: #efede6;
+  --muted-foreground: #625d66;
+  --accent: #e7e2d7;
+  --accent-foreground: #19171a;
   --destructive: #dc2626;
   --destructive-foreground: #dc2626;
-  --border: #e5e5e7;
-  --input: #e5e5e7;
-  --ring: #4f46e5;
+  --border: #ddd7ca;
+  --input: #ddd7ca;
+  --ring: #0f766e;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: #ffffff;
-  --sidebar-foreground: #1a1a2e;
-  --sidebar-primary: #4f46e5;
+  --sidebar: #fcfbf8;
+  --sidebar-foreground: #19171a;
+  --sidebar-primary: #0f766e;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebebed;
-  --sidebar-accent-foreground: #1a1a2e;
-  --sidebar-border: #e5e5e7;
-  --sidebar-ring: #4f46e5;
+  --sidebar-accent: #ece9e0;
+  --sidebar-accent-foreground: #19171a;
+  --sidebar-border: #ddd7ca;
+  --sidebar-ring: #0f766e;
   /* 상태 토큰 */
   --status-active: #2563eb;
   --status-blocked: #dc2626;
   --status-done: #16a34a;
   --status-review: #7c3aed;
+  --priority-critical: #dc2626;
+  --priority-high: #f97316;
+  --priority-medium: #eab308;
+  --priority-low: #6b7280;
   /* 에이전트 토큰 */
-  --agent-active: #4f46e5;
-  --agent-idle: #818cf8;
+  --agent-active: #0f766e;
+  --agent-idle: #14b8a6;
   /* 목업 추가 토큰 */
-  --border-mid: #d9d9dc;
+  --border-mid: #d3ccbe;
+  --bg-overlay: rgba(25, 23, 26, 0.045);
 }
 
 .dark {
   /* 목업 기준 — 다크 팔레트 */
-  --background: #111113;
-  --foreground: #fafafa;
-  --card: #1c1c1f;
+  --background: #121417;
+  --foreground: #f4f1ea;
+  --card: #1a1d21;
   --card-foreground: #fafafa;
-  --popover: #1c1c1f;
+  --popover: #1a1d21;
   --popover-foreground: #fafafa;
-  --primary: #818cf8;
-  --primary-foreground: #1e1b4b;
-  --secondary: #222226;
+  --primary: #5eead4;
+  --primary-foreground: #042f2e;
+  --secondary: #22272d;
   --secondary-foreground: #fafafa;
-  --muted: #222226;
-  --muted-foreground: #a1a1aa;
-  --accent: #28282d;
+  --muted: #20242a;
+  --muted-foreground: #a8a29e;
+  --accent: #252a30;
   --accent-foreground: #fafafa;
   --destructive: #7f1d1d;
   --destructive-foreground: #f87171;
-  --border: #2a2a30;
-  --input: #2a2a30;
-  --ring: #818cf8;
+  --border: #2e353d;
+  --input: #2e353d;
+  --ring: #5eead4;
   --chart-1: oklch(0.65 0.25 280);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #18181b;
+  --sidebar: #171a1d;
   --sidebar-foreground: #fafafa;
-  --sidebar-primary: #818cf8;
-  --sidebar-primary-foreground: #1e1b4b;
-  --sidebar-accent: #28282d;
+  --sidebar-primary: #5eead4;
+  --sidebar-primary-foreground: #042f2e;
+  --sidebar-accent: #252a30;
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #2a2a30;
-  --sidebar-ring: #818cf8;
+  --sidebar-border: #2e353d;
+  --sidebar-ring: #5eead4;
   /* 상태 토큰 */
   --status-active: #60a5fa;
   --status-blocked: #f87171;
   --status-done: #4ade80;
   --status-review: #a78bfa;
+  --priority-critical: #f87171;
+  --priority-high: #fb923c;
+  --priority-medium: #facc15;
+  --priority-low: #9ca3af;
   /* 에이전트 토큰 */
-  --agent-active: #818cf8;
-  --agent-idle: #6366f1;
+  --agent-active: #5eead4;
+  --agent-idle: #14b8a6;
   /* 목업 추가 토큰 */
-  --border-mid: #333339;
+  --border-mid: #37404a;
+  --bg-overlay: rgba(255, 255, 255, 0.055);
 }
 
 @layer base {
@@ -185,14 +199,42 @@
   }
 }
 
-/* Dark mode scrollbars */
+@layer components {
+  .section-title {
+    @apply flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] after:content-[''] after:h-px after:flex-1 after:bg-border;
+  }
+
+  .empty-state-shell {
+    @apply flex flex-col items-center justify-center gap-4 rounded-[10px] border border-dashed border-border/80 bg-card/50 px-6 py-16 text-center;
+  }
+}
+
+/* Scrollbars */
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #ececef;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #c6c6cc;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #b4b4bc;
+}
+
 .dark {
   color-scheme: dark;
 }
 
 .dark *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 
 .dark *::-webkit-scrollbar-track {
@@ -201,7 +243,7 @@
 
 .dark *::-webkit-scrollbar-thumb {
   background: #333339;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .dark *::-webkit-scrollbar-thumb:hover {
@@ -217,6 +259,10 @@
 @keyframes kblink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
+}
+
+.live-indicator-dot {
+  animation: kblink 1.8s ease-in-out infinite;
 }
 
 /* Dashboard activity row entry motion */
@@ -256,6 +302,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .live-indicator-dot {
+    animation: none;
+  }
+
   .activity-row-enter {
     animation: none;
   }

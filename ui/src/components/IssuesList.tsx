@@ -277,11 +277,11 @@ export function IssuesList({
   return (
     <div className="space-y-4">
       {/* Toolbar — 목업 스타일 */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 border-b border-border pb-3">
         {/* View mode toggle */}
         <div className="flex items-center border border-border rounded-[6px] overflow-hidden">
           <button
-            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "list" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
+            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "list" ? "bg-[var(--bg-overlay)] text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
             onClick={() => updateView({ viewMode: "list" })}
             title={t("issuesList.listView")}
           >
@@ -289,7 +289,7 @@ export function IssuesList({
             <span className="hidden sm:inline">{t("issuesList.listView")}</span>
           </button>
           <button
-            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "board" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
+            className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "board" ? "bg-[var(--bg-overlay)] text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
             onClick={() => updateView({ viewMode: "board" })}
             title={t("issuesList.boardView")}
           >
@@ -576,7 +576,7 @@ export function IssuesList({
             }}
           >
             {group.label && (
-              <div className="flex items-center py-1.5 pl-1 pr-3">
+              <div className="flex items-center py-1.5 pl-4 pr-3">
                 <CollapsibleTrigger className="flex items-center gap-1.5">
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
                   <span className="text-sm font-semibold uppercase tracking-wide">
@@ -598,7 +598,12 @@ export function IssuesList({
                 <Link
                   key={issue.id}
                   to={`/issues/${issue.identifier ?? issue.id}`}
-                  className="flex items-center gap-2 py-2 pl-1 pr-3 text-sm border-b border-border last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit"
+                  className={cn(
+                    "flex items-center gap-2 py-2 pl-4 pr-3 text-sm border-b last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit",
+                    issue.status === "blocked"
+                      ? "border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.03)]"
+                      : "border-border"
+                  )}
                 >
                   {/* Spacer matching caret width so status icon aligns with group title (hidden on mobile) */}
                   <div className="w-3.5 shrink-0 hidden sm:block" />
@@ -608,7 +613,7 @@ export function IssuesList({
                       onChange={(s) => onUpdateIssue(issue.id, { status: s })}
                     />
                   </div>
-                  <span className="text-sm text-muted-foreground font-mono shrink-0">
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">
                     {issue.identifier ?? issue.id.slice(0, 8)}
                   </span>
                   <span className="truncate flex-1 min-w-0">{issue.title}</span>

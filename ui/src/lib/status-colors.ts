@@ -94,15 +94,49 @@ export const agentStatusDot: Record<string, string> = {
 
 export const agentStatusDotDefault = "bg-neutral-400";
 
+export const agentAvatarSurface: Record<string, string> = {
+  running: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-200",
+  active: "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-200",
+  paused: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200",
+  idle: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-200",
+  pending_approval: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200",
+  error: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200",
+  archived: "bg-muted text-muted-foreground",
+  terminated: "bg-muted text-muted-foreground",
+};
+
+export const agentAvatarSurfaceDefault = "bg-muted text-muted-foreground";
+
 // ---------------------------------------------------------------------------
 // Priority colors
 // ---------------------------------------------------------------------------
 
 export const priorityColor: Record<string, string> = {
-  critical: "text-red-600 dark:text-red-400",
-  high: "text-orange-600 dark:text-orange-400",
-  medium: "text-yellow-600 dark:text-yellow-400",
-  low: "text-blue-600 dark:text-blue-400",
+  critical: "text-[var(--priority-critical)]",
+  high: "text-[var(--priority-high)]",
+  medium: "text-[var(--priority-medium)]",
+  low: "text-[var(--priority-low)]",
 };
 
-export const priorityColorDefault = "text-yellow-600 dark:text-yellow-400";
+export const priorityColorDefault = "text-[var(--priority-medium)]";
+
+export const priorityColorValue: Record<string, string> = {
+  critical: "var(--priority-critical)",
+  high: "var(--priority-high)",
+  medium: "var(--priority-medium)",
+  low: "var(--priority-low)",
+};
+
+export const priorityColorValueDefault = "var(--priority-medium)";
+
+export const issueStatusColorValue: Record<string, string> = {
+  todo: "var(--status-active)",
+  in_progress: "var(--status-active)",
+  in_review: "var(--status-review)",
+  done: "var(--status-done)",
+  blocked: "var(--status-blocked)",
+  cancelled: "var(--priority-low)",
+  backlog: "var(--muted-foreground)",
+};
+
+export const issueStatusColorValueDefault = "var(--muted-foreground)";

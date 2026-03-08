@@ -494,7 +494,7 @@ export function OnboardingWizard() {
 
           {/* Left half — form */}
           <div className="w-full md:w-1/2 flex flex-col overflow-y-auto">
-            <div className="w-full max-w-md mx-auto my-auto px-8 py-12 shrink-0">
+            <div className="w-full max-w-lg mx-auto my-auto px-8 py-12 shrink-0">
               {/* Progress indicators */}
               <div className="flex items-center gap-2 mb-8">
                 <Sparkles className="h-4 w-4 text-muted-foreground" />

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link } from "@/lib/router";
 import {
   BookOpen,
   Bot,
@@ -128,9 +130,82 @@ import { Identity } from "@/components/Identity";
 /*  Section wrapper                                                    */
 /* ------------------------------------------------------------------ */
 
+function toSectionId(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const designGuideSections = [
+  "Component Coverage",
+  "Colors",
+  "Typography",
+  "Radius",
+  "Buttons",
+  "Badges",
+  "Status System",
+  "Form Elements",
+  "Select",
+  "Dropdown Menu",
+  "Popover",
+  "Collapsible",
+  "Sheet",
+  "Scroll Area",
+  "Command (CMDK)",
+  "Breadcrumb",
+  "Cards",
+  "Tabs",
+  "Entity Rows",
+  "Filter Bar",
+  "Avatars",
+  "Identity",
+  "Tooltips",
+  "Dialog",
+  "Empty State",
+  "Progress Bars (Budget)",
+  "Log Viewer",
+  "Property Row Pattern",
+  "Navigation Patterns",
+  "Grouped List (Issues pattern)",
+  "Comment Thread Pattern",
+  "Cost Table Pattern",
+  "Skeletons",
+  "Separator",
+  "Common Icons (Lucide)",
+  "Keyboard Shortcuts",
+  "Usage Links",
+  "Changelog",
+];
+
+const usageLinks = [
+  { label: "Dashboard", to: "/dashboard", components: ["MetricCard", "ActivityCharts", "HandoffBar"] },
+  { label: "Issues", to: "/issues", components: ["FilterBar", "EntityRow", "StatusBadge"] },
+  { label: "Goals", to: "/goals", components: ["GoalTree", "StatusBadge", "EmptyState"] },
+  { label: "Approvals", to: "/approvals/pending", components: ["ApprovalCard", "PageTabBar", "Identity"] },
+  { label: "Costs", to: "/costs", components: ["Card", "Identity", "StatusBadge"] },
+  { label: "Inbox", to: "/inbox/new", components: ["ApprovalCard", "StatusIcon", "PriorityIcon"] },
+  { label: "Settings", to: "/settings", components: ["Input", "Textarea", "Select"] },
+];
+
+const changelogEntries = [
+  {
+    date: "2026-03-08",
+    title: "Phase 9 density pass",
+    detail: "Added usage links, changelog coverage, and tighter page layouts for goals, approvals, costs, activity, and inbox.",
+  },
+  {
+    date: "2026-03-07",
+    title: "Navigation and panel polish",
+    detail: "Expanded page structure coverage with panel, layout, and navigation patterns aligned to the latest mockups.",
+  },
+  {
+    date: "2026-03-06",
+    title: "Design guide anchor navigation",
+    detail: "Added table of contents and section anchors for faster scanning during implementation and review.",
+  },
+];
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-4">
+    <section id={toSectionId(title)} className="space-y-4 scroll-mt-24">
       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
         {title}
       </h3>
@@ -173,6 +248,7 @@ function Swatch({ name, cssVar }: { name: string; cssVar: string }) {
 /* ------------------------------------------------------------------ */
 
 export function DesignGuide() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [selectValue, setSelectValue] = useState("in_progress");
@@ -197,6 +273,27 @@ export function DesignGuide() {
           Every component, style, and pattern used across Baton.
         </p>
       </div>
+
+      <section className="rounded-lg border border-border bg-card px-4 py-4 sm:px-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">{t("designGuide.contents")}</h3>
+          <span className="text-xs text-muted-foreground">{designGuideSections.length}</span>
+        </div>
+        <nav
+          aria-label={t("designGuide.tocAriaLabel")}
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {designGuideSections.map((section) => (
+            <a
+              key={section}
+              href={`#${toSectionId(section)}`}
+              className="rounded-md border border-border/80 bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+            >
+              {section}
+            </a>
+          ))}
+        </nav>
+      </section>
 
       {/* ============================================================ */}
       {/*  COVERAGE                                                     */}
@@ -232,6 +329,47 @@ export function DesignGuide() {
               ))}
             </div>
           </SubSection>
+        </div>
+      </Section>
+
+      <Section title="Usage Links">
+        <p className="text-sm text-muted-foreground">
+          Jump from a token or primitive to a concrete page that uses it in production.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {usageLinks.map((entry) => (
+            <div key={entry.to} className="rounded-xl border border-border bg-card px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">{entry.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {entry.components.join(" · ")}
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="h-8 px-3">
+                  <Link to={entry.to}>{t("designGuide.openPage")}</Link>
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Changelog">
+        <div className="space-y-3">
+          {changelogEntries.map((entry) => (
+            <div key={`${entry.date}-${entry.title}`} className="rounded-xl border border-border bg-card px-4 py-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">{entry.title}</p>
+                  <p className="text-sm text-muted-foreground">{entry.detail}</p>
+                </div>
+                <Badge variant="outline" className="w-fit font-mono text-[10px]">
+                  {entry.date}
+                </Badge>
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
 
@@ -767,7 +905,7 @@ export function DesignGuide() {
         </SubSection>
 
         <SubSection title="Metric Cards">
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard icon={Bot} value={12} label="Active Agents" description="+3 this week" />
             <MetricCard icon={CircleDot} value={48} label="Open Issues" />
             <MetricCard icon={DollarSign} value="$1,234" label="Monthly Cost" description="Under budget" />

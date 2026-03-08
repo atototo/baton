@@ -1,5 +1,11 @@
 import type { HeartbeatRun } from "@atototo/shared";
 import { useTranslation } from "react-i18next";
+import {
+  issueStatusColorValue,
+  issueStatusColorValueDefault,
+  priorityColorValue,
+  priorityColorValueDefault,
+} from "../lib/status-colors";
 
 /* ---- Utilities ---- */
 
@@ -20,11 +26,11 @@ function formatDayLabel(dateStr: string): string {
 
 function DateLabels({ days }: { days: string[] }) {
   return (
-    <div className="flex gap-[3px] mt-1.5">
+    <div className="mt-2 flex gap-[3px]">
       {days.map((day, i) => (
         <div key={day} className="flex-1 text-center">
           {(i === 0 || i === 6 || i === 13) ? (
-            <span className="text-[9px] text-muted-foreground tabular-nums">{formatDayLabel(day)}</span>
+            <span className="text-[10px] text-muted-foreground tabular-nums">{formatDayLabel(day)}</span>
           ) : null}
         </div>
       ))}
@@ -34,10 +40,10 @@ function DateLabels({ days }: { days: string[] }) {
 
 function ChartLegend({ items }: { items: { color: string; label: string }[] }) {
   return (
-    <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-2">
+    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
       {items.map(item => (
-        <span key={item.label} className="flex items-center gap-1 text-[9px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+        <span key={item.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
           {item.label}
         </span>
       ))}
@@ -47,10 +53,10 @@ function ChartLegend({ items }: { items: { color: string; label: string }[] }) {
 
 export function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
       <div>
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
-        {subtitle && <span className="text-[10px] text-muted-foreground/60">{subtitle}</span>}
+        <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{title}</h3>
+        {subtitle && <span className="text-[11px] text-muted-foreground/70">{subtitle}</span>}
       </div>
       {children}
     </div>
@@ -81,7 +87,7 @@ export function RunActivityChart({ runs }: { runs: HeartbeatRun[] }) {
 
   return (
     <div>
-      <div className="flex items-end gap-[3px] h-20">
+      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
         {days.map(day => {
           const entry = grouped.get(day)!;
           const total = entry.succeeded + entry.failed + entry.other;
@@ -106,12 +112,7 @@ export function RunActivityChart({ runs }: { runs: HeartbeatRun[] }) {
   );
 }
 
-const priorityColors: Record<string, string> = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#6b7280",
-};
+const priorityColors: Record<string, string> = priorityColorValue;
 
 const priorityOrder = ["critical", "high", "medium", "low"] as const;
 
@@ -134,7 +135,7 @@ export function PriorityChart({ issues }: { issues: { priority: string; createdA
 
   return (
     <div>
-      <div className="flex items-end gap-[3px] h-20">
+      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
         {days.map(day => {
           const entry = grouped.get(day)!;
           const total = Object.values(entry).reduce((a, b) => a + b, 0);
@@ -144,7 +145,7 @@ export function PriorityChart({ issues }: { issues: { priority: string; createdA
               {total > 0 ? (
                 <div className="flex flex-col-reverse gap-px overflow-hidden" style={{ height: `${heightPct}%`, minHeight: 2 }}>
                   {priorityOrder.map(p => entry[p] > 0 ? (
-                    <div key={p} style={{ flex: entry[p], backgroundColor: priorityColors[p] }} />
+                    <div key={p} style={{ flex: entry[p], backgroundColor: priorityColors[p] ?? priorityColorValueDefault }} />
                   ) : null)}
                 </div>
               ) : (
@@ -155,20 +156,12 @@ export function PriorityChart({ issues }: { issues: { priority: string; createdA
         })}
       </div>
       <DateLabels days={days} />
-      <ChartLegend items={priorityOrder.map(p => ({ color: priorityColors[p], label: p.charAt(0).toUpperCase() + p.slice(1) }))} />
+      <ChartLegend items={priorityOrder.map(p => ({ color: priorityColors[p] ?? priorityColorValueDefault, label: p.charAt(0).toUpperCase() + p.slice(1) }))} />
     </div>
   );
 }
 
-const statusColors: Record<string, string> = {
-  todo: "#3b82f6",
-  in_progress: "#8b5cf6",
-  in_review: "#a855f7",
-  done: "#10b981",
-  blocked: "#ef4444",
-  cancelled: "#6b7280",
-  backlog: "#64748b",
-};
+const statusColors: Record<string, string> = issueStatusColorValue;
 
 const statusLabels: Record<string, string> = {
   todo: "To Do",
@@ -202,7 +195,7 @@ export function IssueStatusChart({ issues }: { issues: { status: string; created
 
   return (
     <div>
-      <div className="flex items-end gap-[3px] h-20">
+      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
         {days.map(day => {
           const entry = grouped.get(day)!;
           const total = Object.values(entry).reduce((a, b) => a + b, 0);
@@ -212,7 +205,7 @@ export function IssueStatusChart({ issues }: { issues: { status: string; created
               {total > 0 ? (
                 <div className="flex flex-col-reverse gap-px overflow-hidden" style={{ height: `${heightPct}%`, minHeight: 2 }}>
                   {statusOrder.map(s => (entry[s] ?? 0) > 0 ? (
-                    <div key={s} style={{ flex: entry[s], backgroundColor: statusColors[s] ?? "#6b7280" }} />
+                    <div key={s} style={{ flex: entry[s], backgroundColor: statusColors[s] ?? issueStatusColorValueDefault }} />
                   ) : null)}
                 </div>
               ) : (
@@ -223,7 +216,7 @@ export function IssueStatusChart({ issues }: { issues: { status: string; created
         })}
       </div>
       <DateLabels days={days} />
-      <ChartLegend items={statusOrder.map(s => ({ color: statusColors[s] ?? "#6b7280", label: statusLabels[s] ?? s }))} />
+      <ChartLegend items={statusOrder.map(s => ({ color: statusColors[s] ?? issueStatusColorValueDefault, label: statusLabels[s] ?? s }))} />
     </div>
   );
 }
@@ -246,7 +239,7 @@ export function SuccessRateChart({ runs }: { runs: HeartbeatRun[] }) {
 
   return (
     <div>
-      <div className="flex items-end gap-[3px] h-20">
+      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
         {days.map(day => {
           const entry = grouped.get(day)!;
           const rate = entry.total > 0 ? entry.succeeded / entry.total : 0;

@@ -24,7 +24,7 @@ import { cn } from "../lib/utils";
 export function Layout() {
   const { sidebarOpen, setSidebarOpen, toggleSidebar, isMobile } = useSidebar();
   const { openNewIssue, openOnboarding } = useDialog();
-  const { togglePanelVisible } = usePanel();
+  const { togglePanelVisible, panelVisible, setPanelVisible } = usePanel();
   const { companies, loading: companiesLoading, selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { companyPrefix } = useParams<{ companyPrefix: string }>();
   const navigate = useNavigate();
@@ -82,6 +82,12 @@ export function Layout() {
   ]);
 
   const togglePanel = togglePanelVisible;
+  const isCompanySettingsRoute = /\/company\/settings(?:$|[/?#])/.test(location.pathname);
+
+  useEffect(() => {
+    if (!isCompanySettingsRoute || !panelVisible) return;
+    setPanelVisible(false);
+  }, [isCompanySettingsRoute, panelVisible, setPanelVisible]);
 
   // Cmd+1..9 to switch companies
   const switchCompany = useCallback(
@@ -195,11 +201,11 @@ export function Layout() {
         />
       )}
 
-      {/* Left: AgentTree (260px) — 기존 CompanyRail + Sidebar 통합 */}
+      {/* Left: AgentTree (240px) — 기존 CompanyRail + Sidebar 통합 */}
       {isMobile ? (
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[260px] overflow-hidden pt-[env(safe-area-inset-top)] transition-transform duration-100 ease-out",
+            "fixed inset-y-0 left-0 z-50 w-[240px] overflow-hidden pt-[env(safe-area-inset-top)] transition-transform duration-100 ease-out",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -209,10 +215,10 @@ export function Layout() {
         <div
           className={cn(
             "h-full shrink-0 transition-[width] duration-100 ease-out overflow-hidden",
-            sidebarOpen ? "w-[260px]" : "w-0",
+            sidebarOpen ? "w-[240px]" : "w-0",
           )}
         >
-          <div className="h-full w-[260px]">
+          <div className="h-full w-[240px]">
             <AgentTree />
           </div>
         </div>

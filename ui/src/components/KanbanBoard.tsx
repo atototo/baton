@@ -79,7 +79,7 @@ function KanbanColumn({
       {/* 목업 스타일: 8px 컬러 도트 + 11px uppercase 타이틀 + 카운트 */}
       <div className="flex items-center gap-[7px] px-1.5 pt-1 pb-2">
         <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        <span className="section-title text-muted-foreground after:hidden">
           {t(`statusLabels.${status}`, { defaultValue: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) })}
         </span>
         <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
@@ -143,6 +143,7 @@ function KanbanCard({
   };
 
   const isBlockedStatus = issue.status === "blocked";
+  const isActiveStatus = issue.status === "in_progress";
 
   return (
     <div
@@ -153,7 +154,7 @@ function KanbanCard({
       className={`relative rounded-[6px] border bg-card cursor-grab active:cursor-grabbing transition-all ${
         isDragging && !isOverlay ? "opacity-30" : ""
       } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-[var(--border-mid,#d9d9dc)] hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"} ${
-        isBlockedStatus ? "border-l-[3px] border-l-[var(--status-blocked)]" : ""
+        isBlockedStatus ? "border-l-[3px] border-l-[var(--status-blocked)]" : isActiveStatus ? "border-l-[3px] border-l-[var(--status-active)]" : ""
       }`}
     >
       <Link
