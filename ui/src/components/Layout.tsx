@@ -117,6 +117,12 @@ export function Layout() {
     setMobileNavVisible(true);
   }, [isMobile]);
 
+  useEffect(() => {
+    if (!location.pathname.includes("/org")) return;
+    if (!panelVisible) return;
+    setPanelVisible(false);
+  }, [location.pathname, panelVisible, setPanelVisible]);
+
   // Swipe gesture to open/close sidebar on mobile
   useEffect(() => {
     if (!isMobile) return;

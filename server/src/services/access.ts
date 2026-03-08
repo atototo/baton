@@ -48,7 +48,11 @@ export function accessService(db: Db) {
     principalId: string,
     permissionKey: PermissionKey,
   ): Promise<boolean> {
-    const membership = await getMembership(companyId, principalType, principalId);
+    let membership = await getMembership(companyId, principalType, principalId);
+    // Auto-backfill membership for agents that were created without one
+    if (!membership && principalType === "agent") {
+      membership = await ensureMembership(companyId, "agent", principalId, "member", "active");
+    }
     if (!membership || membership.status !== "active") return false;
     const grant = await db
       .select({ id: principalPermissionGrants.id })

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { usePanel } from "../context/PanelContext";
 import { queryKeys } from "../lib/queryKeys";
 import { agentUrl } from "../lib/utils";
 import { EmptyState } from "../components/EmptyState";
@@ -129,6 +130,7 @@ export function OrgChart() {
   const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { panelVisible, setPanelVisible } = usePanel();
   const navigate = useNavigate();
 
   const { data: orgTree, isLoading } = useQuery({
@@ -152,6 +154,11 @@ export function OrgChart() {
   useEffect(() => {
     setBreadcrumbs([{ label: t("orgChart.title") }]);
   }, [setBreadcrumbs, t]);
+
+  useEffect(() => {
+    if (!panelVisible) return;
+    setPanelVisible(false);
+  }, [panelVisible, setPanelVisible]);
 
   // Layout computation
   const layout = useMemo(() => layoutForest(orgTree ?? []), [orgTree]);

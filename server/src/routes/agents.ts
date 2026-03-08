@@ -613,6 +613,9 @@ export function agentRoutes(db: Db) {
       lastHeartbeatAt: null,
     });
 
+    // Ensure the agent has a company membership so permission grants work
+    await access.ensureMembership(companyId, "agent", agent.id, "member", "active");
+
     let approval: Awaited<ReturnType<typeof approvalsSvc.getById>> | null = null;
     const actor = getActorInfo(req);
 
@@ -732,6 +735,9 @@ export function agentRoutes(db: Db) {
       spentMonthlyCents: 0,
       lastHeartbeatAt: null,
     });
+
+    // Ensure the agent has a company membership so permission grants work
+    await access.ensureMembership(companyId, "agent", agent.id, "member", "active");
 
     const actor = getActorInfo(req);
     await logActivity(db, {

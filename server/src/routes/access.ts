@@ -1120,6 +1120,9 @@ export function accessRoutes(
       const agentId = req.params.agentId as string;
       const targetAgent = await assertCanManageAgentPermissionGrants(req, companyId, agentId);
 
+      // Ensure agent has a company membership (backfill for agents created before the fix)
+      await access.ensureMembership(companyId, "agent", agentId, "member", "active");
+
       await access.setPrincipalGrants(
         companyId,
         "agent",

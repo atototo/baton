@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { useParams, useNavigate, useLocation, Navigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { PROJECT_COLORS, isUuidLike, type ActivityEvent, type Agent, type ProjectWorkspace } from "@atototo/shared";
+import { PROJECT_COLORS, isUuidLike, type ActivityEvent, type Agent, type Project, type ProjectStatus, type ProjectWorkspace } from "@atototo/shared";
+import { CalendarRange, CircleDashed, Flag, FolderKanban, UserRound } from "lucide-react";
 import { projectsApi } from "../api/projects";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
@@ -23,6 +24,9 @@ import { ActivityRow } from "../components/ActivityRow";
 import { EmptyState } from "../components/EmptyState";
 import { AgentIcon } from "../components/AgentIconPicker";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { cn } from "../lib/utils";
 import { FolderGit2, Settings2, Sparkles } from "lucide-react";
 
 /* ── Top-level tab types ── */
@@ -45,16 +49,64 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
 
 function OverviewContent({
   project,
+  leadAgentName,
   onUpdate,
   imageUploadHandler,
 }: {
-  project: { description: string | null; status: string; targetDate: string | null };
+  project: Project;
+  leadAgentName: string | null;
   onUpdate: (data: Record<string, unknown>) => void;
   imageUploadHandler?: (file: File) => Promise<string>;
 }) {
   const { t } = useTranslation();
+  const statusLabelKey: Record<ProjectStatus, string> = {
+    backlog: "newProject.statuses.backlog",
+    planned: "newProject.statuses.planned",
+    in_progress: "newProject.statuses.inProgress",
+    completed: "newProject.statuses.completed",
+    cancelled: "newProject.statuses.cancelled",
+  };
+  const milestoneCount = 0;
+
   return (
     <div className="space-y-6">
+      <section
+        className="overflow-hidden rounded-xl border border-border bg-card/60"
+        aria-label={t("projectDetail.propertiesBar")}
+      >
+        <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
+          <PropertyPill
+            icon={Flag}
+            label={t("projectDetail.status")}
+            value={<StatusBadge status={project.status} />}
+          />
+          <PropertyPill
+            icon={UserRound}
+            label={t("projectDetail.owner")}
+            value={
+              project.leadAgentId
+                ? <Badge variant="outline" className="font-normal">{leadAgentName ?? project.leadAgentId.slice(0, 8)}</Badge>
+                : t("projectDetail.noOwner")
+            }
+          />
+          <PropertyPill
+            icon={CalendarRange}
+            label={t("projectDetail.dates")}
+            value={project.targetDate ?? t("projectDetail.noTargetDate")}
+          />
+          <PropertyPill
+            icon={FolderKanban}
+            label={t("projectDetail.milestones")}
+            value={t("projectDetail.milestoneCount", { count: milestoneCount })}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+          <span>{t("projectDetail.currentState")}</span>
+          <Badge variant="secondary">{t(statusLabelKey[project.status])}</Badge>
+          {project.targetDate && <span>{t("projectDetail.targetDateLabel", { date: project.targetDate })}</span>}
+        </div>
+      </section>
+
       <InlineEditor
         value={project.description ?? ""}
         onSave={(description) => onUpdate({ description })}
@@ -78,6 +130,54 @@ function OverviewContent({
             <p>{project.targetDate}</p>
           </div>
         )}
+      </div>
+
+      <section className="space-y-3" aria-labelledby="project-milestones-heading">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 id="project-milestones-heading" className="text-sm font-semibold text-foreground">
+              {t("projectDetail.milestones")}
+            </h3>
+            <p className="text-sm text-muted-foreground">{t("projectDetail.milestonesDescription")}</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" disabled aria-disabled="true">
+            {t("projectDetail.addMilestone")}
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-dashed border-border bg-card/40 p-6">
+          <div className="flex flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <CircleDashed className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">{t("projectDetail.noMilestonesTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("projectDetail.noMilestonesDescription")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PropertyPill({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof CalendarRange;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="bg-card px-4 py-3">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>{label}</span>
+      </div>
+      <div className={cn("mt-2 text-sm text-foreground", typeof value === "string" && "font-medium")}>
+        {value}
       </div>
     </div>
   );
@@ -388,6 +488,11 @@ export function ProjectDetail() {
   const canonicalProjectRef = project ? projectRouteRef(project) : routeProjectRef;
   const projectLookupRef = project?.id ?? routeProjectRef;
   const resolvedCompanyId = project?.companyId ?? selectedCompanyId;
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(resolvedCompanyId ?? ""),
+    queryFn: () => agentsApi.list(resolvedCompanyId!),
+    enabled: !!resolvedCompanyId,
+  });
 
   useEffect(() => {
     if (!project?.companyId || project.companyId === selectedCompanyId) return;
@@ -469,6 +574,11 @@ export function ProjectDetail() {
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
   if (!project) return null;
 
+  const leadAgentName =
+    project.leadAgentId != null
+      ? agents?.find((agent) => agent.id === project.leadAgentId)?.name ?? project.leadAgentId.slice(0, 8)
+      : null;
+
   const handleTabChange = (tab: ProjectTab) => {
     if (tab === "overview") navigate(`/projects/${canonicalProjectRef}/overview`);
     if (tab === "updates") navigate(`/projects/${canonicalProjectRef}/updates`);
@@ -519,6 +629,7 @@ export function ProjectDetail() {
       {activeTab === "overview" && (
         <OverviewContent
           project={project}
+          leadAgentName={leadAgentName}
           onUpdate={(data) => updateProject.mutate(data)}
           imageUploadHandler={async (file) => {
             const asset = await uploadImage.mutateAsync(file);
