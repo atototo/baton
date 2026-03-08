@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import {
   DndContext,
@@ -21,6 +22,7 @@ import { AlertTriangle } from "lucide-react";
 import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { Identity } from "./Identity";
+import { issueStatusText } from "../lib/status-colors";
 import type { Issue } from "@atototo/shared";
 
 const boardStatuses = [
@@ -32,10 +34,6 @@ const boardStatuses = [
   "done",
   "cancelled",
 ];
-
-function statusLabel(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 interface Agent {
   id: string;
@@ -62,27 +60,33 @@ function KanbanColumn({
   agents?: Agent[];
   liveIssueIds?: Set<string>;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const isBlocked = status === "blocked";
 
+  const coloredStatuses = ["in_progress", "in_review", "blocked", "done"];
+  const headerTextClass = coloredStatuses.includes(status)
+    ? issueStatusText[status]
+    : "text-muted-foreground";
+
   return (
-    <div className={`flex flex-col min-w-[260px] w-[260px] shrink-0 rounded-md ${isBlocked ? "border-l-2 border-red-500" : ""}`}>
-      <div className="flex items-center gap-2 px-2 py-2 mb-1">
+    <div className="flex flex-col min-w-[248px] w-[248px] shrink-0">
+      <div className="flex items-center gap-1.5 px-1.5 pt-1 pb-2">
         <StatusIcon status={status} />
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {statusLabel(status)}
+        <span className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${headerTextClass}`}>
+          {t(`statusLabels.${status}`, { defaultValue: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) })}
         </span>
         {isBlocked && (
-          <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+          <AlertTriangle className="h-3 w-3 text-[var(--status-blocked)] shrink-0" />
         )}
-        <span className="text-xs text-muted-foreground/60 ml-auto tabular-nums">
+        <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
           {issues.length}
         </span>
       </div>
       <div
         ref={setNodeRef}
-        className={`flex-1 min-h-[120px] rounded-md p-1 space-y-1 transition-colors ${
-          isOver ? "bg-accent/40" : isBlocked ? "bg-red-500/5" : "bg-muted/20"
+        className={`flex-1 min-h-[60px] rounded-[7px] p-1 space-y-[5px] transition-colors ${
+          isOver ? "bg-accent/60" : isBlocked ? "bg-red-500/[0.04] border border-red-500/10" : "bg-secondary"
         }`}
       >
         <SortableContext
@@ -135,45 +139,53 @@ function KanbanCard({
     return agents.find((a) => a.id === id)?.name ?? null;
   };
 
+  const isBlockedStatus = issue.status === "blocked";
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`relative rounded-md border bg-card p-2.5 cursor-grab active:cursor-grabbing transition-shadow ${
+      className={`relative rounded-[6px] border bg-card cursor-grab active:cursor-grabbing transition-all ${
         isDragging && !isOverlay ? "opacity-30" : ""
-      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:shadow-sm"}`}
+      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-border/80 hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"} ${
+        isBlockedStatus ? "border-l-[3px] border-l-red-500" : ""
+      }`}
     >
-      {isLive && (
-        <span className="absolute top-2 right-2 flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-      )}
       <Link
         to={`/issues/${issue.identifier ?? issue.id}`}
-        className="block no-underline text-inherit"
+        className="block no-underline text-inherit px-3 pt-2.5 pb-2.5"
         onClick={(e) => {
-          // Prevent navigation during drag
           if (isDragging) e.preventDefault();
         }}
       >
-        <div className="flex items-start gap-1.5 mb-1.5">
-          <span className="text-xs text-muted-foreground font-mono shrink-0">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
             {issue.identifier ?? issue.id.slice(0, 8)}
           </span>
+          {isLive && (
+            <span className="ml-auto flex h-[6px] w-[6px] shrink-0">
+              <span className="animate-ping absolute inline-flex h-[6px] w-[6px] rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-[6px] w-[6px] bg-blue-500" />
+            </span>
+          )}
         </div>
-        <p className="text-sm leading-snug line-clamp-2 mb-2">{issue.title}</p>
-        <div className="flex items-center gap-2">
+        <p className="text-[12px] leading-[1.45] line-clamp-2 mb-[9px] text-foreground">{issue.title}</p>
+        <div className="flex items-center gap-1.5">
           <PriorityIcon priority={issue.priority} />
           {issue.assigneeAgentId && (() => {
             const name = agentName(issue.assigneeAgentId);
             return name ? (
-              <Identity name={name} size="xs" />
+              <span className="ml-auto flex items-center gap-1 px-[7px] py-0.5 pl-[3px] rounded-[4px] bg-secondary border border-border text-[10px] text-muted-foreground">
+                <span className="inline-flex h-[15px] w-[15px] items-center justify-center rounded-[3px] bg-primary/10 text-[8px] font-bold text-primary shrink-0">
+                  {name.slice(0, 2).toUpperCase()}
+                </span>
+                {name}
+              </span>
             ) : (
-              <span className="text-xs text-muted-foreground font-mono">
-                {issue.assigneeAgentId.slice(0, 8)}
+              <span className="ml-auto text-[10px] text-muted-foreground font-mono">
+                {issue.assigneeAgentId.slice(0, 6)}
               </span>
             );
           })()}

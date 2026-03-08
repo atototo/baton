@@ -11,26 +11,26 @@
 
 /** StatusIcon circle: text + border classes */
 export const issueStatusIcon: Record<string, string> = {
-  backlog: "text-muted-foreground border-muted-foreground",
-  todo: "text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400",
-  in_progress: "text-yellow-600 border-yellow-600 dark:text-yellow-400 dark:border-yellow-400",
-  in_review: "text-violet-600 border-violet-600 dark:text-violet-400 dark:border-violet-400",
-  done: "text-green-600 border-green-600 dark:text-green-400 dark:border-green-400",
-  cancelled: "text-neutral-500 border-neutral-500",
-  blocked: "text-red-600 border-red-600 dark:text-red-400 dark:border-red-400",
+  backlog: "text-muted-foreground/50 border-muted-foreground/50",
+  todo: "text-muted-foreground border-muted-foreground",
+  in_progress: "text-[var(--status-active)] border-[var(--status-active)]",
+  in_review: "text-[var(--status-review)] border-[var(--status-review)]",
+  done: "text-[var(--status-done)] border-[var(--status-done)]",
+  cancelled: "text-neutral-400 border-neutral-400",
+  blocked: "text-[var(--status-blocked)] border-[var(--status-blocked)]",
 };
 
 export const issueStatusIconDefault = "text-muted-foreground border-muted-foreground";
 
 /** Text-only color for issue statuses (dropdowns, labels) */
 export const issueStatusText: Record<string, string> = {
-  backlog: "text-muted-foreground",
-  todo: "text-blue-600 dark:text-blue-400",
-  in_progress: "text-yellow-600 dark:text-yellow-400",
-  in_review: "text-violet-600 dark:text-violet-400",
-  done: "text-green-600 dark:text-green-400",
-  cancelled: "text-neutral-500",
-  blocked: "text-red-600 dark:text-red-400",
+  backlog: "text-muted-foreground/50",
+  todo: "text-muted-foreground",
+  in_progress: "text-[var(--status-active)]",
+  in_review: "text-[var(--status-review)]",
+  done: "text-[var(--status-done)]",
+  cancelled: "text-neutral-400",
+  blocked: "text-[var(--status-blocked)]",
 };
 
 export const issueStatusTextDefault = "text-muted-foreground";
@@ -66,13 +66,13 @@ export const statusBadge: Record<string, string> = {
   approved: "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
   rejected: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
 
-  // Issue statuses — consistent hues with issueStatusIcon above
-  backlog: "bg-muted text-muted-foreground",
-  todo: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  in_progress: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300",
-  in_review: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
-  blocked: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  done: "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
+  // Issue statuses — aligned with mockup palette (CSS variable tokens)
+  backlog: "bg-muted/60 text-muted-foreground",
+  todo: "bg-muted text-muted-foreground",
+  in_progress: "bg-[rgba(37,99,235,0.08)] text-[var(--status-active)] dark:bg-[rgba(96,165,250,0.12)]",
+  in_review: "bg-[rgba(124,58,237,0.08)] text-[var(--status-review)] dark:bg-[rgba(167,139,250,0.12)]",
+  blocked: "bg-[rgba(220,38,38,0.08)] text-[var(--status-blocked)] dark:bg-[rgba(248,113,113,0.12)]",
+  done: "bg-[rgba(22,163,74,0.08)] text-[var(--status-done)] dark:bg-[rgba(74,222,128,0.12)]",
   cancelled: "bg-muted text-muted-foreground",
 };
 

@@ -27,8 +27,18 @@ import type { Issue } from "@atototo/shared";
 const statusOrder = ["in_progress", "todo", "backlog", "in_review", "blocked", "done", "cancelled"];
 const priorityOrder = ["critical", "high", "medium", "low"];
 
-function statusLabel(status: string): string {
+function statusLabelFallback(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function useStatusLabel() {
+  const { t } = useTranslation();
+  return (status: string) => t(`statusLabels.${status}`, { defaultValue: statusLabelFallback(status) });
+}
+
+function usePriorityLabel() {
+  const { t } = useTranslation();
+  return (priority: string) => t(`priorityLabels.${priority}`, { defaultValue: statusLabelFallback(priority) });
 }
 
 /* ── View state ── */
@@ -158,6 +168,8 @@ export function IssuesList({
   onUpdateIssue,
 }: IssuesListProps) {
   const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
+  const priorityLabel = usePriorityLabel();
   const { selectedCompanyId } = useCompany();
   const { openNewIssue } = useDialog();
 
@@ -234,7 +246,7 @@ export function IssuesList({
       const groups = groupBy(filtered, (i) => i.priority);
       return priorityOrder
         .filter((p) => groups[p]?.length)
-        .map((p) => ({ key: p, label: statusLabel(p), items: groups[p]! }));
+        .map((p) => ({ key: p, label: priorityLabel(p), items: groups[p]! }));
     }
     // assignee
     const groups = groupBy(filtered, (i) => i.assigneeAgentId ?? "__unassigned");
@@ -393,7 +405,7 @@ export function IssuesList({
                               onCheckedChange={() => updateView({ priorities: toggleInArray(viewState.priorities, p) })}
                             />
                             <PriorityIcon priority={p} />
-                            <span className="text-sm">{statusLabel(p)}</span>
+                            <span className="text-sm">{priorityLabel(p)}</span>
                           </label>
                         ))}
                       </div>
