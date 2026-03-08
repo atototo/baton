@@ -25,6 +25,7 @@ import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard } from "lucide
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { HandoffBar, type HandoffSummary } from "../components/HandoffBar";
 import type { Agent, Issue } from "@atototo/shared";
 
 function getRecentIssues(issues: Issue[]): Issue[] {
@@ -41,6 +42,7 @@ export function Dashboard() {
   const seenActivityIdsRef = useRef<Set<string>>(new Set());
   const hydratedActivityRef = useRef(false);
   const activityAnimationTimersRef = useRef<number[]>([]);
+  const [dismissedHandoffId, setDismissedHandoffId] = useState<string | null>(null);
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -93,6 +95,7 @@ export function Dashboard() {
     seenActivityIdsRef.current = new Set();
     hydratedActivityRef.current = false;
     setAnimatedActivityIds(new Set());
+    setDismissedHandoffId(null);
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -165,6 +168,42 @@ export function Dashboard() {
     return agents.find((a) => a.id === id)?.name ?? null;
   };
 
+  const latestHandoff = useMemo<HandoffSummary | null>(() => {
+    for (const event of activity ?? []) {
+      if (event.action !== "issue.updated" || event.entityType !== "issue" || !event.details) continue;
+      const details = event.details as Record<string, unknown>;
+      const nextAgentId = typeof details.assigneeAgentId === "string" ? details.assigneeAgentId : null;
+      const nextUserId = typeof details.assigneeUserId === "string" ? details.assigneeUserId : null;
+      const previous = (details._previous ?? null) as Record<string, unknown> | null;
+      const prevAgentId = typeof previous?.assigneeAgentId === "string" ? previous.assigneeAgentId : null;
+      const prevUserId = typeof previous?.assigneeUserId === "string" ? previous.assigneeUserId : null;
+      if (!nextAgentId && !nextUserId && details.assigneeAgentId !== null && details.assigneeUserId !== null) continue;
+      if (nextAgentId === prevAgentId && nextUserId === prevUserId) continue;
+
+      const issueRef = entityNameMap.get(`issue:${event.entityId}`) ?? String(details.identifier ?? event.entityId.slice(0, 8));
+      const issueTitle = entityTitleMap.get(`issue:${event.entityId}`) ?? String(details.issueTitle ?? t("dashboard.untitledIssue"));
+      const actor = event.actorType === "agent"
+        ? agentMap.get(event.actorId)?.name ?? t("dashboard.unknownActor")
+        : t("dashboard.board");
+      const assignee = nextAgentId
+        ? agentMap.get(nextAgentId)?.name ?? t("dashboard.unknownActor")
+        : nextUserId
+          ? t("dashboard.board")
+          : t("dashboard.unassigned");
+
+      return {
+        id: event.id,
+        issueHref: `/issues/${issueRef}`,
+        issueRef,
+        issueTitle,
+        actorName: actor,
+        assigneeName: assignee,
+        createdAt: event.createdAt,
+      };
+    }
+    return null;
+  }, [activity, agentMap, entityNameMap, entityTitleMap, t]);
+
   if (!selectedCompanyId) {
     if (companies.length === 0) {
       return (
@@ -210,11 +249,15 @@ export function Dashboard() {
         </div>
       )}
 
+      {latestHandoff && latestHandoff.id !== dismissedHandoffId && (
+        <HandoffBar handoff={latestHandoff} onDismiss={() => setDismissedHandoffId(latestHandoff.id)} />
+      )}
+
       <ActiveAgentsPanel companyId={selectedCompanyId!} />
 
       {data && (
         <>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard
               icon={Bot}
               value={data.agents.active + data.agents.running + data.agents.paused + data.agents.error}
@@ -269,7 +312,7 @@ export function Dashboard() {
           {/* 활성 이슈 요약 리스트 — 목업 스타일 */}
           {recentIssues.filter((i) => ["in_progress", "blocked", "in_review"].includes(i.status)).length > 0 && (
             <div>
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
+              <h3 className="section-title mb-2.5">
                 {t("dashboard.activeIssues")}
               </h3>
               <div className="flex flex-col gap-[1px]">
@@ -284,7 +327,9 @@ export function Dashboard() {
                         to={`/issues/${issue.identifier ?? issue.id}`}
                         className={cn(
                           "flex items-center gap-2.5 px-3.5 py-2.5 rounded-[6px] border bg-card text-[13px] cursor-pointer hover:border-border/80 hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)] transition-all no-underline text-inherit",
-                          issue.status === "blocked" ? "border-l-[3px] border-l-[var(--status-blocked)] border-border/60" : "border-border"
+                          issue.status === "blocked"
+                            ? "border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.03)] border-l-[3px] border-l-[var(--status-blocked)]"
+                            : "border-border"
                         )}
                       >
                         <PriorityIcon priority={issue.priority} />
@@ -327,7 +372,7 @@ export function Dashboard() {
             {/* Recent Activity */}
             {recentActivity.length > 0 && (
               <div className="min-w-0">
-                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
+                <h3 className="section-title mb-2.5">
                   {t("dashboard.recentActivity")}
                 </h3>
                 <div className="bg-card border border-border divide-y divide-border overflow-hidden rounded-lg">
@@ -347,7 +392,7 @@ export function Dashboard() {
 
             {/* Recent Tasks */}
             <div className="min-w-0">
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
+              <h3 className="section-title mb-2.5">
                 {t("dashboard.recentTasks")}
               </h3>
               {recentIssues.length === 0 ? (
@@ -360,7 +405,10 @@ export function Dashboard() {
                     <Link
                       key={issue.id}
                       to={`/issues/${issue.identifier ?? issue.id}`}
-                      className="px-3.5 py-2.5 text-[13px] cursor-pointer hover:bg-accent/40 transition-colors no-underline text-inherit block"
+                      className={cn(
+                        "px-3.5 py-2.5 text-[13px] cursor-pointer hover:bg-accent/40 transition-colors no-underline text-inherit block",
+                        issue.status === "blocked" ? "bg-[rgba(220,38,38,0.03)]" : ""
+                      )}
                     >
                       <div className="flex gap-3">
                         <div className="flex items-start gap-2 min-w-0 flex-1">

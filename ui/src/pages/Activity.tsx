@@ -22,11 +22,15 @@ import {
 import { History } from "lucide-react";
 import type { Agent } from "@atototo/shared";
 
+type ActivityEntityFilter = "all" | string;
+type ActivityActorFilter = "all" | "agent" | "user" | "system";
+
 export function Activity() {
   const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<ActivityEntityFilter>("all");
+  const [actorFilter, setActorFilter] = useState<ActivityActorFilter>("all");
 
   useEffect(() => {
     setBreadcrumbs([{ label: t("nav.activity") }]);
@@ -91,10 +95,11 @@ export function Activity() {
     return <PageSkeleton variant="list" />;
   }
 
-  const filtered =
-    data && filter !== "all"
-      ? data.filter((e) => e.entityType === filter)
-      : data;
+  const filtered = data?.filter((event) => {
+    if (filter !== "all" && event.entityType !== filter) return false;
+    if (actorFilter !== "all" && event.actorType !== actorFilter) return false;
+    return true;
+  });
 
   const entityTypes = data
     ? [...new Set(data.map((e) => e.entityType))].sort()
@@ -102,20 +107,65 @@ export function Activity() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue placeholder={t("activity.filterByType")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("activity.allTypes")}</SelectItem>
-            {entityTypes.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("activity.overview")}
+            </p>
+            <h2 className="text-lg font-semibold">{t("nav.activity")}</h2>
+            <p className="text-sm text-muted-foreground">{t("activity.summary")}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filter} onValueChange={(value) => setFilter(value as ActivityEntityFilter)}>
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue placeholder={t("activity.filterByType")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("activity.allTypes")}</SelectItem>
+                {entityTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={actorFilter}
+              onValueChange={(value) => setActorFilter(value as ActivityActorFilter)}
+            >
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder={t("activity.actorType")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("activity.allActors")}</SelectItem>
+                <SelectItem value="agent">{t("activity.actors.agent")}</SelectItem>
+                <SelectItem value="user">{t("activity.actors.user")}</SelectItem>
+                <SelectItem value="system">{t("activity.actors.system")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              {t("activity.metrics.total")}
+            </p>
+            <p className="mt-1 text-base font-semibold">{data?.length ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              {t("activity.metrics.visible")}
+            </p>
+            <p className="mt-1 text-base font-semibold">{filtered?.length ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              {t("activity.metrics.types")}
+            </p>
+            <p className="mt-1 text-base font-semibold">{entityTypes.length}</p>
+          </div>
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error.message}</p>}
@@ -125,7 +175,7 @@ export function Activity() {
       )}
 
       {filtered && filtered.length > 0 && (
-        <div className="border border-border divide-y divide-border">
+        <div className="overflow-hidden rounded-xl border border-border divide-y divide-border">
           {filtered.map((event) => (
             <ActivityRow
               key={event.id}

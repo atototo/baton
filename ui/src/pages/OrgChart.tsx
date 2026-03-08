@@ -9,7 +9,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { agentUrl } from "../lib/utils";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { AgentIcon } from "../components/AgentIconPicker";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { Network } from "lucide-react";
 import type { Agent } from "@atototo/shared";
 
@@ -19,6 +19,7 @@ const CARD_H = 100;
 const GAP_X = 32;
 const GAP_Y = 80;
 const PADDING = 60;
+const MIN_INITIAL_ZOOM = 0.55;
 
 // ── Tree layout types ───────────────────────────────────────────────────
 
@@ -75,7 +76,6 @@ function layoutForest(roots: OrgNode[]): LayoutNode[] {
   if (roots.length === 0) return [];
 
   const totalW = roots.reduce((sum, r) => sum + subtreeWidth(r), 0);
-  const gaps = (roots.length - 1) * GAP_X;
   let x = PADDING;
   const y = PADDING;
 
@@ -114,8 +114,6 @@ function collectEdges(nodes: LayoutNode[]): Array<{ parent: LayoutNode; child: L
   return edges;
 }
 
-// ── Status dot colors (raw hex for SVG) ─────────────────────────────────
-
 const adapterLabels: Record<string, string> = {
   claude_local: "Claude",
   codex_local: "Codex",
@@ -124,16 +122,6 @@ const adapterLabels: Record<string, string> = {
   process: "Process",
   http: "HTTP",
 };
-
-const statusDotColor: Record<string, string> = {
-  running: "#22d3ee",
-  active: "#4ade80",
-  paused: "#facc15",
-  idle: "#facc15",
-  error: "#f87171",
-  terminated: "#a3a3a3",
-};
-const defaultDotColor = "#a3a3a3";
 
 // ── Main component ──────────────────────────────────────────────────────
 
@@ -201,7 +189,7 @@ export function OrgChart() {
     // Fit chart to container
     const scaleX = (containerW - 40) / bounds.width;
     const scaleY = (containerH - 40) / bounds.height;
-    const fitZoom = Math.min(scaleX, scaleY, 1);
+    const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY, 1), MIN_INITIAL_ZOOM), 1);
 
     const chartW = bounds.width * fitZoom;
     const chartH = bounds.height * fitZoom;
@@ -321,7 +309,7 @@ export function OrgChart() {
             const cH = containerRef.current.clientHeight;
             const scaleX = (cW - 40) / bounds.width;
             const scaleY = (cH - 40) / bounds.height;
-            const fitZoom = Math.min(scaleX, scaleY, 1);
+            const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY, 1), MIN_INITIAL_ZOOM), 1);
             const chartW = bounds.width * fitZoom;
             const chartH = bounds.height * fitZoom;
             setZoom(fitZoom);
@@ -373,7 +361,6 @@ export function OrgChart() {
       >
         {allNodes.map((node) => {
           const agent = agentMap.get(node.id);
-          const dotColor = statusDotColor[node.status] ?? defaultDotColor;
 
           return (
             <div
@@ -389,16 +376,7 @@ export function OrgChart() {
               onClick={() => navigate(agent ? agentUrl(agent) : `/agents/${node.id}`)}
             >
               <div className="flex items-center px-4 py-3 gap-3">
-                {/* Agent icon + status dot */}
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
-                  </div>
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
-                    style={{ backgroundColor: dotColor }}
-                  />
-                </div>
+                <AgentAvatar name={node.name} status={node.status} className="h-[26px] w-[26px] text-[10px]" />
                 {/* Name + role + adapter type */}
                 <div className="flex flex-col items-start min-w-0 flex-1">
                   <span className="text-sm font-semibold text-foreground leading-tight">

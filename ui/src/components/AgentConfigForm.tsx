@@ -108,7 +108,7 @@ function isOverlayDirty(o: Overlay): boolean {
 
 /* ---- Shared input class ---- */
 const inputClass =
-  "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
+  "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm font-mono placeholder:text-muted-foreground/40";
 
 function parseCommaArgs(value: string): string[] {
   return value
@@ -659,7 +659,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                       : mark("adapterConfig", "cwd", v || undefined)
                   }
                   immediate
-                  className="w-full bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
+                  className="w-full rounded-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm font-mono placeholder:text-muted-foreground/40"
                   placeholder={t("agentConfig.workingDirectoryPlaceholder")}
                 />
                 <ChoosePathButton />
@@ -1469,7 +1469,7 @@ function ModelDropdown({
           align="start"
         >
           <input
-            className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
+            className="mb-1 w-full rounded-sm border-b border-border bg-transparent px-2 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground/50"
             placeholder={t("agentConfig.searchModels")}
             value={modelSearch}
             onChange={(e) => setModelSearch(e.target.value)}

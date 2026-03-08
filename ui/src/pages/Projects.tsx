@@ -13,6 +13,8 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { formatDate, projectUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Hexagon, Plus } from "lucide-react";
+import { AgentIcon } from "../components/AgentIconPicker";
+import { agentsApi } from "../api/agents";
 
 export function Projects() {
   const { t } = useTranslation();
@@ -27,6 +29,11 @@ export function Projects() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: queryKeys.projects.list(selectedCompanyId!),
     queryFn: () => projectsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId!),
+    queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
 
@@ -73,6 +80,18 @@ export function Projects() {
                       {formatDate(project.targetDate)}
                     </span>
                   )}
+                  {(() => {
+                    const leadAgent = project.leadAgentId
+                      ? (agents ?? []).find((agent) => agent.id === project.leadAgentId) ?? null
+                      : null;
+                    if (!leadAgent) return null;
+                    return (
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">
+                        <AgentIcon icon={leadAgent.icon} className="h-3 w-3 shrink-0" />
+                        <span className="max-w-28 truncate">{leadAgent.name}</span>
+                      </span>
+                    );
+                  })()}
                   <StatusBadge status={project.status} />
                 </div>
               }

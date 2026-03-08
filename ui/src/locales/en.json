@@ -40,6 +40,11 @@
     "createNewProject": "Create new project",
     "pages": "Pages"
   },
+  "breadcrumbBar": {
+    "search": "Search",
+    "openSearch": "Open search",
+    "showPanel": "Show panel"
+  },
   "dashboard": {
     "welcome": "Welcome to Baton. Set up your first company and agent to get started.",
     "getStarted": "Get Started",
@@ -66,7 +71,14 @@
     "issuesByStatus": "Issues by Status",
     "successRate": "Success Rate",
     "last14Days": "Last 14 days",
-    "activeIssues": "Active Issues"
+    "activeIssues": "Active Issues",
+    "handoffLabel": "Recent handoff",
+    "handoffMessage": "{{actor}} handed off this issue to {{assignee}}",
+    "dismissHandoff": "Dismiss handoff notice",
+    "board": "Board",
+    "unassigned": "Unassigned",
+    "untitledIssue": "Untitled issue",
+    "unknownActor": "Unknown"
   },
   "issues": {
     "selectCompany": "Select a company to view issues."
@@ -236,7 +248,18 @@
     "selectCompany": "Select a company to view goals.",
     "noGoals": "No goals yet.",
     "addGoal": "Add Goal",
-    "newGoal": "New Goal"
+    "newGoal": "New Goal",
+    "overview": "Overview",
+    "title": "Goal structure",
+    "summary": "Adjusted layout density so parent and child goals are easier to scan together.",
+    "structure": "Hierarchy",
+    "treeHint": "Sub-goals can be expanded or collapsed.",
+    "metrics": {
+      "total": "Total goals",
+      "topLevel": "Top-level",
+      "active": "Active",
+      "completed": "Completed"
+    }
   },
   "agents": {
     "selectCompany": "Select a company to view agents.",
@@ -746,28 +769,65 @@
   "projectDetail": {
     "project": "Project",
     "overview": "Overview",
-    "list": "List",
+    "updates": "Updates",
+    "issues": "Issues",
+    "settings": "Settings",
     "addDescription": "Add a description...",
     "status": "Status",
     "targetDate": "Target Date",
     "changeProjectColor": "Change project color",
     "selectColor": "Select color {{color}}",
-    "noCompanySelected": "No company selected"
+    "noCompanySelected": "No company selected",
+    "noUpdates": "No project updates yet.",
+    "settingsSummary": "Project settings",
+    "leadAgent": "Lead agent",
+    "noLeadAgent": "No lead agent assigned.",
+    "workspaceCount": "Workspaces",
+    "workspaceCountValue": "{{count}} workspace",
+    "workspaceCountValue_other": "{{count}} workspaces",
+    "workspaces": "Workspaces",
+    "noWorkspaces": "No workspaces connected yet.",
+    "settingsHint": "Use the right properties panel to edit project settings.",
+    "primaryWorkspace": "Primary workspace"
   },
   "activity": {
     "filterByType": "Filter by type",
     "allTypes": "All types",
     "selectCompany": "Select a company to view activity.",
-    "noActivityYet": "No activity yet."
+    "noActivityYet": "No activity yet.",
+    "overview": "Overview",
+    "summary": "Narrow the activity log quickly by entity type and actor source.",
+    "actorType": "Actor",
+    "allActors": "All actors",
+    "actors": {
+      "agent": "Agent",
+      "user": "Board",
+      "system": "System"
+    },
+    "metrics": {
+      "total": "Total events",
+      "visible": "Visible now",
+      "types": "Entity types"
+    }
   },
   "costs": {
     "selectCompany": "Select a company to view costs.",
+    "overview": "Overview",
+    "summary": "Reworked the layout so agent spend and project share are easier to compare at a glance.",
     "to": "to",
+    "customFrom": "Custom start date",
+    "customTo": "Custom end date",
     "byAgent": "By Agent",
     "noCostEvents": "No cost events yet.",
     "byProject": "By Project",
     "noProjectCosts": "No project-attributed run costs yet.",
     "utilizedPercent": "{{percent}}% utilized",
+    "shareOfSpend": "{{percent}}% of spend",
+    "metrics": {
+      "agentCount": "Agents",
+      "projectCount": "Projects",
+      "tokenVolume": "Token volume"
+    },
     "presets": {
       "mtd": "Month to Date",
       "7d": "Last 7 Days",
@@ -936,6 +996,11 @@
       "recommendation": "Use both local path and repo URL when you have a checked-out folder and want agents to understand the linked remote repository too."
     }
   },
+  "designGuide": {
+    "contents": "Contents",
+    "tocAriaLabel": "Design guide section navigation",
+    "openPage": "Open page"
+  },
   "onboarding": {
     "close": "Close",
     "getStarted": "Get Started",
@@ -1070,6 +1135,8 @@
   },
   "approval": {
     "approvals": "Approvals",
+    "overview": "Overview",
+    "summary": "Pending and historical approvals now use a tighter card density for faster review.",
     "approve": "Approve",
     "reject": "Reject",
     "viewDetails": "View details",

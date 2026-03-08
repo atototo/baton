@@ -93,16 +93,19 @@ export function PropertiesPanel() {
     <aside
       className={cn(
         "hidden shrink-0 overflow-hidden border-l border-border bg-card/70 backdrop-blur-sm transition-[width,opacity] duration-200 ease-out lg:flex",
-        panelVisible ? "w-[280px] opacity-100" : "w-0 border-l-0 opacity-0",
+        panelVisible ? "w-[256px] opacity-100" : "w-0 border-l-0 opacity-0",
       )}
       aria-hidden={!panelVisible}
     >
-      <div className="flex min-h-0 w-[280px] min-w-[280px] flex-1 flex-col">
+      <div className="flex min-h-0 w-[256px] min-w-[256px] flex-1 flex-col">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "activity" | "properties")} className="min-h-0 gap-0">
           <div className="border-b border-border px-3 py-3">
             <div className="mb-3 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{t("propertiesPanel.title")}</p>
+                <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
+                  <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--status-active)] live-indicator-dot" aria-hidden="true" />
+                  <span className="truncate">{t("propertiesPanel.title")}</span>
+                </p>
                 <p className="text-xs text-muted-foreground">{t("propertiesPanel.subtitle")}</p>
               </div>
               <Button

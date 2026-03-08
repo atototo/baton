@@ -495,7 +495,13 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
   const recent = feed.slice(-25);
 
   return (
-    <div className="rounded-lg border border-cyan-500/30 bg-background/80 overflow-hidden shadow-[0_0_12px_rgba(6,182,212,0.08)]">
+    <div
+      className="overflow-hidden rounded-lg border bg-background/80"
+      style={{
+        borderColor: "color-mix(in oklab, var(--status-active) 24%, var(--border))",
+        boxShadow: "0 0 12px color-mix(in oklab, var(--status-active) 12%, transparent)",
+      }}
+    >
       {runs.length > 0 ? (
         runs.map((run) => (
           <div key={run.id} className="px-3 py-2 border-b border-border/50">
@@ -520,14 +526,14 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
                 <button
                   onClick={() => handleCancelRun(run.id)}
                   disabled={cancellingRunIds.has(run.id)}
-                  className="inline-flex items-center gap-1 text-[10px] text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 text-[10px] text-[var(--status-blocked)] hover:opacity-80 disabled:opacity-50"
                 >
                   <Square className="h-2 w-2" fill="currentColor" />
                   {cancellingRunIds.has(run.id) ? "Stopping…" : "Stop"}
                 </button>
                 <Link
                   to={`/agents/${run.agentId}/runs/${run.id}`}
-                  className="inline-flex items-center gap-1 text-[10px] text-cyan-600 hover:text-cyan-500 dark:text-cyan-300 dark:hover:text-cyan-200"
+                  className="inline-flex items-center gap-1 text-[10px] text-[var(--status-active)] hover:opacity-80"
                 >
                   {t("agents.openRun")}
                   <ExternalLink className="h-2.5 w-2.5" />
@@ -557,13 +563,13 @@ export function LiveRunWidget({ issueId, companyId }: LiveRunWidgetProps) {
             <span className="text-[10px] text-muted-foreground">{relativeTime(item.ts)}</span>
             <div className={cn(
               "min-w-0",
-              item.tone === "error" && "text-red-600 dark:text-red-300",
-              item.tone === "warn" && "text-amber-600 dark:text-amber-300",
-              item.tone === "assistant" && "text-emerald-700 dark:text-emerald-200",
-              item.tone === "tool" && "text-cyan-600 dark:text-cyan-300",
+              item.tone === "error" && "text-[var(--status-blocked)]",
+              item.tone === "warn" && "text-[var(--priority-high)]",
+              item.tone === "assistant" && "text-[var(--status-done)]",
+              item.tone === "tool" && "text-[var(--status-active)]",
               item.tone === "info" && "text-foreground/80",
             )}>
-              <Identity name={item.agentName} size="sm" className="text-cyan-600 dark:text-cyan-400" />
+              <Identity name={item.agentName} size="sm" className="text-[var(--status-active)]" />
               <span className="text-muted-foreground"> [{item.runId.slice(0, 8)}] </span>
               <span className="break-words">{item.text}</span>
             </div>

@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation, Navigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { PROJECT_COLORS, isUuidLike } from "@atototo/shared";
+import { PROJECT_COLORS, isUuidLike, type ActivityEvent, type Agent, type ProjectWorkspace } from "@atototo/shared";
 import { projectsApi } from "../api/projects";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
 import { assetsApi } from "../api/assets";
+import { activityApi } from "../api/activity";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -18,10 +19,15 @@ import { StatusBadge } from "../components/StatusBadge";
 import { IssuesList } from "../components/IssuesList";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { projectRouteRef } from "../lib/utils";
+import { ActivityRow } from "../components/ActivityRow";
+import { EmptyState } from "../components/EmptyState";
+import { AgentIcon } from "../components/AgentIconPicker";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FolderGit2, Settings2, Sparkles } from "lucide-react";
 
 /* ── Top-level tab types ── */
 
-type ProjectTab = "overview" | "list";
+type ProjectTab = "overview" | "updates" | "issues" | "settings";
 
 function resolveProjectTab(pathname: string, projectId: string): ProjectTab | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -29,7 +35,9 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
   if (projectsIdx === -1 || segments[projectsIdx + 1] !== projectId) return null;
   const tab = segments[projectsIdx + 2];
   if (tab === "overview") return "overview";
-  if (tab === "issues") return "list";
+  if (tab === "updates") return "updates";
+  if (tab === "issues") return "issues";
+  if (tab === "settings") return "settings";
   return null;
 }
 
@@ -188,6 +196,164 @@ function ProjectIssuesList({ projectId, companyId }: { projectId: string; compan
   );
 }
 
+function ProjectUpdatesTab({
+  companyId,
+  projectId,
+  projectName,
+}: {
+  companyId: string;
+  projectId: string;
+  projectName: string;
+}) {
+  const { t } = useTranslation();
+  const { data: activity, isLoading, error } = useQuery({
+    queryKey: [...queryKeys.activity(companyId), "project", projectId],
+    queryFn: () => activityApi.list(companyId),
+    enabled: !!companyId,
+  });
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(companyId),
+    queryFn: () => agentsApi.list(companyId),
+    enabled: !!companyId,
+  });
+  const projectActivity = useMemo(
+    () => (activity ?? []).filter((event) => event.entityType === "project" && event.entityId === projectId),
+    [activity, projectId],
+  );
+  const agentMap = useMemo(() => {
+    const map = new Map<string, Agent>();
+    for (const agent of agents ?? []) map.set(agent.id, agent);
+    return map;
+  }, [agents]);
+  const entityNameMap = useMemo(() => new Map<string, string>([[`project:${projectId}`, projectName]]), [projectId, projectName]);
+
+  if (isLoading) return <PageSkeleton variant="list" />;
+  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
+  if (projectActivity.length === 0) {
+    return <EmptyState icon={Sparkles} message={t("projectDetail.noUpdates")} />;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <ScrollArea className="max-h-[32rem]">
+        <div className="divide-y divide-border">
+          {projectActivity.map((event: ActivityEvent) => (
+            <ActivityRow
+              key={event.id}
+              event={event}
+              agentMap={agentMap}
+              entityNameMap={entityNameMap}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function WorkspaceCard({ workspace }: { workspace: ProjectWorkspace }) {
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <div className="flex items-center gap-2">
+        <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-medium">{workspace.name}</h3>
+        {workspace.isPrimary && (
+          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Primary
+          </span>
+        )}
+      </div>
+      <dl className="mt-3 space-y-2 text-sm">
+        {workspace.cwd && (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">CWD</dt>
+            <dd className="break-all font-mono text-xs">{workspace.cwd}</dd>
+          </div>
+        )}
+        {workspace.repoUrl && (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Repo</dt>
+            <dd className="break-all text-xs text-muted-foreground">{workspace.repoUrl}</dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  );
+}
+
+function ProjectSettingsTab({
+  companyId,
+  projectId,
+  leadAgentId,
+}: {
+  companyId: string;
+  projectId: string;
+  leadAgentId: string | null;
+}) {
+  const { t } = useTranslation();
+  const { data: workspaces, isLoading, error } = useQuery({
+    queryKey: [...queryKeys.projects.detail(projectId), "workspaces"],
+    queryFn: () => projectsApi.listWorkspaces(projectId, companyId),
+    enabled: !!companyId,
+  });
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(companyId),
+    queryFn: () => agentsApi.list(companyId),
+    enabled: !!companyId,
+  });
+  const leadAgent = useMemo(
+    () => (leadAgentId ? (agents ?? []).find((agent) => agent.id === leadAgentId) ?? null : null),
+    [agents, leadAgentId],
+  );
+
+  if (isLoading) return <PageSkeleton variant="list" />;
+  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border p-4">
+        <div className="flex items-center gap-2">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-medium">{t("projectDetail.settingsSummary")}</h3>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("projectDetail.leadAgent")}</p>
+            {leadAgent ? (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                <AgentIcon icon={leadAgent.icon} className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{leadAgent.name}</span>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">{t("projectDetail.noLeadAgent")}</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("projectDetail.workspaceCount")}</p>
+            <p className="mt-2 text-sm">{t("projectDetail.workspaceCountValue", { count: workspaces?.length ?? 0 })}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{t("projectDetail.workspaces")}</h3>
+          <p className="text-xs text-muted-foreground">{t("projectDetail.settingsHint")}</p>
+        </div>
+        {workspaces && workspaces.length > 0 ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {workspaces.map((workspace) => (
+              <WorkspaceCard key={workspace.id} workspace={workspace} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={FolderGit2} message={t("projectDetail.noWorkspaces")} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main project page ── */
 
 export function ProjectDetail() {
@@ -198,7 +364,7 @@ export function ProjectDetail() {
     filter?: string;
   }>();
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
-  const { openPanel, closePanel } = usePanel();
+  const { openPanel, closePanel, setPanelVisible } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -263,12 +429,20 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/overview`, { replace: true });
       return;
     }
-    if (activeTab === "list") {
+    if (activeTab === "updates") {
+      navigate(`/projects/${canonicalProjectRef}/updates`, { replace: true });
+      return;
+    }
+    if (activeTab === "issues") {
       if (filter) {
         navigate(`/projects/${canonicalProjectRef}/issues/${filter}`, { replace: true });
         return;
       }
       navigate(`/projects/${canonicalProjectRef}/issues`, { replace: true });
+      return;
+    }
+    if (activeTab === "settings") {
+      navigate(`/projects/${canonicalProjectRef}/settings`, { replace: true });
       return;
     }
     navigate(`/projects/${canonicalProjectRef}`, { replace: true });
@@ -281,6 +455,11 @@ export function ProjectDetail() {
     return () => closePanel();
   }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!project) return;
+    setPanelVisible(activeTab !== "settings");
+  }, [activeTab, project, setPanelVisible]);
+
   // Redirect bare /projects/:id to /projects/:id/issues
   if (routeProjectRef && activeTab === null) {
     return <Navigate to={`/projects/${canonicalProjectRef}/issues`} replace />;
@@ -291,11 +470,10 @@ export function ProjectDetail() {
   if (!project) return null;
 
   const handleTabChange = (tab: ProjectTab) => {
-    if (tab === "overview") {
-      navigate(`/projects/${canonicalProjectRef}/overview`);
-    } else {
-      navigate(`/projects/${canonicalProjectRef}/issues`);
-    }
+    if (tab === "overview") navigate(`/projects/${canonicalProjectRef}/overview`);
+    if (tab === "updates") navigate(`/projects/${canonicalProjectRef}/updates`);
+    if (tab === "issues") navigate(`/projects/${canonicalProjectRef}/issues`);
+    if (tab === "settings") navigate(`/projects/${canonicalProjectRef}/settings`);
   };
 
   return (
@@ -316,27 +494,25 @@ export function ProjectDetail() {
       </div>
 
       {/* Top-level project tabs */}
-      <div className="flex items-center gap-1 border-b border-border">
-        <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "overview"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => handleTabChange("overview")}
-        >
-          {t("projectDetail.overview")}
-        </button>
-        <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "list"
-              ? "border-foreground text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => handleTabChange("list")}
-        >
-          {t("projectDetail.list")}
-        </button>
+      <div className="flex flex-wrap items-center gap-1 border-b border-border">
+        {([
+          ["overview", t("projectDetail.overview")],
+          ["updates", t("projectDetail.updates")],
+          ["issues", t("projectDetail.issues")],
+          ["settings", t("projectDetail.settings")],
+        ] as const).map(([tab, label]) => (
+          <button
+            key={tab}
+            className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === tab
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => handleTabChange(tab)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Tab content */}
@@ -351,8 +527,24 @@ export function ProjectDetail() {
         />
       )}
 
-      {activeTab === "list" && project?.id && resolvedCompanyId && (
+      {activeTab === "updates" && project?.id && resolvedCompanyId && (
+        <ProjectUpdatesTab
+          companyId={resolvedCompanyId}
+          projectId={project.id}
+          projectName={project.name}
+        />
+      )}
+
+      {activeTab === "issues" && project?.id && resolvedCompanyId && (
         <ProjectIssuesList projectId={project.id} companyId={resolvedCompanyId} />
+      )}
+
+      {activeTab === "settings" && project?.id && resolvedCompanyId && (
+        <ProjectSettingsTab
+          companyId={resolvedCompanyId}
+          projectId={project.id}
+          leadAgentId={project.leadAgentId}
+        />
       )}
     </div>
   );

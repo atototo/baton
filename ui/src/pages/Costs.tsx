@@ -87,6 +87,10 @@ export function Costs() {
     return <PageSkeleton variant="costs" />;
   }
 
+  const topProjectSpend = Math.max(...(data?.byProject.map((row) => row.costCents) ?? [0]), 0);
+  const totalProjectSpend = data?.byProject.reduce((sum, row) => sum + row.costCents, 0) ?? 0;
+  const topAgentSpend = Math.max(...(data?.byAgent.map((row) => row.costCents) ?? [0]), 0);
+
   const presetKeys: DatePreset[] = ["mtd", "7d", "30d", "ytd", "all", "custom"];
   const presetLabels: Record<DatePreset, string> = {
     mtd: t("costs.presets.mtd"),
@@ -99,32 +103,45 @@ export function Costs() {
 
   return (
     <div className="space-y-6">
-      {/* Date range selector */}
-      <div className="flex flex-wrap items-center gap-2">
-        {presetKeys.map((p) => (
-          <Button
-            key={p}
-            variant={preset === p ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setPreset(p)}
-          >
-            {presetLabels[p]}
-          </Button>
-        ))}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("costs.overview")}
+            </p>
+            <h2 className="text-lg font-semibold">{t("nav.costs")}</h2>
+            <p className="text-sm text-muted-foreground">{t("costs.summary")}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {presetKeys.map((p) => (
+              <Button
+                key={p}
+                variant={preset === p ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-3"
+                onClick={() => setPreset(p)}
+              >
+                {presetLabels[p]}
+              </Button>
+            ))}
+          </div>
+        </div>
         {preset === "custom" && (
-          <div className="flex items-center gap-2 ml-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <input
               type="date"
+              aria-label={t("costs.customFrom")}
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
             />
             <span className="text-sm text-muted-foreground">{t("costs.to")}</span>
             <input
               type="date"
+              aria-label={t("costs.customTo")}
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
             />
           </div>
         )}
@@ -134,10 +151,9 @@ export function Costs() {
 
       {data && (
         <>
-          {/* Summary card */}
           <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">{presetLabels[preset]}</p>
                 {data.summary.budgetCents > 0 && (
                   <p className="text-sm text-muted-foreground">
@@ -153,20 +169,49 @@ export function Costs() {
                     : t("dashboard.unlimitedBudget")}
                 </span>
               </p>
-              {data.summary.budgetCents > 0 && (
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-[width,background-color] duration-150 ${
-                      data.summary.utilizationPercent > 90
-                        ? "bg-red-400"
-                        : data.summary.utilizationPercent > 70
-                          ? "bg-yellow-400"
-                          : "bg-green-400"
-                    }`}
-                    style={{ width: `${Math.min(100, data.summary.utilizationPercent)}%` }}
-                  />
+              {data.summary.budgetCents > 0 ? (
+                <div className="space-y-2">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-[width,background-color] duration-150 ${
+                        data.summary.utilizationPercent > 90
+                          ? "bg-red-400"
+                          : data.summary.utilizationPercent > 70
+                            ? "bg-yellow-400"
+                            : "bg-green-400"
+                      }`}
+                      style={{ width: `${Math.min(100, data.summary.utilizationPercent)}%` }}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                        {t("costs.metrics.agentCount")}
+                      </p>
+                      <p className="mt-1 text-base font-semibold">{data.byAgent.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                        {t("costs.metrics.projectCount")}
+                      </p>
+                      <p className="mt-1 text-base font-semibold">{data.byProject.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                        {t("costs.metrics.tokenVolume")}
+                      </p>
+                      <p className="mt-1 text-base font-semibold">
+                        {formatTokens(
+                          data.byAgent.reduce(
+                            (sum, row) => sum + row.inputTokens + row.outputTokens,
+                            0,
+                          ),
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
+              ) : null}
             </CardContent>
           </Card>
 
@@ -182,31 +227,51 @@ export function Costs() {
                     {data.byAgent.map((row) => (
                       <div
                         key={row.agentId}
-                        className="flex items-start justify-between text-sm"
+                        className="rounded-lg border border-border/70 bg-background px-3 py-2.5 text-sm"
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Identity
-                            name={row.agentName ?? row.agentId}
-                            size="sm"
-                          />
-                          {row.agentStatus === "terminated" && (
-                            <StatusBadge status="terminated" />
-                          )}
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="font-medium block">{formatCents(row.costCents)}</span>
-                          <span className="text-xs text-muted-foreground block">
-                            in {formatTokens(row.inputTokens)} / out {formatTokens(row.outputTokens)} tok
-                          </span>
-                          {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) && (
-                            <span className="text-xs text-muted-foreground block">
-                              {row.apiRunCount > 0 ? `api runs: ${row.apiRunCount}` : null}
-                              {row.apiRunCount > 0 && row.subscriptionRunCount > 0 ? " | " : null}
-                              {row.subscriptionRunCount > 0
-                                ? `subscription runs: ${row.subscriptionRunCount} (${formatTokens(row.subscriptionInputTokens)} in / ${formatTokens(row.subscriptionOutputTokens)} out tok)`
-                                : null}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Identity
+                                name={row.agentName ?? row.agentId}
+                                size="sm"
+                              />
+                              {row.agentStatus === "terminated" && (
+                                <StatusBadge status="terminated" />
+                              )}
+                            </div>
+                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-[var(--primary)]"
+                                style={{
+                                  width: `${topAgentSpend > 0 ? (row.costCents / topAgentSpend) * 100 : 0}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="ml-2 shrink-0 text-right">
+                            <span className="block font-medium">{formatCents(row.costCents)}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {t("costs.shareOfSpend", {
+                                percent:
+                                  data.summary.spendCents > 0
+                                    ? Math.round((row.costCents / data.summary.spendCents) * 100)
+                                    : 0,
+                              })}
                             </span>
-                          )}
+                            <span className="block text-xs text-muted-foreground">
+                              in {formatTokens(row.inputTokens)} / out {formatTokens(row.outputTokens)} tok
+                            </span>
+                            {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) && (
+                              <span className="block text-xs text-muted-foreground">
+                                {row.apiRunCount > 0 ? `api runs: ${row.apiRunCount}` : null}
+                                {row.apiRunCount > 0 && row.subscriptionRunCount > 0 ? " | " : null}
+                                {row.subscriptionRunCount > 0
+                                  ? `subscription runs: ${row.subscriptionRunCount} (${formatTokens(row.subscriptionInputTokens)} in / ${formatTokens(row.subscriptionOutputTokens)} out tok)`
+                                  : null}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -225,12 +290,35 @@ export function Costs() {
                     {data.byProject.map((row) => (
                       <div
                         key={row.projectId ?? "na"}
-                        className="flex items-center justify-between text-sm"
+                        className="rounded-lg border border-border/70 bg-background px-3 py-2.5 text-sm"
                       >
-                        <span className="truncate">
-                          {row.projectName ?? row.projectId ?? "Unattributed"}
-                        </span>
-                        <span className="font-medium">{formatCents(row.costCents)}</span>
+                        <div className="w-full space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="truncate">
+                              {row.projectName ?? row.projectId ?? "Unattributed"}
+                            </span>
+                            <span className="font-medium">{formatCents(row.costCents)}</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-[var(--status-active)]"
+                              style={{
+                                width: `${topProjectSpend > 0 ? (row.costCents / topProjectSpend) * 100 : 0}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{formatTokens(row.inputTokens + row.outputTokens)} tok</span>
+                            <span>
+                              {t("costs.shareOfSpend", {
+                                percent:
+                                  totalProjectSpend > 0
+                                    ? Math.round((row.costCents / totalProjectSpend) * 100)
+                                    : 0,
+                              })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

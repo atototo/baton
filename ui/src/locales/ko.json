@@ -40,6 +40,11 @@
     "createNewProject": "새 프로젝트 만들기",
     "pages": "페이지"
   },
+  "breadcrumbBar": {
+    "search": "검색",
+    "openSearch": "검색 열기",
+    "showPanel": "패널 열기"
+  },
   "dashboard": {
     "welcome": "Baton에 오신 것을 환영합니다. 첫 번째 회사와 에이전트를 설정하세요.",
     "getStarted": "시작하기",
@@ -66,7 +71,14 @@
     "issuesByStatus": "상태별 이슈",
     "successRate": "성공률",
     "last14Days": "최근 14일",
-    "activeIssues": "진행 중인 이슈"
+    "activeIssues": "진행 중인 이슈",
+    "handoffLabel": "최근 이관",
+    "handoffMessage": "{{actor}} 님이 {{assignee}} 님에게 이슈를 이관했습니다",
+    "dismissHandoff": "이관 알림 닫기",
+    "board": "보드",
+    "unassigned": "미배정",
+    "untitledIssue": "제목 없는 이슈",
+    "unknownActor": "알 수 없음"
   },
   "issues": {
     "selectCompany": "이슈를 보려면 회사를 선택하세요."
@@ -236,7 +248,18 @@
     "selectCompany": "목표를 보려면 회사를 선택하세요.",
     "noGoals": "아직 목표가 없습니다.",
     "addGoal": "목표 추가",
-    "newGoal": "새 목표"
+    "newGoal": "새 목표",
+    "overview": "개요",
+    "title": "목표 구조",
+    "summary": "상위 목표와 하위 목표를 한 번에 스캔할 수 있도록 밀도를 조정했습니다.",
+    "structure": "계층",
+    "treeHint": "하위 목표는 펼치거나 접을 수 있습니다.",
+    "metrics": {
+      "total": "전체 목표",
+      "topLevel": "상위 목표",
+      "active": "진행 중",
+      "completed": "완료"
+    }
   },
   "agents": {
     "selectCompany": "에이전트를 보려면 회사를 선택하세요.",
@@ -746,28 +769,64 @@
   "projectDetail": {
     "project": "프로젝트",
     "overview": "개요",
-    "list": "목록",
+    "updates": "업데이트",
+    "issues": "이슈",
+    "settings": "설정",
     "addDescription": "설명 추가...",
     "status": "상태",
     "targetDate": "목표 날짜",
     "changeProjectColor": "프로젝트 색상 변경",
     "selectColor": "{{color}} 색상 선택",
-    "noCompanySelected": "회사가 선택되지 않았습니다"
+    "noCompanySelected": "회사가 선택되지 않았습니다",
+    "noUpdates": "아직 프로젝트 업데이트가 없습니다.",
+    "settingsSummary": "프로젝트 설정",
+    "leadAgent": "리드 에이전트",
+    "noLeadAgent": "지정된 리드 에이전트가 없습니다.",
+    "workspaceCount": "워크스페이스",
+    "workspaceCountValue": "{{count}}개 워크스페이스",
+    "workspaces": "워크스페이스",
+    "noWorkspaces": "연결된 워크스페이스가 아직 없습니다.",
+    "settingsHint": "프로젝트 설정 수정은 우측 속성 패널을 사용하세요.",
+    "primaryWorkspace": "기본 워크스페이스"
   },
   "activity": {
     "filterByType": "유형으로 필터",
     "allTypes": "모든 유형",
     "selectCompany": "활동을 보려면 회사를 선택하세요.",
-    "noActivityYet": "아직 활동이 없습니다."
+    "noActivityYet": "아직 활동이 없습니다.",
+    "overview": "개요",
+    "summary": "엔터티 타입과 액터 기준으로 활동 로그를 빠르게 좁혀볼 수 있습니다.",
+    "actorType": "액터",
+    "allActors": "전체 액터",
+    "actors": {
+      "agent": "에이전트",
+      "user": "보드",
+      "system": "시스템"
+    },
+    "metrics": {
+      "total": "전체 이벤트",
+      "visible": "현재 표시",
+      "types": "엔터티 타입"
+    }
   },
   "costs": {
     "selectCompany": "비용을 보려면 회사를 선택하세요.",
+    "overview": "개요",
+    "summary": "에이전트별 지출과 프로젝트별 비중을 더 빠르게 비교할 수 있도록 정리했습니다.",
     "to": "부터",
+    "customFrom": "사용자 지정 시작일",
+    "customTo": "사용자 지정 종료일",
     "byAgent": "에이전트별",
     "noCostEvents": "아직 비용 이벤트가 없습니다.",
     "byProject": "프로젝트별",
     "noProjectCosts": "아직 프로젝트별 실행 비용이 없습니다.",
     "utilizedPercent": "{{percent}}% 사용됨",
+    "shareOfSpend": "지출 {{percent}}%",
+    "metrics": {
+      "agentCount": "에이전트",
+      "projectCount": "프로젝트",
+      "tokenVolume": "토큰 볼륨"
+    },
     "presets": {
       "mtd": "이번 달 누적",
       "7d": "최근 7일",
@@ -936,6 +995,11 @@
       "recommendation": "이미 체크아웃된 로컬 폴더가 있고 연결된 원격 저장소도 함께 알려주고 싶다면 로컬 경로와 repo URL을 둘 다 넣는 편이 가장 안전합니다."
     }
   },
+  "designGuide": {
+    "contents": "목차",
+    "tocAriaLabel": "디자인 가이드 섹션 내비게이션",
+    "openPage": "페이지 열기"
+  },
   "onboarding": {
     "close": "닫기",
     "getStarted": "시작하기",
@@ -1070,6 +1134,8 @@
   },
   "approval": {
     "approvals": "승인",
+    "overview": "개요",
+    "summary": "대기 중 승인과 전체 승인을 더 촘촘한 카드 밀도로 확인할 수 있습니다.",
     "approve": "승인",
     "reject": "거절",
     "viewDetails": "상세 보기",

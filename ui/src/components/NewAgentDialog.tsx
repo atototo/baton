@@ -170,7 +170,7 @@ export function NewAgentDialog() {
           {/* Name */}
           <div className="px-4 pt-4 pb-2 shrink-0">
             <input
-              className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
+              className="w-full rounded-sm bg-transparent text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground/50"
               placeholder={t("newAgent.agentName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -181,7 +181,7 @@ export function NewAgentDialog() {
           {/* Title */}
           <div className="px-4 pb-2">
             <input
-              className="w-full bg-transparent outline-none text-sm text-muted-foreground placeholder:text-muted-foreground/40"
+              className="w-full rounded-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm text-muted-foreground placeholder:text-muted-foreground/40"
               placeholder={t("newAgent.titlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}

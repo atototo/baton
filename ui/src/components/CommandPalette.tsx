@@ -32,6 +32,8 @@ import {
 import { Identity } from "./Identity";
 import { agentUrl, projectUrl } from "../lib/utils";
 
+export const OPEN_COMMAND_PALETTE_EVENT = "baton:open-command-palette";
+
 export function CommandPalette() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -48,8 +50,17 @@ export function CommandPalette() {
         setOpen(true);
       }
     }
+
+    function handleOpenCommandPalette() {
+      setOpen(true);
+    }
+
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, handleOpenCommandPalette);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, handleOpenCommandPalette);
+    };
   }, []);
 
   useEffect(() => {
@@ -96,7 +107,7 @@ export function CommandPalette() {
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} className="sm:max-w-[440px]">
       <CommandInput
         placeholder={t("commandPalette.searchPlaceholder")}
         value={query}

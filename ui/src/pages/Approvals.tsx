@@ -86,13 +86,38 @@ export function Approvals() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {t("approval.overview")}
+            </p>
+            <h2 className="text-lg font-semibold">{t("approval.approvals")}</h2>
+            <p className="text-sm text-muted-foreground">{t("approval.summary")}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[220px]">
+            <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                {t("approval.pending")}
+              </p>
+              <p className="mt-1 text-lg font-semibold">{pendingCount}</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-background px-3 py-2">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                {t("approval.all")}
+              </p>
+              <p className="mt-1 text-lg font-semibold">{data?.length ?? 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <Tabs value={statusFilter} onValueChange={(v) => navigate(`/approvals/${v}`)}>
           <PageTabBar items={[
             { value: "pending", label: <>{t("approval.pending")}{pendingCount > 0 && (
               <span className={cn(
                 "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                "bg-yellow-500/20 text-yellow-500"
+                "bg-[var(--status-blocked)]/12 text-[var(--status-blocked)]"
               )}>
                 {pendingCount}
               </span>
@@ -115,7 +140,7 @@ export function Approvals() {
       )}
 
       {filtered.length > 0 && (
-        <div className="grid gap-3">
+        <div className="grid gap-2.5">
           {filtered.map((approval) => (
             <ApprovalCard
               key={approval.id}

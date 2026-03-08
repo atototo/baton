@@ -1447,7 +1447,9 @@ function RunsTab({
       {/* Right: run detail — natural height, page scrolls */}
       {selectedRun && (
         <div className="flex-1 min-w-0 pl-4">
+          <div className="border border-border rounded-lg p-4">
           <RunDetail key={selectedRun.id} run={selectedRun} agentRouteId={agentRouteId} adapterType={adapterType} />
+          </div>
         </div>
       )}
     </div>

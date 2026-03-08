@@ -71,6 +71,8 @@ const RUN_SOURCE_LABELS: Record<string, string> = {
   automation: "Automation",
 };
 
+const ISSUE_GROUP_ORDER = ["blocked", "in_review", "in_progress", "todo", "backlog"] as const;
+
 function getStaleIssues(issues: Issue[]): Issue[] {
   const now = Date.now();
   return issues
@@ -95,6 +97,23 @@ function getLatestFailedRunsByAgent(runs: HeartbeatRun[]): HeartbeatRun[] {
   }
 
   return Array.from(latestByAgent.values()).filter((run) => FAILED_RUN_STATUSES.has(run.status));
+}
+
+function groupIssuesByStatus<T extends Issue>(items: T[]): Array<{ status: string; items: T[] }> {
+  const grouped = new Map<string, T[]>();
+  for (const item of items) {
+    const bucket = grouped.get(item.status) ?? [];
+    bucket.push(item);
+    grouped.set(item.status, bucket);
+  }
+
+  return Array.from(grouped.entries())
+    .sort((a, b) => {
+      const aIndex = ISSUE_GROUP_ORDER.indexOf(a[0] as (typeof ISSUE_GROUP_ORDER)[number]);
+      const bIndex = ISSUE_GROUP_ORDER.indexOf(b[0] as (typeof ISSUE_GROUP_ORDER)[number]);
+      return (aIndex === -1 ? ISSUE_GROUP_ORDER.length : aIndex) - (bIndex === -1 ? ISSUE_GROUP_ORDER.length : bIndex);
+    })
+    .map(([status, groupedItems]) => ({ status, items: groupedItems }));
 }
 
 function firstNonEmptyLine(value: string | null | undefined): string | null {
@@ -498,6 +517,8 @@ export function Inbox() {
     !isRunsLoading;
 
   const showSeparatorBefore = (key: SectionKey) => visibleSections.indexOf(key) > 0;
+  const groupedAssignedIssues = groupIssuesByStatus(assignedToMeIssues);
+  const groupedStaleIssues = groupIssuesByStatus(staleIssues);
 
   return (
     <div className="space-y-6">
@@ -511,7 +532,7 @@ export function Inbox() {
                   <>
                     {t("inbox.new")}
                     {newItemCount > 0 && (
-                      <span className="ml-1.5 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+                      <span className="ml-1.5 rounded-full bg-[var(--status-blocked)]/12 px-1.5 py-0.5 text-[10px] font-medium text-[var(--status-blocked)]">
                         {newItemCount}
                       </span>
                     )}
@@ -583,24 +604,38 @@ export function Inbox() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t("inbox.assignedToMe")}
             </h3>
-            <div className="divide-y divide-border border border-border">
-              {assignedToMeIssues.map((issue) => (
-                <Link
-                  key={issue.id}
-                  to={`/issues/${issue.identifier ?? issue.id}`}
-                  className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 no-underline text-inherit"
-                >
-                  <UserCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                  <PriorityIcon priority={issue.priority} />
-                  <StatusIcon status={issue.status} />
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {issue.identifier ?? issue.id.slice(0, 8)}
-                  </span>
-                  <span className="flex-1 truncate text-sm">{issue.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    updated {timeAgo(issue.updatedAt)}
-                  </span>
-                </Link>
+            <div className="space-y-3">
+              {groupedAssignedIssues.map((group) => (
+                <div key={group.status} className="overflow-hidden rounded-xl border border-border">
+                  <div className="flex items-center justify-between border-b border-border bg-[var(--bg-overlay)] px-3 py-2">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      {group.status.replace("_", " ")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {group.items.map((issue) => (
+                      <Link
+                        key={issue.id}
+                        to={`/issues/${issue.identifier ?? issue.id}`}
+                        className={`flex cursor-pointer items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-accent/50 no-underline text-inherit ${
+                          issue.status === "blocked" ? "bg-[var(--status-blocked)]/6" : ""
+                        }`}
+                      >
+                        <UserCheck className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                        <PriorityIcon priority={issue.priority} />
+                        <StatusIcon status={issue.status} />
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {issue.identifier ?? issue.id.slice(0, 8)}
+                        </span>
+                        <span className="flex-1 truncate text-sm">{issue.title}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          updated {timeAgo(issue.updatedAt)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -614,7 +649,7 @@ export function Inbox() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {tab === "new" ? t("inbox.approvalsNeedingAction") : t("inbox.approvals")}
             </h3>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {approvalsToRender.map((approval) => (
                 <ApprovalCard
                   key={approval.id}
@@ -642,9 +677,9 @@ export function Inbox() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t("inbox.joinRequests")}
             </h3>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {joinRequests.map((joinRequest) => (
-                <div key={joinRequest.id} className="rounded-xl border border-border bg-card p-4">
+                <div key={joinRequest.id} className="rounded-xl border border-border bg-card p-3.5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium">
@@ -698,7 +733,7 @@ export function Inbox() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t("inbox.failedRuns")}
             </h3>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {failedRuns.map((run) => (
                 <FailedRunCard
                   key={run.id}
@@ -756,35 +791,49 @@ export function Inbox() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t("inbox.staleWork")}
             </h3>
-            <div className="divide-y divide-border border border-border">
-              {staleIssues.map((issue) => (
-                <Link
-                  key={issue.id}
-                  to={`/issues/${issue.identifier ?? issue.id}`}
-                  className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 no-underline text-inherit"
-                >
-                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <PriorityIcon priority={issue.priority} />
-                  <StatusIcon status={issue.status} />
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {issue.identifier ?? issue.id.slice(0, 8)}
-                  </span>
-                  <span className="flex-1 truncate text-sm">{issue.title}</span>
-                  {issue.assigneeAgentId &&
-                    (() => {
-                      const name = agentName(issue.assigneeAgentId);
-                      return name ? (
-                        <Identity name={name} size="sm" />
-                      ) : (
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {issue.assigneeAgentId.slice(0, 8)}
+            <div className="space-y-3">
+              {groupedStaleIssues.map((group) => (
+                <div key={group.status} className="overflow-hidden rounded-xl border border-border">
+                  <div className="flex items-center justify-between border-b border-border bg-[var(--bg-overlay)] px-3 py-2">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      {group.status.replace("_", " ")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {group.items.map((issue) => (
+                      <Link
+                        key={issue.id}
+                        to={`/issues/${issue.identifier ?? issue.id}`}
+                        className={`flex cursor-pointer items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-accent/50 no-underline text-inherit ${
+                          issue.status === "blocked" ? "bg-[var(--status-blocked)]/6" : ""
+                        }`}
+                      >
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <PriorityIcon priority={issue.priority} />
+                        <StatusIcon status={issue.status} />
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          {issue.identifier ?? issue.id.slice(0, 8)}
                         </span>
-                      );
-                    })()}
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    updated {timeAgo(issue.updatedAt)}
-                  </span>
-                </Link>
+                        <span className="flex-1 truncate text-sm">{issue.title}</span>
+                        {issue.assigneeAgentId &&
+                          (() => {
+                            const name = agentName(issue.assigneeAgentId);
+                            return name ? (
+                              <Identity name={name} size="sm" />
+                            ) : (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {issue.assigneeAgentId.slice(0, 8)}
+                              </span>
+                            );
+                          })()}
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          updated {timeAgo(issue.updatedAt)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

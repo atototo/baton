@@ -267,7 +267,7 @@ export function NewProjectDialog() {
         {/* Name */}
         <div className="px-4 pt-4 pb-2 shrink-0">
           <input
-            className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
+            className="w-full rounded-sm bg-transparent text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground/50"
             placeholder={t("newProject.projectName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -382,7 +382,7 @@ export function NewProjectDialog() {
               </label>
               <div className="flex items-center gap-2">
                 <input
-                  className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs font-mono outline-none"
+                  className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs font-mono outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   value={workspaceLocalPath}
                   onChange={(e) => setWorkspaceLocalPath(e.target.value)}
                   placeholder={t("newProject.workspacePathPlaceholder")}
@@ -397,7 +397,7 @@ export function NewProjectDialog() {
                 {t("newProject.githubRepoUrl")}
               </label>
               <input
-                className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none"
+                className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 value={workspaceRepoUrl}
                 onChange={(e) => setWorkspaceRepoUrl(e.target.value)}
                 placeholder={t("newProject.repoUrlPlaceholder")}
@@ -510,7 +510,7 @@ export function NewProjectDialog() {
             <Calendar className="h-3 w-3 text-muted-foreground" />
             <input
               type="date"
-              className="bg-transparent outline-none text-xs w-24"
+              className="w-24 rounded-sm bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
               placeholder={t("newProject.targetDate")}
