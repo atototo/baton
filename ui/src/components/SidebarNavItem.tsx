@@ -35,7 +35,7 @@ export function SidebarNavItem({
       onClick={() => { if (isMobile) setSidebarOpen(false); }}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-2.5 rounded-[5px] px-[10px] py-[6px] text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "flex items-center gap-2 rounded-[5px] px-[10px] py-[6px] text-[13px] font-normal transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isActive
             ? "bg-primary/8 text-primary"
             : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",

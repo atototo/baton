@@ -1,5 +1,5 @@
 /**
- * AgentTree — 좌측 260px 패널
+ * AgentTree — 좌측 240px 패널
  *
  * 기존 CompanyRail + Sidebar를 통합한 새 레이아웃 컴포넌트.
  * - 상단: 바톤 로고 + 회사 선택(CompanyRail 기능)
@@ -210,14 +210,14 @@ function SortableCompanyItem({
           <a
             href={`/${company.issuePrefix}/dashboard`}
             onClick={(e) => { e.preventDefault(); onSelect(); }}
-            className="relative flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-accent/50 group overflow-visible"
+            className="relative flex items-center gap-2 rounded-[5px] px-[10px] py-[6px] transition-colors hover:bg-accent/50 group overflow-visible"
           >
             <div className="relative overflow-visible shrink-0">
               <CompanyPatternIcon
                 companyName={company.name}
                 brandColor={company.brandColor}
                 className={cn(
-                  "h-6 w-6 !rounded-md text-[9px]",
+                  "h-[22px] w-[22px] !rounded-[5px] text-[9px]",
                   isSelected ? "ring-2 ring-primary/40" : "",
                 )}
               />
@@ -233,7 +233,7 @@ function SortableCompanyItem({
                 <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 z-10 h-2 w-2 rounded-full bg-red-500 ring-1 ring-background" />
               )}
             </div>
-            <span className={cn("flex-1 truncate text-[13px] font-medium", isSelected ? "text-foreground" : "text-foreground/70 group-hover:text-foreground")}>
+            <span className={cn("flex-1 truncate text-[13px] font-normal", isSelected ? "text-foreground" : "text-foreground/70 group-hover:text-foreground")}>
               {company.name}
             </span>
             {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
@@ -275,9 +275,9 @@ function SortableProjectItem({
         to={`/projects/${routeRef}/issues`}
         onClick={() => { if (isMobile) setSidebarOpen(false); }}
         className={cn(
-          "flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors",
+          "flex items-center gap-2 rounded-[5px] px-[10px] py-[6px] text-[13px] font-normal transition-colors",
           activeRef === routeRef || activeRef === project.id
-            ? "bg-accent text-foreground"
+            ? "bg-primary/8 text-primary"
             : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",
         )}
       >
@@ -459,17 +459,23 @@ export function AgentTree() {
   return (
     <aside className="h-full min-h-0 flex flex-col bg-sidebar border-r border-border/80">
       {/* ── 헤더: 바톤 로고 + 회사명 ── */}
-      <div className="flex items-center gap-2.5 px-3 h-12 shrink-0 border-b border-border/70">
-        {/* 바톤 로고 "B" */}
+      <div className="flex items-center gap-2 px-[14px] h-12 shrink-0 border-b border-border">
         <button
           onClick={() => setCompaniesOpen((v) => !v)}
           className="flex items-center gap-2 flex-1 min-w-0 group"
           aria-label="회사 선택"
         >
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-black text-primary-foreground shadow-sm ring-1 ring-primary/20 shrink-0">
-            B
+          <div className="flex items-center gap-[7px] min-w-0">
+            <div className="relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] bg-primary text-primary-foreground">
+              <span className="absolute left-[5px] top-[6px] h-[3px] w-[3px] rounded-full bg-current" />
+              <span className="absolute right-[5px] top-[6px] h-[3px] w-[3px] rounded-full bg-current" />
+              <span className="absolute left-[6px] top-[10px] h-[2px] w-[10px] rounded-full bg-current" />
+            </div>
+            <span className="shrink-0 text-[15px] font-bold tracking-[-0.02em] text-primary">
+              baton
+            </span>
           </div>
-          <span className="flex-1 truncate text-[13px] font-semibold text-foreground">
+          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground group-hover:text-foreground">
             {selectedCompany?.name ?? t("sidebar.selectCompany")}
           </span>
           <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground/60 transition-transform shrink-0", companiesOpen && "rotate-90")} />
@@ -487,7 +493,7 @@ export function AgentTree() {
 
       {/* ── 회사 선택 드롭다운 (접힘) ── */}
       {companiesOpen && (
-        <div className="border-b border-border/70 bg-background/50 px-2 py-2">
+        <div className="border-b border-border bg-background/50 px-2 py-2">
           <DndContext sensors={companySensors} collisionDetection={closestCenter} onDragEnd={handleCompanyDragEnd}>
             <SortableContext items={orderedCompanies.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-0.5">
@@ -506,7 +512,7 @@ export function AgentTree() {
           </DndContext>
           <button
             onClick={() => { openOnboarding(); setCompaniesOpen(false); }}
-            className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-[13px] text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+            className="mt-1 flex w-full items-center gap-2 rounded-[5px] px-[10px] py-[6px] text-[13px] text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             {t("companyRail.addCompany")}
@@ -515,13 +521,13 @@ export function AgentTree() {
       )}
 
       {/* ── 스크롤 가능한 nav 영역 ── */}
-      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col px-2.5 py-3">
+      <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col px-2 py-2">
 
         {/* 새 이슈 버튼 + 주요 네비게이션 */}
         <div className="flex flex-col gap-0.5 mb-1">
           <button
             onClick={() => openNewIssue()}
-            className="flex items-center gap-2.5 rounded-xl border border-dashed border-border/80 bg-accent/30 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors mb-1"
+            className="mb-1 flex items-center gap-2 rounded-[5px] border border-border bg-transparent px-[10px] py-[6px] text-[13px] font-normal text-foreground/80 hover:bg-accent/50 hover:text-foreground transition-colors"
           >
             <SquarePen className="h-4 w-4 shrink-0" />
             <span className="truncate">{t("nav.newIssue")}</span>
@@ -538,12 +544,12 @@ export function AgentTree() {
         </div>
 
         {/* 섹션 디바이더 */}
-        <div className="mx-1 my-2 h-px bg-border/60" />
+        <div className="mx-1 my-2 h-px bg-border" />
 
         {/* Work 섹션 */}
         <div className="flex flex-col gap-0.5 mb-1">
-          <div className="px-3 py-1">
-            <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/50">
+          <div className="px-2 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
               {t("sidebar.work")}
             </span>
           </div>
@@ -552,21 +558,109 @@ export function AgentTree() {
         </div>
 
         {/* 섹션 디바이더 */}
-        <div className="mx-1 my-2 h-px bg-border/60" />
+        <div className="mx-1 my-2 h-px bg-border" />
+
+        {/* 에이전트 트리 섹션 */}
+        <Collapsible open={agentsOpen} onOpenChange={setAgentsOpen}>
+          <div className="group">
+            <div className="flex items-center px-2 py-1">
+              <CollapsibleTrigger className="flex items-center gap-1 flex-1 min-w-0">
+                <ChevronRight className={cn("h-3 w-3 text-muted-foreground/60 transition-transform opacity-0 group-hover:opacity-100", agentsOpen && "rotate-90")} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">{t("nav.agents")}</span>
+              </CollapsibleTrigger>
+            </div>
+          </div>
+          <CollapsibleContent>
+            <div className="mt-0.5 flex max-h-[320px] flex-col overflow-y-auto">
+              {visibleAgents.map(({ agent, depth }: AgentTreeNode) => {
+                const runCount = liveCountByAgent.get(agent.id) ?? 0;
+                const activeIssue = activeIssueByAgentId.get(agent.id);
+                const isActive = activeAgentId === agentRouteRef(agent);
+                const dotClass = statusDotClass(agent.status);
+                const showDot = dotClass !== "hidden";
+                return (
+                  <NavLink
+                    key={agent.id}
+                    to={agentUrl(agent)}
+                    onClick={() => { if (isMobile) setSidebarOpen(false); }}
+                    className={cn(
+                      "relative mb-px flex items-start gap-2 rounded-[5px] px-[10px] py-[5px] text-[13px] transition-colors",
+                      isActive
+                        ? "bg-primary/8 text-primary"
+                        : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",
+                    )}
+                    style={{ paddingLeft: depth > 0 ? `${10 + depth * 16}px` : undefined }}
+                  >
+                    {depth > 0 && (
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute left-[calc(var(--depth-offset)-4px)] top-1/2 h-px w-2 -translate-y-1/2 bg-border"
+                        style={{ ["--depth-offset" as string]: `${10 + depth * 16}px` }}
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "relative mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[6px] text-[10px] font-bold leading-none",
+                        agentAvClass(agent.status),
+                      )}
+                    >
+                      {agent.icon ? (
+                        <AgentIcon icon={agent.icon} className="h-3.5 w-3.5" />
+                      ) : (
+                        agentInitials(agent.name)
+                      )}
+                      {showDot && (
+                        <span
+                          className={cn(
+                            "absolute -top-[3px] -right-[3px] h-[7px] w-[7px] rounded-full border-[1.5px] border-sidebar",
+                            dotClass,
+                          )}
+                        />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-[12px] font-medium leading-none">{agent.name}</span>
+                        {runCount > 0 && (
+                          <span className="relative flex h-[7px] w-[7px] shrink-0">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                            <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-blue-500" />
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[10px] leading-none text-muted-foreground">
+                        {agent.role}
+                      </span>
+                      {activeIssue && (
+                        <span className="mt-1 flex items-center gap-1 truncate text-[11px] leading-none text-foreground/70">
+                          <CircleDot className="h-3 w-3 shrink-0 text-primary" />
+                          <span className="truncate">{activeIssue.identifier ?? activeIssue.title}</span>
+                        </span>
+                      )}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* 섹션 디바이더 */}
+        <div className="mx-1 my-2 h-px bg-border" />
 
         {/* 프로젝트 섹션 */}
         <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
           <div className="group">
-            <div className="flex items-center px-3 py-1">
+            <div className="flex items-center px-2 py-1">
               <CollapsibleTrigger className="flex items-center gap-1 flex-1 min-w-0">
                 <ChevronRight className={cn("h-3 w-3 text-muted-foreground/60 transition-transform opacity-0 group-hover:opacity-100", projectsOpen && "rotate-90")} />
-                <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
                   {t("nav.projects")}
                 </span>
               </CollapsibleTrigger>
               <button
                 onClick={(e) => { e.stopPropagation(); openNewProject(); }}
-                className="flex items-center justify-center h-4 w-4 rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent/50 transition-colors"
+                className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-accent/50 hover:text-foreground"
                 aria-label={t("projects.addProject")}
               >
                 <Plus className="h-3 w-3" />
@@ -576,7 +670,7 @@ export function AgentTree() {
           <CollapsibleContent>
             <DndContext sensors={projectSensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
               <SortableContext items={orderedProjects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-0.5 mt-0.5">
+                <div className="mt-0.5 flex flex-col gap-0.5">
                   {orderedProjects.map((project: Project) => (
                     <SortableProjectItem
                       key={project.id}
@@ -593,106 +687,12 @@ export function AgentTree() {
         </Collapsible>
 
         {/* 섹션 디바이더 */}
-        <div className="mx-1 my-2 h-px bg-border/60" />
-
-        {/* 에이전트 트리 섹션 */}
-        <Collapsible open={agentsOpen} onOpenChange={setAgentsOpen}>
-          <div className="group">
-            <div className="flex items-center px-3 py-1">
-              <CollapsibleTrigger className="flex items-center gap-1 flex-1 min-w-0">
-                <ChevronRight className={cn("h-3 w-3 text-muted-foreground/60 transition-transform opacity-0 group-hover:opacity-100", agentsOpen && "rotate-90")} />
-                <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/60">
-                  {t("nav.agents")}
-                </span>
-              </CollapsibleTrigger>
-            </div>
-          </div>
-          <CollapsibleContent>
-            <div className="flex flex-col mt-0.5 max-h-[320px] overflow-y-auto scrollbar-none">
-              {visibleAgents.map(({ agent, depth }: AgentTreeNode) => {
-                const runCount = liveCountByAgent.get(agent.id) ?? 0;
-                const activeIssue = activeIssueByAgentId.get(agent.id);
-                const isActive = activeAgentId === agentRouteRef(agent);
-                const dotClass = statusDotClass(agent.status);
-                const showDot = dotClass !== "hidden";
-                return (
-                  <NavLink
-                    key={agent.id}
-                    to={agentUrl(agent)}
-                    onClick={() => { if (isMobile) setSidebarOpen(false); }}
-                    className={cn(
-                      "relative flex items-start gap-2 rounded-md px-2.5 py-[5px] text-[13px] transition-colors mb-px",
-                      isActive
-                        ? "bg-accent text-foreground"
-                        : "text-foreground/80 hover:bg-accent/50 hover:text-foreground",
-                    )}
-                    style={{ paddingLeft: depth > 0 ? `${10 + depth * 16}px` : undefined }}
-                  >
-                    {/* 트리 커넥터: child 에이전트 좌측 수평선 */}
-                    {depth > 0 && (
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute left-[calc(var(--depth-offset)-4px)] top-1/2 h-px w-2 -translate-y-1/2 bg-border"
-                        style={{ ["--depth-offset" as string]: `${10 + depth * 16}px` }}
-                      />
-                    )}
-                    {/* 아바타: 26×26, 6px radius, 상태별 tint */}
-                    <span
-                      className={cn(
-                        "relative mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[6px] text-[10px] font-bold leading-none",
-                        agentAvClass(agent.status),
-                      )}
-                    >
-                      {agent.icon ? (
-                        <AgentIcon icon={agent.icon} className="h-3.5 w-3.5" />
-                      ) : (
-                        agentInitials(agent.name)
-                      )}
-                      {/* 상태 도트: 우상단 7px, surface 보더 */}
-                      {showDot && (
-                        <span
-                          className={cn(
-                            "absolute -top-[3px] -right-[3px] h-[7px] w-[7px] rounded-full border-[1.5px] border-sidebar",
-                            dotClass,
-                          )}
-                        />
-                      )}
-                    </span>
-                    {/* 텍스트 영역 */}
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate font-medium leading-none">{agent.name}</span>
-                        {runCount > 0 && (
-                          <span className="relative flex h-[7px] w-[7px] shrink-0">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-[7px] w-[7px] bg-blue-500" />
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground leading-none">
-                        {agent.role}
-                      </span>
-                      {activeIssue && (
-                        <span className="mt-1 flex items-center gap-1 truncate text-[11px] text-foreground/70 leading-none">
-                          <CircleDot className="h-3 w-3 shrink-0 text-primary" />
-                          <span className="truncate">{activeIssue.identifier ?? activeIssue.title}</span>
-                        </span>
-                      )}
-                    </span>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* 섹션 디바이더 */}
-        <div className="mx-1 my-2 h-px bg-border/60" />
+        <div className="mx-1 my-2 h-px bg-border" />
 
         {/* 회사 섹션 */}
         <div className="flex flex-col gap-0.5">
-          <div className="px-3 py-1">
-            <span className="text-[10px] font-medium uppercase tracking-widest font-mono text-muted-foreground/50">
+          <div className="px-2 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60">
               {t("sidebar.company")}
             </span>
           </div>
