@@ -65,7 +65,8 @@
     "issuesByPriority": "Issues by Priority",
     "issuesByStatus": "Issues by Status",
     "successRate": "Success Rate",
-    "last14Days": "Last 14 days"
+    "last14Days": "Last 14 days",
+    "activeIssues": "Active Issues"
   },
   "issues": {
     "selectCompany": "Select a company to view issues."
@@ -1129,5 +1130,20 @@
     "copyFailed": "Copy failed",
     "dismissNotification": "Dismiss notification",
     "clickToEdit": "Click to edit..."
+  },
+  "statusLabels": {
+    "backlog": "Backlog",
+    "todo": "To Do",
+    "in_progress": "In Progress",
+    "in_review": "In Review",
+    "blocked": "Blocked",
+    "done": "Done",
+    "cancelled": "Cancelled"
+  },
+  "priorityLabels": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
   }
 }

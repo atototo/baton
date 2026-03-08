@@ -16,6 +16,7 @@ import { MetricCard } from "../components/MetricCard";
 import { EmptyState } from "../components/EmptyState";
 import { StatusIcon } from "../components/StatusIcon";
 import { PriorityIcon } from "../components/PriorityIcon";
+import { StatusBadge } from "../components/StatusBadge";
 import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
@@ -264,6 +265,48 @@ export function Dashboard() {
               }
             />
           </div>
+
+          {/* 활성 이슈 요약 리스트 — 목업 스타일 */}
+          {recentIssues.filter((i) => ["in_progress", "blocked", "in_review"].includes(i.status)).length > 0 && (
+            <div>
+              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-2 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-border">
+                {t("dashboard.activeIssues")}
+              </h3>
+              <div className="flex flex-col gap-[1px]">
+                {recentIssues
+                  .filter((i) => ["in_progress", "blocked", "in_review"].includes(i.status))
+                  .slice(0, 6)
+                  .map((issue) => {
+                    const name = agentName(issue.assigneeAgentId ?? null);
+                    return (
+                      <Link
+                        key={issue.id}
+                        to={`/issues/${issue.identifier ?? issue.id}`}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3.5 py-2.5 rounded-[6px] border bg-card text-[13px] cursor-pointer hover:border-border/80 hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)] transition-all no-underline text-inherit",
+                          issue.status === "blocked" ? "border-l-[3px] border-l-[var(--status-blocked)] border-border/60" : "border-border"
+                        )}
+                      >
+                        <PriorityIcon priority={issue.priority} />
+                        <span className="text-[11px] text-muted-foreground font-mono w-[60px] shrink-0">
+                          {issue.identifier ?? issue.id.slice(0, 8)}
+                        </span>
+                        <span className="flex-1 truncate">{issue.title}</span>
+                        {name && (
+                          <span className="hidden sm:flex items-center gap-1 px-[7px] py-0.5 pl-[3px] rounded-[4px] bg-secondary border border-border text-[10px] text-muted-foreground shrink-0">
+                            <span className="inline-flex h-[15px] w-[15px] items-center justify-center rounded-[3px] bg-primary/10 text-[8px] font-bold text-primary shrink-0">
+                              {name.slice(0, 2).toUpperCase()}
+                            </span>
+                            {name}
+                          </span>
+                        )}
+                        <StatusBadge status={issue.status} />
+                      </Link>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <ChartCard title={t("dashboard.runActivity")} subtitle={t("dashboard.last14Days")}>

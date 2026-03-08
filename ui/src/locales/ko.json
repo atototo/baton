@@ -65,7 +65,8 @@
     "issuesByPriority": "우선순위별 이슈",
     "issuesByStatus": "상태별 이슈",
     "successRate": "성공률",
-    "last14Days": "최근 14일"
+    "last14Days": "최근 14일",
+    "activeIssues": "진행 중인 이슈"
   },
   "issues": {
     "selectCompany": "이슈를 보려면 회사를 선택하세요."
@@ -1129,5 +1130,20 @@
     "copyFailed": "복사 실패",
     "dismissNotification": "알림 닫기",
     "clickToEdit": "클릭해서 수정..."
+  },
+  "statusLabels": {
+    "backlog": "백로그",
+    "todo": "할 일",
+    "in_progress": "진행 중",
+    "in_review": "검토 중",
+    "blocked": "차단됨",
+    "done": "완료",
+    "cancelled": "취소됨"
+  },
+  "priorityLabels": {
+    "critical": "긴급",
+    "high": "높음",
+    "medium": "보통",
+    "low": "낮음"
   }
 }

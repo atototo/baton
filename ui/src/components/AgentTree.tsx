@@ -572,7 +572,7 @@ export function AgentTree() {
             </div>
           </div>
           <CollapsibleContent>
-            <div className="flex flex-col gap-0.5 mt-0.5">
+            <div className="flex flex-col gap-0.5 mt-0.5 max-h-[320px] overflow-y-auto scrollbar-none">
               {visibleAgents.map(({ agent, depth }: AgentTreeNode) => {
                 const runCount = liveCountByAgent.get(agent.id) ?? 0;
                 const activeIssue = activeIssueByAgentId.get(agent.id);
