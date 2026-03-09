@@ -1,5 +1,6 @@
 import { Link } from "@/lib/router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTranslation } from "react-i18next";
 import { timeAgo } from "../lib/timeAgo";
 import { cn } from "../lib/utils";
 import { deriveProjectUrlKey, type ActivityEvent, type Agent } from "@atototo/shared";
@@ -10,7 +11,7 @@ function deriveInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-const ACTION_VERBS: Record<string, string> = {
+const ACTION_VERBS_EN: Record<string, string> = {
   "issue.created": "created",
   "issue.updated": "updated",
   "issue.checked_out": "checked out",
@@ -52,23 +53,51 @@ function humanizeValue(value: unknown): string {
   return value.replace(/_/g, " ");
 }
 
-function formatVerb(action: string, details?: Record<string, unknown> | null): string {
+interface VerbResult {
+  verb: string;
+  detail?: string; // e.g. "진행 중 → 완료" for status changes
+}
+
+function formatVerbI18n(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  action: string,
+  details?: Record<string, unknown> | null,
+): VerbResult {
   if (action === "issue.updated" && details) {
     const previous = (details._previous ?? {}) as Record<string, unknown>;
     if (details.status !== undefined) {
       const from = previous.status;
-      return from
-        ? `changed status from ${humanizeValue(from)} to ${humanizeValue(details.status)} on`
-        : `changed status to ${humanizeValue(details.status)} on`;
+      const toLabel = t(`statusLabels.${details.status}`, { defaultValue: humanizeValue(details.status) });
+      if (from) {
+        const fromLabel = t(`statusLabels.${from}`, { defaultValue: humanizeValue(from) });
+        return {
+          verb: t("activityVerbs.statusChange", { defaultValue: "status change" }),
+          detail: t("activityVerbs.statusChangeFromTo", { from: fromLabel, to: toLabel, defaultValue: `${fromLabel} → ${toLabel}` }),
+        };
+      }
+      return {
+        verb: t("activityVerbs.statusChange", { defaultValue: "status change" }),
+        detail: `→ ${toLabel}`,
+      };
     }
     if (details.priority !== undefined) {
       const from = previous.priority;
-      return from
-        ? `changed priority from ${humanizeValue(from)} to ${humanizeValue(details.priority)} on`
-        : `changed priority to ${humanizeValue(details.priority)} on`;
+      const toLabel = t(`priorityLabels.${details.priority}`, { defaultValue: humanizeValue(details.priority) });
+      if (from) {
+        const fromLabel = t(`priorityLabels.${from}`, { defaultValue: humanizeValue(from) });
+        return {
+          verb: t("activityVerbs.priorityChange", { defaultValue: "priority change" }),
+          detail: t("activityVerbs.priorityChangeFromTo", { from: fromLabel, to: toLabel, defaultValue: `${fromLabel} → ${toLabel}` }),
+        };
+      }
+      return {
+        verb: t("activityVerbs.priorityChange", { defaultValue: "priority change" }),
+        detail: `→ ${toLabel}`,
+      };
     }
   }
-  return ACTION_VERBS[action] ?? action.replace(/[._]/g, " ");
+  const verb = t(`activityVerbs.${action}`, { defaultValue: ACTION_VERBS_EN[action] ?? action.replace(/[._]/g, " ") });
+  return { verb };
 }
 
 function entityLink(entityType: string, entityId: string, name?: string | null): string | null {
@@ -91,7 +120,8 @@ interface ActivityRowProps {
 }
 
 export function ActivityRow({ event, agentMap, entityNameMap, entityTitleMap, className }: ActivityRowProps) {
-  const verb = formatVerb(event.action, event.details);
+  const { t } = useTranslation();
+  const { verb, detail } = formatVerbI18n(t, event.action, event.details);
 
   const isHeartbeatEvent = event.entityType === "heartbeat_run";
   const heartbeatAgentId = isHeartbeatEvent
@@ -117,19 +147,24 @@ export function ActivityRow({ event, agentMap, entityNameMap, entityTitleMap, cl
         <AvatarFallback className="rounded-[5px] text-[9px] font-bold">{deriveInitials(actorName)}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <p className="truncate text-[11px] leading-[1.45] text-secondary-foreground">
-          <span className="font-medium text-foreground">{actorName}</span>
-          <span className="text-muted-foreground"> {verb} </span>
+        <div className="flex items-baseline gap-1 flex-wrap text-[11px] leading-[1.5]">
+          <span className="font-medium text-foreground shrink-0">{actorName}</span>
+          <span className="text-muted-foreground">{verb}</span>
           {name && <span className="font-semibold text-foreground">{name}</span>}
-          {entityTitle && <span className="text-muted-foreground"> — {entityTitle}</span>}
-        </p>
-        <span className="text-[10px] text-muted-foreground mt-0.5 block">{timeAgo(event.createdAt)}</span>
+          {detail && (
+            <span className="text-[10px] text-muted-foreground/80 font-mono">{detail}</span>
+          )}
+        </div>
+        {entityTitle && (
+          <p className="text-[10px] leading-[1.4] text-muted-foreground truncate mt-px">{entityTitle}</p>
+        )}
+        <span className="text-[10px] text-muted-foreground/70 mt-0.5 block">{timeAgo(event.createdAt)}</span>
       </div>
     </div>
   );
 
   const classes = cn(
-    "px-3.5 py-2.5 text-[11px]",
+    "px-3.5 py-2 text-[11px]",
     link && "cursor-pointer hover:bg-accent/50 transition-colors",
     className,
   );
