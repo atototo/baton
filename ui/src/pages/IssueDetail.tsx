@@ -150,7 +150,7 @@ export function IssueDetail() {
   const { issueId } = useParams<{ issueId: string }>();
   const { selectedCompanyId } = useCompany();
   const { pushToast } = useToast();
-  const { openPanel, closePanel, panelVisible, setPanelVisible } = usePanel();
+  const { setPanelVisible } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -492,14 +492,10 @@ export function IssueDetail() {
     }
   }, [issue, issueId, navigate]);
 
+  // Hide the shared properties panel — we render properties inline
   useEffect(() => {
-    if (issue) {
-      openPanel(
-        <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} />
-      );
-    }
-    return () => closePanel();
-  }, [issue]); // eslint-disable-line react-hooks/exhaustive-deps
+    setPanelVisible(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) return <p className="text-sm text-muted-foreground">{t("issueDetail.loading")}</p>;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
@@ -520,7 +516,10 @@ export function IssueDetail() {
   const isImageAttachment = (attachment: IssueAttachment) => attachment.contentType.startsWith("image/");
 
   return (
-    <div className="flex-1 min-w-0 space-y-6">
+    <div className="flex-1 min-w-0 flex gap-0">
+      {/* Main scrollable content */}
+      <div className="flex-1 min-w-0">
+      <div className="max-w-[720px] mx-auto space-y-6">
       {/* Parent chain breadcrumb */}
       {ancestors.length > 0 && (
         <nav className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
@@ -548,8 +547,10 @@ export function IssueDetail() {
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+      {/* Issue header — mockup style: meta → title → description */}
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-mono text-muted-foreground shrink-0">{issue.identifier ?? issue.id.slice(0, 8)}</span>
           <StatusIcon
             status={issue.status}
             onChange={(status) => updateIssue.mutate({ status })}
@@ -558,14 +559,10 @@ export function IssueDetail() {
             priority={issue.priority}
             onChange={(priority) => updateIssue.mutate({ priority })}
           />
-          <span className="text-sm font-mono text-muted-foreground shrink-0">{issue.identifier ?? issue.id.slice(0, 8)}</span>
 
           {hasLiveRuns && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-medium text-cyan-600 dark:text-cyan-400 shrink-0">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-400" />
-              </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(37,99,235,0.08)] border border-[rgba(37,99,235,0.15)] px-2 py-0.5 text-[10px] font-semibold text-[var(--status-active)] shrink-0">
+              <span className="w-[6px] h-[6px] rounded-full bg-[var(--status-active)]" style={{ animation: "blink 1.8s ease-in-out infinite" }} />
               {t("issueDetail.live")}
             </span>
           )}
@@ -617,19 +614,6 @@ export function IssueDetail() {
           </Button>
 
           <div className="hidden md:flex items-center md:ml-auto shrink-0">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className={cn(
-                "shrink-0 transition-opacity duration-200",
-                panelVisible ? "opacity-0 pointer-events-none w-0 overflow-hidden" : "opacity-100",
-              )}
-              onClick={() => setPanelVisible(true)}
-              title={t("issueDetail.showProperties")}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-            </Button>
-
             <Popover open={moreOpen} onOpenChange={setMoreOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon-xs" className="shrink-0">
@@ -659,14 +643,14 @@ export function IssueDetail() {
           value={issue.title}
           onSave={(title) => updateIssue.mutate({ title })}
           as="h2"
-          className="text-xl font-bold"
+          className="text-[22px] font-bold leading-[1.3]"
         />
 
         <InlineEditor
           value={issue.description ?? ""}
           onSave={(description) => updateIssue.mutate({ description })}
           as="p"
-          className="text-sm text-muted-foreground"
+          className="text-[14px] leading-[1.65] text-secondary-foreground"
           placeholder={t("issueDetail.addDescription")}
           multiline
           mentions={mentionOptions}
@@ -831,12 +815,25 @@ export function IssueDetail() {
           {!activity || activity.length === 0 ? (
             <p className="text-xs text-muted-foreground">{t("issueDetail.noActivity")}</p>
           ) : (
-            <div className="space-y-1.5">
-              {activity.slice(0, 20).map((evt) => (
-                <div key={evt.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ActorIdentity evt={evt} agentMap={agentMap} />
-                  <span>{formatAction(evt.action, evt.details, t)}</span>
-                  <span className="ml-auto shrink-0">{relativeTime(evt.createdAt)}</span>
+            <div className="flex flex-col">
+              {activity.slice(0, 20).map((evt, i, arr) => (
+                <div key={evt.id} className="flex items-start gap-2.5 py-2 relative">
+                  {/* Connecting line */}
+                  {i < arr.length - 1 && (
+                    <div className="absolute left-[11px] top-[30px] bottom-[-8px] w-px bg-border" />
+                  )}
+                  {/* Dot */}
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0 z-[1] text-[10px] text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <div className="flex items-center gap-1.5 text-xs text-secondary-foreground flex-wrap">
+                      <ActorIdentity evt={evt} agentMap={agentMap} />
+                      <span>{formatAction(evt.action, evt.details, t)}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">{relativeTime(evt.createdAt)}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -932,6 +929,14 @@ export function IssueDetail() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+      </div>
+      </div>
+      {/* End main content */}
+
+      {/* Properties sidebar — mockup style (280px, border-left) */}
+      <aside className="hidden lg:block w-[280px] shrink-0 border-l border-border overflow-y-auto pl-6">
+        <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} />
+      </aside>
     </div>
   );
 }

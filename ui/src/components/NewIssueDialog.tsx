@@ -796,7 +796,7 @@ export function NewIssueDialog() {
             value={description}
             onChange={setDescription}
             placeholder={t("newIssue.addDescription")}
-            bordered={false}
+            bordered
             mentions={mentionOptions}
             contentClassName={cn("text-sm text-muted-foreground", expanded ? "min-h-[220px]" : "min-h-[120px]")}
             imageUploadHandler={async (file) => {

@@ -31,6 +31,7 @@ import { buildProjectMentionHref, parseProjectMentionHref } from "@atototo/share
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { findMentionAtCursor } from "./markdown-mentions";
+import { MarkdownBody } from "./MarkdownBody";
 
 /* ---- Mention types ---- */
 
@@ -192,6 +193,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<MDXEditorMethods>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const latestValueRef = useRef(value);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -463,13 +465,65 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
   }
 
   const canDropImage = Boolean(imageUploadHandler);
+  const [mode, setMode] = useState<"write" | "preview">("write");
+
+  // Toolbar helpers — insert markdown syntax around selection or at cursor
+  const insertMarkdown = useCallback((prefix: string, suffix = "") => {
+    if (bordered) {
+      // Plain textarea mode — insert around selection
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const selected = ta.value.slice(start, end);
+      const replacement = `${prefix}${selected}${suffix}`;
+      // Use native input setter to trigger React onChange
+      const nativeSet = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      const next = ta.value.slice(0, start) + replacement + ta.value.slice(end);
+      nativeSet?.call(ta, next);
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+      // Position cursor after inserted text
+      requestAnimationFrame(() => {
+        const cursorPos = selected ? start + replacement.length : start + prefix.length;
+        ta.setSelectionRange(cursorPos, cursorPos);
+      });
+      return;
+    }
+    // WYSIWYG (MDXEditor) mode
+    const editable = containerRef.current?.querySelector('[contenteditable="true"]') as HTMLElement | null;
+    if (!editable) return;
+    editable.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const selected = sel.toString();
+    const replacement = selected ? `${prefix}${selected}${suffix}` : `${prefix}${suffix}`;
+    document.execCommand("insertText", false, replacement);
+  }, [bordered]);
+
+  type ToolbarItem = { label?: string; icon?: string; title: string; action: () => void; className?: string } | "sep";
+  const toolbarButtons = useMemo<ToolbarItem[]>(() => [
+    { label: "B", title: "Bold", action: () => insertMarkdown("**", "**"), className: "font-bold" },
+    { label: "I", title: "Italic", action: () => insertMarkdown("_", "_"), className: "italic" },
+    { label: "~", title: "Strikethrough", action: () => insertMarkdown("~~", "~~") },
+    "sep",
+    { label: "H", title: "Heading", action: () => insertMarkdown("## ") },
+    { label: "<>", title: "Code", action: () => insertMarkdown("`", "`"), className: "font-mono text-[11px]" },
+    { label: "```", title: "Code block", action: () => insertMarkdown("```\n", "\n```"), className: "font-mono text-[10px]" },
+    "sep",
+    { icon: "list", title: "Bullet list", action: () => insertMarkdown("- ") },
+    { icon: "list-ordered", title: "Numbered list", action: () => insertMarkdown("1. ") },
+    { icon: "quote", title: "Quote", action: () => insertMarkdown("> ") },
+    "sep",
+    { icon: "link", title: "Link", action: () => insertMarkdown("[", "](url)") },
+  ], [insertMarkdown]);
 
   return (
     <div
       ref={containerRef}
       className={cn(
         "relative baton-mdxeditor-scope",
-        bordered ? "rounded-md border border-border bg-transparent" : "bg-transparent",
+        bordered ? "rounded-[6px] border border-border bg-card overflow-hidden" : "bg-transparent",
         isDragOver && "ring-1 ring-primary/60 bg-accent/20",
         className,
       )}
@@ -541,72 +595,183 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
         setIsDragOver(false);
       }}
     >
-      <MDXEditor
-        ref={ref}
-        markdown={value}
-        placeholder={placeholder}
-        onChange={(next) => {
-          latestValueRef.current = next;
-          onChange(next);
-        }}
-        onBlur={() => onBlur?.()}
-        className={cn("baton-mdxeditor", !bordered && "baton-mdxeditor--borderless")}
-        contentEditableClassName={cn(
-          "baton-mdxeditor-content focus:outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:list-item",
-          contentClassName,
+      {/* Write / Preview mode tabs */}
+      {bordered && (
+        <div className="flex items-center border-b border-border bg-muted/30 px-2 gap-0">
+          <button
+            type="button"
+            className={cn(
+              "px-3 py-[7px] text-xs font-medium border-b-2 -mb-px transition-colors",
+              mode === "write"
+                ? "border-primary text-foreground font-semibold"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setMode("write")}
+          >
+            Write
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "px-3 py-[7px] text-xs font-medium border-b-2 -mb-px transition-colors",
+              mode === "preview"
+                ? "border-primary text-foreground font-semibold"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => {
+              setMode("preview");
+            }}
+          >
+            Preview
+          </button>
+        </div>
+      )}
+
+      {/* Markdown GUI toolbar (write mode only) */}
+      {bordered && mode === "write" && (
+        <div className="flex items-center px-2 py-1 border-b border-border gap-0.5">
+          {toolbarButtons.map((btn, i) => {
+            if (btn === "sep") return <div key={`sep-${i}`} className="w-px h-4 bg-border mx-1" />;
+            return (
+              <button
+                key={btn.title}
+                type="button"
+                title={btn.title}
+                className={cn(
+                  "w-7 h-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors text-[13px]",
+                  "className" in btn && btn.className,
+                )}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  btn.action();
+                }}
+              >
+                {"icon" in btn ? (
+                  btn.icon === "list" ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="10" height="2" rx="1"/><circle cx="2" cy="8" r="1.5"/><rect x="5" y="7" width="10" height="2" rx="1"/><circle cx="2" cy="12" r="1.5"/><rect x="5" y="11" width="10" height="2" rx="1"/></svg>
+                  ) : btn.icon === "list-ordered" ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><text x="0" y="5.5" fontSize="5" fontWeight="700">1.</text><rect x="5" y="3" width="10" height="2" rx="1"/><text x="0" y="9.5" fontSize="5" fontWeight="700">2.</text><rect x="5" y="7" width="10" height="2" rx="1"/><text x="0" y="13.5" fontSize="5" fontWeight="700">3.</text><rect x="5" y="11" width="10" height="2" rx="1"/></svg>
+                  ) : btn.icon === "quote" ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="2" width="2.5" height="12" rx="1.25"/><rect x="5" y="4" width="9" height="2" rx="1"/><rect x="5" y="8" width="7" height="2" rx="1"/></svg>
+                  ) : btn.icon === "link" ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M6.5 8.5a3 3 0 004.3.3l2-2a3 3 0 00-4.2-4.3L7.3 3.8"/><path d="M9.5 7.5a3 3 0 00-4.3-.3l-2 2a3 3 0 004.2 4.3l1.3-1.3"/></svg>
+                  ) : <span>{btn.label}</span>
+                ) : (
+                  <span>{btn.label}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Write mode */}
+      <div className={mode === "write" ? "block" : "hidden"}>
+        {bordered ? (
+          /* Plain textarea for comment composer — raw markdown input */
+          <textarea
+            ref={textareaRef}
+            value={value}
+            placeholder={placeholder}
+            onChange={(e) => {
+              latestValueRef.current = e.target.value;
+              onChange(e.target.value);
+            }}
+            onBlur={() => onBlur?.()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                onSubmit?.();
+              }
+            }}
+            className={cn(
+              "w-full resize-none bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px]",
+              contentClassName,
+            )}
+            rows={3}
+          />
+        ) : (
+          /* WYSIWYG MDXEditor for description fields */
+          <MDXEditor
+            ref={ref}
+            markdown={value}
+            placeholder={placeholder}
+            onChange={(next) => {
+              latestValueRef.current = next;
+              onChange(next);
+            }}
+            onBlur={() => onBlur?.()}
+            className={cn("baton-mdxeditor", "baton-mdxeditor--borderless")}
+            contentEditableClassName={cn(
+              "baton-mdxeditor-content focus:outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:list-item",
+              contentClassName,
+            )}
+            overlayContainer={containerRef.current}
+            plugins={plugins}
+          />
         )}
-        overlayContainer={containerRef.current}
-        plugins={plugins}
-      />
 
-      {/* Mention dropdown */}
-      {mentionActive && filteredMentions.length > 0 && (
-        <div
-          className="absolute z-50 min-w-[180px] max-h-[200px] overflow-y-auto rounded-md border border-border bg-popover shadow-md"
-          style={{ top: mentionState.top + 4, left: mentionState.left }}
-        >
-          {filteredMentions.map((option, i) => (
-            <button
-              key={option.id}
-              className={cn(
-                "flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left hover:bg-accent/50 transition-colors",
-                i === mentionIndex && "bg-accent",
-              )}
-              onMouseDown={(e) => {
-                e.preventDefault(); // prevent blur
-                selectMention(option);
-              }}
-              onMouseEnter={() => setMentionIndex(i)}
-            >
-              {option.kind === "project" && option.projectId ? (
-                <span
-                  className="inline-flex h-2 w-2 rounded-full border border-border/50"
-                  style={{ backgroundColor: option.projectColor ?? "#64748b" }}
-                />
-              ) : (
-                <span className="text-muted-foreground">@</span>
-              )}
-              <span>{option.name}</span>
-              {option.kind === "project" && option.projectId && (
-                <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Project
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Mention dropdown */}
+        {mentionActive && filteredMentions.length > 0 && (
+          <div
+            className="absolute z-50 min-w-[180px] max-h-[200px] overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+            style={{ top: mentionState.top + 4, left: mentionState.left }}
+          >
+            {filteredMentions.map((option, i) => (
+              <button
+                key={option.id}
+                className={cn(
+                  "flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left hover:bg-accent/50 transition-colors",
+                  i === mentionIndex && "bg-accent",
+                )}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectMention(option);
+                }}
+                onMouseEnter={() => setMentionIndex(i)}
+              >
+                {option.kind === "project" && option.projectId ? (
+                  <span
+                    className="inline-flex h-2 w-2 rounded-full border border-border/50"
+                    style={{ backgroundColor: option.projectColor ?? "#64748b" }}
+                  />
+                ) : (
+                  <span className="text-muted-foreground">@</span>
+                )}
+                <span>{option.name}</span>
+                {option.kind === "project" && option.projectId && (
+                  <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Project
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {isDragOver && canDropImage && (
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-1 z-40 flex items-center justify-center rounded-md border border-dashed border-primary/80 bg-primary/10 text-xs font-medium text-primary",
-            !bordered && "inset-0 rounded-sm",
+        {isDragOver && canDropImage && (
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-1 z-40 flex items-center justify-center rounded-md border border-dashed border-primary/80 bg-primary/10 text-xs font-medium text-primary",
+              !bordered && "inset-0 rounded-sm",
+            )}
+          >
+            Drop image to upload
+          </div>
+        )}
+      </div>
+
+      {/* Preview mode */}
+      {mode === "preview" && (
+        <div className={cn("px-3.5 py-3", contentClassName)}>
+          {value.trim() ? (
+            <MarkdownBody className="text-sm">{value}</MarkdownBody>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Nothing to preview</p>
           )}
-        >
-          Drop image to upload
         </div>
       )}
+
       {uploadError && (
         <p className="px-3 pb-2 text-xs text-destructive">{uploadError}</p>
       )}

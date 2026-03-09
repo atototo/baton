@@ -238,7 +238,7 @@ export function Layout() {
           <main
             id="main-content"
             tabIndex={-1}
-            className={cn("flex-1 overflow-auto p-4 md:p-6", isMobile && "pb-[calc(5rem+env(safe-area-inset-bottom))]")}
+            className={cn("flex-1 overflow-auto px-4 py-4 md:px-8 md:py-6", isMobile && "pb-[calc(5rem+env(safe-area-inset-bottom))]")}
             onScroll={handleMainScroll}
           >
             <Outlet />
