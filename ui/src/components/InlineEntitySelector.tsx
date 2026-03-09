@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "../lib/utils";
@@ -44,7 +44,18 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
     const [query, setQuery] = useState("");
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
     const shouldPreventCloseAutoFocusRef = useRef(false);
+    const isScrollingRef = useRef(false);
+    const scrollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+    const handleScroll = useCallback(() => {
+      isScrollingRef.current = true;
+      clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 100);
+    }, []);
 
     const allOptions = useMemo<InlineEntityOption[]>(
       () => [{ id: "", label: noneLabel, searchText: noneLabel }, ...options],
@@ -117,6 +128,13 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
             event.preventDefault();
             shouldPreventCloseAutoFocusRef.current = false;
           }}
+          onWheel={(event) => {
+            const list = listRef.current;
+            if (list) {
+              list.scrollTop += event.deltaY;
+              event.stopPropagation();
+            }
+          }}
         >
           <input
             ref={inputRef}
@@ -127,18 +145,30 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
               setQuery(event.target.value);
             }}
             onKeyDown={(event) => {
+              const scrollToIndex = (idx: number) => {
+                requestAnimationFrame(() => {
+                  const container = listRef.current;
+                  if (!container) return;
+                  const item = container.children[idx] as HTMLElement | undefined;
+                  item?.scrollIntoView({ block: "nearest" });
+                });
+              };
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                setHighlightedIndex((current) =>
-                  filteredOptions.length === 0 ? 0 : (current + 1) % filteredOptions.length,
-                );
+                setHighlightedIndex((current) => {
+                  const next = filteredOptions.length === 0 ? 0 : (current + 1) % filteredOptions.length;
+                  scrollToIndex(next);
+                  return next;
+                });
                 return;
               }
               if (event.key === "ArrowUp") {
                 event.preventDefault();
                 setHighlightedIndex((current) => {
                   if (filteredOptions.length === 0) return 0;
-                  return current <= 0 ? filteredOptions.length - 1 : current - 1;
+                  const next = current <= 0 ? filteredOptions.length - 1 : current - 1;
+                  scrollToIndex(next);
+                  return next;
                 });
                 return;
               }
@@ -159,8 +189,9 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
             }}
           />
           <div
-            className="max-h-56 overflow-y-auto overscroll-contain py-1 touch-pan-y"
-            style={{ WebkitOverflowScrolling: "touch" }}
+            ref={listRef}
+            className="max-h-56 overflow-y-auto overscroll-contain py-1"
+            onScroll={handleScroll}
           >
             {filteredOptions.length === 0 ? (
               <p className="px-2 py-2 text-xs text-muted-foreground">{emptyMessage}</p>
@@ -173,10 +204,12 @@ export const InlineEntitySelector = forwardRef<HTMLButtonElement, InlineEntitySe
                     key={option.id || "__none__"}
                     type="button"
                     className={cn(
-                      "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm touch-pan-y",
+                      "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm",
                       isHighlighted && "bg-accent",
                     )}
-                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseMove={() => {
+                      if (!isScrollingRef.current) setHighlightedIndex(index);
+                    }}
                     onClick={() => commitSelection(index, true)}
                   >
                     {renderOption ? renderOption(option, isSelected) : <span className="truncate">{option.label}</span>}
