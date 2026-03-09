@@ -10,7 +10,7 @@ export function configCheck(configPath?: string): CheckResult {
       status: "fail",
       message: `Config file not found at ${filePath}`,
       canRepair: false,
-      repairHint: "Run `atototo onboard` to create one",
+      repairHint: "Run `baton onboard` to create one",
     };
   }
 
@@ -27,7 +27,7 @@ export function configCheck(configPath?: string): CheckResult {
       status: "fail",
       message: `Invalid config: ${err instanceof Error ? err.message : String(err)}`,
       canRepair: false,
-      repairHint: "Run `atototo configure --section database` (or `atototo onboard` to recreate)",
+      repairHint: "Run `baton configure --section database` (or `baton onboard` to recreate)",
     };
   }
 }

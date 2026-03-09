@@ -1,10 +1,10 @@
 {
-  "name": "atototo",
+  "name": "baton",
   "version": "0.2.7",
   "description": "Baton CLI — orchestrate AI agent teams to run a business",
   "type": "module",
   "bin": {
-    "atototo": "./dist/index.js"
+    "baton": "./dist/index.js"
   },
   "keywords": [
     "baton",

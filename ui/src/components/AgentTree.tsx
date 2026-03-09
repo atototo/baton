@@ -749,7 +749,15 @@ export function AgentTree() {
       {/* ── 하단: 문서 + 테마 토글 ── */}
       <div className="border-t border-border px-2 py-2 shrink-0">
         <div className="flex items-center gap-1">
-          <SidebarNavItem to="/docs" label="Documentation" icon={BookOpen} className="flex-1 min-w-0" />
+          <a
+            href="https://atototo.github.io/baton/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors flex-1 min-w-0"
+          >
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="truncate">Documentation</span>
+          </a>
           <Button
             type="button"
             variant="ghost"

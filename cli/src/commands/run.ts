@@ -32,7 +32,7 @@ export async function runCommand(opts: RunOptions): Promise<void> {
   const configPath = resolveConfigPath(opts.config);
   process.env.BATON_CONFIG = configPath;
 
-  p.intro(pc.bgCyan(pc.black(" atototo run ")));
+  p.intro(pc.bgCyan(pc.black(" baton run ")));
   p.log.message(pc.dim(`Home: ${paths.homeDir}`));
   p.log.message(pc.dim(`Instance: ${paths.instanceId}`));
   p.log.message(pc.dim(`Config: ${configPath}`));
@@ -40,7 +40,7 @@ export async function runCommand(opts: RunOptions): Promise<void> {
   if (!configExists(configPath)) {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
       p.log.error("No config found and terminal is non-interactive.");
-      p.log.message(`Run ${pc.cyan("atototo onboard")} once, then retry ${pc.cyan("atototo run")}.`);
+      p.log.message(`Run ${pc.cyan("baton onboard")} once, then retry ${pc.cyan("baton run")}.`);
       process.exit(1);
     }
 

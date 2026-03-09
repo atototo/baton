@@ -65,7 +65,7 @@ function quickstartDefaults(): Pick<BatonConfig, "database" | "logging" | "serve
 
 export async function onboard(opts: OnboardOptions): Promise<void> {
   printBatonCliBanner();
-  p.intro(pc.bgCyan(pc.black(" atototo onboard ")));
+  p.intro(pc.bgCyan(pc.black(" baton onboard ")));
   const configPath = resolveConfigPath(opts.config);
   const instance = describeLocalInstancePaths(resolveBatonInstanceId());
   p.log.message(
@@ -138,7 +138,7 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
         await db.execute("SELECT 1");
         s.stop("Database connection successful");
       } catch {
-        s.stop(pc.yellow("Could not connect to database — you can fix this later with `atototo doctor`"));
+        s.stop(pc.yellow("Could not connect to database — you can fix this later with `baton doctor`"));
       }
     }
 
@@ -261,9 +261,9 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
 
   p.note(
     [
-      `Run: ${pc.cyan("atototo run")}`,
-      `Reconfigure later: ${pc.cyan("atototo configure")}`,
-      `Diagnose setup: ${pc.cyan("atototo doctor")}`,
+      `Run: ${pc.cyan("baton run")}`,
+      `Reconfigure later: ${pc.cyan("baton configure")}`,
+      `Diagnose setup: ${pc.cyan("baton doctor")}`,
     ].join("\n"),
     "Next commands",
   );

@@ -53,7 +53,7 @@ export function secretsCheck(config: BatonConfig, configPath?: string): CheckRes
       status: "fail",
       message: `${provider} is configured, but this build only supports local_encrypted`,
       canRepair: false,
-      repairHint: "Run `atototo configure --section secrets` and set provider to local_encrypted",
+      repairHint: "Run `baton configure --section secrets` and set provider to local_encrypted",
     };
   }
 

@@ -22,7 +22,7 @@ const DATA_DIR_OPTION_HELP =
   "Baton data directory root (isolates state from ~/.baton)";
 
 program
-  .name("atototo")
+  .name("baton")
   .description("Baton CLI — setup, diagnose, and configure your instance")
   .version("0.2.7");
 

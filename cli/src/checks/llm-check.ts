@@ -42,7 +42,7 @@ export async function llmCheck(config: BatonConfig): Promise<CheckResult> {
           status: "fail",
           message: "Claude API key is invalid (401)",
           canRepair: false,
-          repairHint: "Run `atototo configure --section llm`",
+          repairHint: "Run `baton configure --section llm`",
         };
       }
       return {
@@ -63,7 +63,7 @@ export async function llmCheck(config: BatonConfig): Promise<CheckResult> {
           status: "fail",
           message: "OpenAI API key is invalid (401)",
           canRepair: false,
-          repairHint: "Run `atototo configure --section llm`",
+          repairHint: "Run `baton configure --section llm`",
         };
       }
       return {

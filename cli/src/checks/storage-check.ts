@@ -36,7 +36,7 @@ export function storageCheck(config: BatonConfig, configPath?: string): CheckRes
       status: "fail",
       message: "S3 storage requires non-empty bucket and region",
       canRepair: false,
-      repairHint: "Run `atototo configure --section storage`",
+      repairHint: "Run `baton configure --section storage`",
     };
   }
 

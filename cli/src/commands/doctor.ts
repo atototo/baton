@@ -51,7 +51,7 @@ export async function doctor(opts: {
       status: "fail",
       message: `Could not read config: ${err instanceof Error ? err.message : String(err)}`,
       canRepair: false,
-      repairHint: "Run `atototo configure --section database` or `atototo onboard`",
+      repairHint: "Run `baton configure --section database` or `baton onboard`",
     };
     results.push(readResult);
     printResult(readResult);
