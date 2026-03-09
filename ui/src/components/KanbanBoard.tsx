@@ -43,6 +43,17 @@ const statusDotColor: Record<string, string> = {
   cancelled: "bg-neutral-400",
 };
 
+// 카드 왼쪽 상태 색상 바
+const statusBorderColor: Record<string, string> = {
+  backlog: "#9ca3af",
+  todo: "#6b7280",
+  in_progress: "var(--status-active)",
+  in_review: "var(--status-review)",
+  blocked: "var(--status-blocked)",
+  done: "var(--status-done)",
+  cancelled: "#a3a3a3",
+};
+
 interface Agent {
   id: string;
   name: string;
@@ -162,20 +173,20 @@ function KanbanCard({
     return agents.find((a) => a.id === id)?.name ?? null;
   };
 
-  const isBlockedStatus = issue.status === "blocked";
-  const isActiveStatus = issue.status === "in_progress";
+  const borderColor = statusBorderColor[issue.status];
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        borderLeftColor: borderColor,
+      }}
       {...attributes}
       {...listeners}
-      className={`relative rounded-[6px] border bg-card cursor-grab active:cursor-grabbing transition-all ${
+      className={`relative rounded-[6px] border border-l-[3px] bg-card cursor-grab active:cursor-grabbing transition-all ${
         isDragging && !isOverlay ? "opacity-30" : ""
-      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-[var(--border-mid,#d9d9dc)] hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"} ${
-        isBlockedStatus ? "border-l-[3px] border-l-[var(--status-blocked)]" : isActiveStatus ? "border-l-[3px] border-l-[var(--status-active)]" : ""
-      }`}
+      } ${isOverlay ? "shadow-lg ring-1 ring-primary/20" : "hover:border-[var(--border-mid,#d9d9dc)] hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)]"}`}
     >
       <Link
         to={`/issues/${issue.identifier ?? issue.id}`}
