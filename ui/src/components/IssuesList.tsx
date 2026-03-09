@@ -302,7 +302,7 @@ export function IssuesList({
         <div className="flex items-center border border-border rounded-[6px] overflow-hidden">
           <button
             className={`flex items-center gap-[5px] px-3 py-[5px] text-xs font-medium transition-colors ${viewState.viewMode === "list" ? "bg-[var(--bg-overlay)] text-foreground" : "text-muted-foreground hover:bg-background hover:text-secondary-foreground"}`}
-            onClick={() => updateView({ viewMode: "list" })}
+            onClick={() => updateView({ viewMode: "list", groupBy: "status" })}
             title={t("issuesList.listView")}
           >
             <List className="h-3.5 w-3.5" />
@@ -582,7 +582,7 @@ export function IssuesList({
             agents={agents}
             liveIssueIds={liveIssueIds}
             onUpdateIssue={onUpdateIssue}
-            onShowMore={(status) => updateView({ viewMode: "list", statuses: [status] })}
+            onShowMore={(status) => updateView({ viewMode: "list", statuses: [status], groupBy: "status" })}
           />
         </div>
       ) : (
