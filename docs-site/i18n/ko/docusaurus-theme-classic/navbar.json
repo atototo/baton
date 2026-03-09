@@ -1,0 +1,38 @@
+{
+  "title": {
+    "message": "baton",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "Baton",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Get Started": {
+    "message": "시작하기",
+    "description": "Navbar item with label Get Started"
+  },
+  "item.label.Guides": {
+    "message": "가이드",
+    "description": "Navbar item with label Guides"
+  },
+  "item.label.Deploy": {
+    "message": "배포",
+    "description": "Navbar item with label Deploy"
+  },
+  "item.label.Adapters": {
+    "message": "Adapter",
+    "description": "Navbar item with label Adapters"
+  },
+  "item.label.API Reference": {
+    "message": "API 레퍼런스",
+    "description": "Navbar item with label API Reference"
+  },
+  "item.label.CLI": {
+    "message": "CLI",
+    "description": "Navbar item with label CLI"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
