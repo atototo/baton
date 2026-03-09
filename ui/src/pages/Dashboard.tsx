@@ -20,10 +20,10 @@ import { StatusBadge } from "../components/StatusBadge";
 import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
-import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { cn } from "../lib/utils";
+import { Bot, CircleDot, LayoutDashboard, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
-import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
+import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { HandoffBar, type HandoffSummary } from "../components/HandoffBar";
 import type { Agent, Issue } from "@atototo/shared";
@@ -42,6 +42,10 @@ function getInitials(name: string): string {
     .join("");
 }
 
+function formatSignedDelta(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
 function DashboardIssueRow({
   issue,
   assigneeName,
@@ -57,44 +61,35 @@ function DashboardIssueRow({
     <Link
       to={`/issues/${issue.identifier ?? issue.id}`}
       className={cn(
-        "block rounded-lg border bg-card text-inherit no-underline transition-all hover:border-border/80 hover:bg-accent/20",
+        "flex items-center gap-2.5 rounded-[6px] border bg-card text-inherit no-underline transition-all hover:bg-accent/30 hover:border-border",
         emphasized
           ? "border-red-500/18 bg-red-500/[0.04]"
           : issue.status === "blocked"
-            ? "border-red-500/15 bg-red-500/[0.03] border-l-[3px] border-l-[var(--status-blocked)]"
+            ? "border-l-[3px] border-l-[var(--status-blocked)] border-y-0 border-r-0"
             : "border-border",
-        compact ? "px-3 py-2" : "px-3.5 py-2.5",
+        compact ? "px-3 py-[7px]" : "px-3.5 py-[9px]",
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <div className="flex shrink-0 items-center gap-2">
-          <PriorityIcon priority={issue.priority} />
-          <StatusIcon status={issue.status} />
-          <span className="w-[60px] shrink-0 font-mono text-[11px] text-muted-foreground">
-            {issue.identifier ?? issue.id.slice(0, 8)}
+      <PriorityIcon priority={issue.priority} />
+      <StatusIcon status={issue.status} />
+      <span className="w-[60px] shrink-0 font-mono text-[11px] text-muted-foreground">
+        {issue.identifier ?? issue.id.slice(0, 8)}
+      </span>
+      <p className="min-w-0 flex-1 truncate text-[13px] text-foreground">{issue.title}</p>
+      {assigneeName ? (
+        <span className="hidden shrink-0 items-center gap-1 rounded border border-border bg-[var(--bg-overlay)] px-[7px] py-[2px] text-[11px] text-secondary-foreground sm:inline-flex">
+          <span className="inline-flex h-[15px] w-[15px] items-center justify-center rounded-[3px] bg-primary/10 text-[8px] font-bold text-primary">
+            {getInitials(assigneeName)}
           </span>
-        </div>
-        <p className="min-w-0 flex-1 truncate text-[13px] text-foreground">{issue.title}</p>
-        {assigneeName ? (
-          <span className="hidden shrink-0 items-center gap-1 rounded-md border border-border bg-[var(--bg-overlay)] px-1.5 py-1 text-[10px] text-muted-foreground sm:inline-flex">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-[4px] bg-primary/10 text-[9px] font-bold text-primary">
-              {getInitials(assigneeName)}
-            </span>
-            <span className="max-w-[110px] truncate">{assigneeName}</span>
-          </span>
-        ) : null}
-        <span className="shrink-0">
-          <StatusBadge status={issue.status} />
+          <span className="max-w-[110px] truncate">{assigneeName}</span>
         </span>
-        <span className="shrink-0 text-[10px] text-muted-foreground sm:text-[11px]">
-          {timeAgo(issue.updatedAt)}
-        </span>
-      </div>
-      {!compact && assigneeName ? (
-        <div className="mt-1 sm:hidden">
-          <Identity name={assigneeName} size="sm" />
-        </div>
       ) : null}
+      <span className="shrink-0">
+        <StatusBadge status={issue.status} />
+      </span>
+      <span className="shrink-0 text-[10px] text-muted-foreground">
+        {timeAgo(issue.updatedAt)}
+      </span>
     </Link>
   );
 }
@@ -173,7 +168,6 @@ export function Dashboard() {
   const recentIssues = issues ? getRecentIssues(issues) : [];
   const blockedIssues = recentIssues.filter((issue) => issue.status === "blocked");
   const activeIssues = recentIssues.filter((issue) => ["in_progress", "in_review"].includes(issue.status));
-  const completedIssues = recentIssues.filter((issue) => issue.status === "done");
   const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
 
   useEffect(() => {
@@ -349,51 +343,41 @@ export function Dashboard() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard
               icon={Bot}
-              value={data.agents.active + data.agents.running + data.agents.paused + data.agents.error}
-              label={t("dashboard.agentsEnabled")}
+              value={data.agents.running}
+              valueClassName="text-[var(--status-active)]"
+              label={t("dashboard.runningAgents")}
               to="/agents"
               description={
-                <span>
-                  {data.agents.running} {t("dashboard.running")}{", "}
-                  {data.agents.paused} {t("dashboard.paused")}{", "}
-                  {data.agents.error} {t("dashboard.errors")}
-                </span>
+                <span>{t("dashboard.runningAgentsDelta", { value: formatSignedDelta(data.agents.runningDeltaHour) })}</span>
               }
             />
             <MetricCard
               icon={CircleDot}
-              value={data.tasks.inProgress}
-              label={t("dashboard.tasksInProgress")}
+              value={data.tasks.open}
+              label={t("dashboard.openIssues")}
               to="/issues"
               description={
-                <span>
-                  {data.tasks.open} {t("dashboard.open")}{", "}
-                  {data.tasks.blocked} {t("dashboard.blocked")}
-                </span>
+                <span>{t("dashboard.openIssuesInProgress", { count: data.tasks.inProgress })}</span>
               }
             />
             <MetricCard
-              icon={DollarSign}
-              value={formatCents(data.costs.monthSpendCents)}
-              label={t("dashboard.monthSpend")}
-              to="/costs"
+              icon={ShieldAlert}
+              value={data.tasks.blocked}
+              valueClassName="text-[var(--status-blocked)]"
+              label={t("dashboard.blocked")}
+              to="/issues"
               description={
-                <span>
-                  {data.costs.monthBudgetCents > 0
-                    ? t("dashboard.budgetPercent", { percent: data.costs.monthUtilizationPercent, budget: formatCents(data.costs.monthBudgetCents) })
-                    : t("dashboard.unlimitedBudget")}
-                </span>
+                <span>{t("dashboard.immediateAttention")}</span>
               }
             />
             <MetricCard
-              icon={ShieldCheck}
-              value={data.pendingApprovals}
-              label={t("dashboard.pendingApprovals")}
-              to="/approvals"
+              icon={CheckCircle2}
+              value={data.tasks.todayDone}
+              valueClassName="text-[var(--status-done)]"
+              label={t("dashboard.todayDone")}
+              to="/issues"
               description={
-                <span>
-                  {t("dashboard.staleTasks", { count: data.staleTasks })}
-                </span>
+                <span>{t("dashboard.todayDoneDelta", { value: formatSignedDelta(data.tasks.todayDoneDelta) })}</span>
               }
             />
           </div>
@@ -410,7 +394,7 @@ export function Dashboard() {
                   {t("dashboard.immediateAttention")}
                 </span>
               </div>
-              <div className="space-y-px px-2 py-1.5">
+              <div className="flex flex-col gap-0 px-0 py-[2px]">
                 {blockedIssues.slice(0, 4).map((issue) => (
                   <DashboardIssueRow
                     key={issue.id}
@@ -424,62 +408,31 @@ export function Dashboard() {
             </div>
           )}
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div className="space-y-4">
-              {activeIssues.length > 0 && (
-                <div className="min-w-0">
-                  <DashboardSectionTitle title={t("dashboard.activeIssues")} count={activeIssues.length} />
-                  <div className="grid gap-2">
-                    {activeIssues.slice(0, 6).map((issue) => (
-                      <DashboardIssueRow
-                        key={issue.id}
-                        issue={issue}
-                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+          {activeIssues.length > 0 && (
+            <div className="min-w-0">
+              <DashboardSectionTitle title={t("dashboard.activeIssues")} count={activeIssues.length} />
+              <div className="flex flex-col gap-px">
+                {activeIssues.slice(0, 6).map((issue) => (
+                  <DashboardIssueRow
+                    key={issue.id}
+                    issue={issue}
+                    assigneeName={agentName(issue.assigneeAgentId ?? null)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-              {completedIssues.length > 0 && (
-                <div className="min-w-0">
-                  <DashboardSectionTitle title={t("dashboard.completedIssues")} count={completedIssues.length} />
-                  <div className="grid gap-2">
-                    {completedIssues.slice(0, 4).map((issue) => (
-                      <DashboardIssueRow
-                        key={issue.id}
-                        issue={issue}
-                        assigneeName={agentName(issue.assigneeAgentId ?? null)}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-6">
-            <div className="lg:col-span-3">
-              <ChartCard title={t("dashboard.runActivity")} subtitle={t("dashboard.last14Days")}>
-                <RunActivityChart runs={runs ?? []} />
-              </ChartCard>
-            </div>
-            <div className="lg:col-span-1">
-              <ChartCard title={t("dashboard.issuesByPriority")} subtitle={t("dashboard.last14Days")}>
-                <PriorityChart issues={issues ?? []} />
-              </ChartCard>
-            </div>
-            <div className="lg:col-span-1">
-              <ChartCard title={t("dashboard.issuesByStatus")} subtitle={t("dashboard.last14Days")}>
-                <IssueStatusChart issues={issues ?? []} />
-              </ChartCard>
-            </div>
-            <div className="lg:col-span-1">
-              <ChartCard title={t("dashboard.successRate")} subtitle={t("dashboard.last14Days")}>
-                <SuccessRateChart runs={runs ?? []} />
-              </ChartCard>
-            </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[2fr_1fr_1fr]">
+            <ChartCard title={t("dashboard.runActivity")} subtitle={t("dashboard.last7Days", { defaultValue: "최근 7일" })}>
+              <RunActivityChart runs={runs ?? []} />
+            </ChartCard>
+            <ChartCard title={t("dashboard.issuesByStatus")}>
+              <IssueStatusChart issues={issues ?? []} />
+            </ChartCard>
+            <ChartCard title={t("dashboard.issuesByPriority")}>
+              <PriorityChart issues={issues ?? []} />
+            </ChartCard>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
@@ -490,7 +443,7 @@ export function Dashboard() {
                   <p className="text-sm text-muted-foreground">{t("dashboard.noTasksYet")}</p>
                 </div>
               ) : (
-                <div className="space-y-1.5 rounded-xl border border-border bg-card p-1.5">
+                <div className="flex flex-col gap-px">
                   {recentIssues.slice(0, 8).map((issue) => (
                     <DashboardIssueRow
                       key={issue.id}
@@ -506,7 +459,7 @@ export function Dashboard() {
             <div className="min-w-0">
               <DashboardSectionTitle title={t("dashboard.recentActivity")} />
               {recentActivity.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
+                <div className="overflow-hidden rounded-[8px] border border-border bg-card divide-y divide-border">
                   {recentActivity.map((event) => (
                     <ActivityRow
                       key={event.id}

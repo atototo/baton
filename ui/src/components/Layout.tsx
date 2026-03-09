@@ -19,6 +19,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useCompanyPageMemory } from "../hooks/useCompanyPageMemory";
 import { healthApi } from "../api/health";
 import { queryKeys } from "../lib/queryKeys";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export function Layout() {
@@ -242,8 +243,32 @@ export function Layout() {
           >
             <Outlet />
           </main>
-          {/* Right: PropertiesPanel / LiveActivityStream (280px) */}
-          <PropertiesPanel />
+          {/* Right: PropertiesPanel with edge toggle tab */}
+          <div className="relative hidden lg:flex shrink-0">
+            {!isCompanySettingsRoute && (
+              <button
+                type="button"
+                onClick={togglePanel}
+                className={cn(
+                  "absolute -left-5 top-14 z-10",
+                  "flex h-10 w-5 items-center justify-center",
+                  "rounded-l-[5px] border border-r-0 border-border",
+                  "bg-card text-muted-foreground/60 hover:text-foreground hover:bg-accent",
+                  "transition-colors shadow-sm",
+                )}
+                aria-label={panelVisible ? "패널 닫기" : "패널 열기"}
+              >
+                <svg width="8" height="16" viewBox="0 0 8 16" fill="none" className="shrink-0">
+                  {panelVisible ? (
+                    <path d="M1 1L7 8L1 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  ) : (
+                    <path d="M7 1L1 8L7 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  )}
+                </svg>
+              </button>
+            )}
+            <PropertiesPanel />
+          </div>
         </div>
       </div>
 

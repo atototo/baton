@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import type { Db } from "@atototo/db";
 import { agents, approvals, companies, costEvents, issues } from "@atototo/db";
 import { notFound } from "../errors.js";
@@ -26,6 +26,14 @@ export function dashboardService(db: Db) {
         .where(eq(issues.companyId, companyId))
         .groupBy(issues.status);
 
+      const now = new Date();
+      const hourStart = new Date(now);
+      hourStart.setMinutes(0, 0, 0);
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
       const pendingApprovals = await db
         .select({ count: sql<number>`count(*)` })
         .from(approvals)
@@ -45,11 +53,49 @@ export function dashboardService(db: Db) {
         )
         .then((rows) => Number(rows[0]?.count ?? 0));
 
+      const runningDeltaHour = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(agents)
+        .where(
+          and(
+            eq(agents.companyId, companyId),
+            eq(agents.status, "running"),
+            gte(agents.lastHeartbeatAt, hourStart),
+          ),
+        )
+        .then((rows) => Number(rows[0]?.count ?? 0));
+
+      const todayDone = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.companyId, companyId),
+            eq(issues.status, "done"),
+            gte(issues.completedAt, todayStart),
+          ),
+        )
+        .then((rows) => Number(rows[0]?.count ?? 0));
+
+      const yesterdayDone = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.companyId, companyId),
+            eq(issues.status, "done"),
+            gte(issues.completedAt, yesterdayStart),
+            lt(issues.completedAt, todayStart),
+          ),
+        )
+        .then((rows) => Number(rows[0]?.count ?? 0));
+
       const agentCounts: Record<string, number> = {
         active: 0,
         running: 0,
         paused: 0,
         error: 0,
+        runningDeltaHour: 0,
       };
       for (const row of agentRows) {
         const count = Number(row.count);
@@ -72,7 +118,6 @@ export function dashboardService(db: Db) {
         if (row.status !== "done" && row.status !== "cancelled") taskCounts.open += count;
       }
 
-      const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const [{ monthSpend }] = await db
         .select({
@@ -99,8 +144,13 @@ export function dashboardService(db: Db) {
           running: agentCounts.running,
           paused: agentCounts.paused,
           error: agentCounts.error,
+          runningDeltaHour,
         },
-        tasks: taskCounts,
+        tasks: {
+          ...taskCounts,
+          todayDone,
+          todayDoneDelta: todayDone - yesterdayDone,
+        },
         costs: {
           monthSpendCents,
           monthBudgetCents: company.budgetMonthlyCents,

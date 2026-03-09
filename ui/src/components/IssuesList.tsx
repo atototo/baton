@@ -9,6 +9,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { groupBy } from "../lib/groupBy";
 import { formatDate, cn } from "../lib/utils";
 import { StatusIcon } from "./StatusIcon";
+import { StatusBadge } from "./StatusBadge";
 import { PriorityIcon } from "./PriorityIcon";
 import { EmptyState } from "./EmptyState";
 import { Identity } from "./Identity";
@@ -21,6 +22,25 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search } from "lucide-react";
 import { KanbanBoard } from "./KanbanBoard";
 import type { Issue } from "@atototo/shared";
+
+const statusGroupColor: Record<string, string> = {
+  in_progress: "var(--status-active)",
+  blocked: "var(--status-blocked)",
+  done: "var(--status-done)",
+  in_review: "var(--status-review)",
+  todo: "var(--status-todo, #6b7280)",
+  backlog: "#9ca3af",
+  cancelled: "#9ca3af",
+};
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 /* ── Helpers ── */
 
@@ -62,7 +82,7 @@ const defaultViewState: IssueViewState = {
   labels: [],
   sortField: "updated",
   sortDir: "desc",
-  groupBy: "none",
+  groupBy: "status",
   viewMode: "board",
   collapsedGroups: [],
 };
@@ -275,9 +295,9 @@ export function IssuesList({
   };
 
   return (
-    <div className="space-y-4">
+    <div className={cn(viewState.viewMode === "board" ? "flex flex-col h-[calc(100vh-7rem)] -m-4 md:-m-6" : "space-y-4")}>
       {/* Toolbar — 목업 스타일 */}
-      <div className="flex items-center gap-2 border-b border-border pb-3">
+      <div className={cn("flex items-center gap-2 border-b border-border shrink-0", viewState.viewMode === "board" ? "px-4 py-2" : "pb-3")}>
         {/* View mode toggle */}
         <div className="flex items-center border border-border rounded-[6px] overflow-hidden">
           <button
@@ -556,14 +576,22 @@ export function IssuesList({
       )}
 
       {viewState.viewMode === "board" ? (
-        <KanbanBoard
-          issues={filtered}
-          agents={agents}
-          liveIssueIds={liveIssueIds}
-          onUpdateIssue={onUpdateIssue}
-        />
+        <div className="flex-1 min-h-0 overflow-auto px-4 py-3.5">
+          <KanbanBoard
+            issues={filtered}
+            agents={agents}
+            liveIssueIds={liveIssueIds}
+            onUpdateIssue={onUpdateIssue}
+            onShowMore={(status) => updateView({ viewMode: "list", statuses: [status] })}
+          />
+        </div>
       ) : (
-        groupedContent.map((group) => (
+        groupedContent.map((group) => {
+          const isDoneGroup = group.key === "done" || group.key === "cancelled";
+          const isBlockedGroup = group.key === "blocked";
+          const groupColor = statusGroupColor[group.key] ?? "#6b7280";
+
+          return (
           <Collapsible
             key={group.key}
             open={!viewState.collapsedGroups.includes(group.key)}
@@ -576,166 +604,71 @@ export function IssuesList({
             }}
           >
             {group.label && (
-              <div className="flex items-center py-1.5 pl-4 pr-3">
-                <CollapsibleTrigger className="flex items-center gap-1.5">
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
-                  <span className="text-sm font-semibold uppercase tracking-wide">
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-4 py-[7px] border-b border-border sticky top-0 z-10 cursor-pointer select-none hover:bg-accent/30 transition-colors",
+                  isBlockedGroup ? "bg-red-500/[0.03]" : "bg-card",
+                )}
+              >
+                <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
+                  <span
+                    className="flex items-center gap-1.5 text-[11px] font-semibold"
+                    style={{ color: groupColor }}
+                  >
+                    <StatusIcon status={group.key} />
                     {group.label}
                   </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-[7px] py-px text-[10px] font-semibold",
+                      isBlockedGroup
+                        ? "bg-red-500/10 text-[var(--status-blocked)]"
+                        : "bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    {group.items.length}
+                  </span>
+                  <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
                 </CollapsibleTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ml-auto text-muted-foreground"
-                  onClick={() => openNewIssue(newIssueDefaults(group.key))}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
               </div>
             )}
             <CollapsibleContent>
-              {group.items.map((issue) => (
+              <div className={isDoneGroup ? "opacity-65" : undefined}>
+              {group.items.map((issue) => {
+                const name = agentName(issue.assigneeAgentId ?? null);
+                return (
                 <Link
                   key={issue.id}
                   to={`/issues/${issue.identifier ?? issue.id}`}
                   className={cn(
-                    "flex items-center gap-2 py-2 pl-4 pr-3 text-sm border-b last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit",
+                    "flex items-center gap-2.5 py-2 px-4 text-[13px] border-b cursor-pointer hover:bg-accent/30 transition-colors no-underline text-inherit bg-card",
                     issue.status === "blocked"
-                      ? "border-[rgba(220,38,38,0.2)] bg-[rgba(220,38,38,0.03)]"
-                      : "border-border"
+                      ? "border-b-red-500/15 border-l-[3px] border-l-[var(--status-blocked)] pl-[13px]"
+                      : "border-border",
                   )}
                 >
-                  {/* Spacer matching caret width so status icon aligns with group title (hidden on mobile) */}
-                  <div className="w-3.5 shrink-0 hidden sm:block" />
-                  <div className="shrink-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                    <StatusIcon
-                      status={issue.status}
-                      onChange={(s) => onUpdateIssue(issue.id, { status: s })}
-                    />
-                  </div>
-                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">
+                  <PriorityIcon priority={issue.priority} />
+                  <span className="w-[60px] shrink-0 font-mono text-[11px] text-muted-foreground">
                     {issue.identifier ?? issue.id.slice(0, 8)}
                   </span>
                   <span className="truncate flex-1 min-w-0">{issue.title}</span>
-                  {(issue.labels ?? []).length > 0 && (
-                    <div className="hidden md:flex items-center gap-1 max-w-[240px] overflow-hidden">
-                      {(issue.labels ?? []).slice(0, 3).map((label) => (
-                        <span
-                          key={label.id}
-                          className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
-                          style={{
-                            borderColor: label.color,
-                            color: label.color,
-                            backgroundColor: `${label.color}1f`,
-                          }}
-                        >
-                          {label.name}
-                        </span>
-                      ))}
-                      {(issue.labels ?? []).length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{(issue.labels ?? []).length - 3}</span>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
-                    {liveIssueIds?.has(issue.id) && (
-                      <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-500/10">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                        </span>
-                        <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hidden sm:inline">{t("issuesList.live")}</span>
+                  {name ? (
+                    <span className="hidden sm:inline-flex shrink-0 items-center gap-1 rounded border border-border bg-secondary px-[7px] py-[2px] text-[10px] text-secondary-foreground">
+                      <span className="inline-flex h-[15px] w-[15px] items-center justify-center rounded-[3px] bg-primary/10 text-[8px] font-bold text-primary">
+                        {getInitials(name)}
                       </span>
-                    )}
-                    <div className="hidden sm:block">
-                      <Popover
-                        open={assigneePickerIssueId === issue.id}
-                        onOpenChange={(open) => {
-                          setAssigneePickerIssueId(open ? issue.id : null);
-                          if (!open) setAssigneeSearch("");
-                        }}
-                      >
-                        <PopoverTrigger asChild>
-                          <button
-                            className="flex w-[180px] shrink-0 items-center rounded-md px-2 py-1 hover:bg-accent/50 transition-colors"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                            }}
-                          >
-                            {issue.assigneeAgentId && agentName(issue.assigneeAgentId) ? (
-                              <Identity name={agentName(issue.assigneeAgentId)!} size="sm" />
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-muted-foreground/35 bg-muted/30">
-                                  <User className="h-3 w-3" />
-                                </span>
-                                {t("issuesList.assignee")}
-                              </span>
-                            )}
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-56 p-1"
-                          align="end"
-                          onClick={(e) => e.stopPropagation()}
-                          onPointerDownOutside={() => setAssigneeSearch("")}
-                        >
-                          <input
-                            className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
-                            placeholder={t("issuesList.searchAgents")}
-                            value={assigneeSearch}
-                            onChange={(e) => setAssigneeSearch(e.target.value)}
-                            autoFocus
-                          />
-                          <div className="max-h-48 overflow-y-auto overscroll-contain">
-                            <button
-                              className={cn(
-                                "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50",
-                                !issue.assigneeAgentId && "bg-accent"
-                              )}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                assignIssue(issue.id, null);
-                              }}
-                            >
-                              {t("issuesList.noAssignee")}
-                            </button>
-                            {(agents ?? [])
-                              .filter((agent) => {
-                                if (!assigneeSearch.trim()) return true;
-                                return agent.name.toLowerCase().includes(assigneeSearch.toLowerCase());
-                              })
-                              .map((agent) => (
-                                <button
-                                  key={agent.id}
-                                  className={cn(
-                                    "flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-left",
-                                    issue.assigneeAgentId === agent.id && "bg-accent"
-                                  )}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    assignIssue(issue.id, agent.id);
-                                  }}
-                                >
-                                  <Identity name={agent.name} size="sm" className="min-w-0" />
-                                </button>
-                              ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">
-                      {formatDate(issue.createdAt)}
+                      <span className="max-w-[100px] truncate">{name}</span>
                     </span>
-                  </div>
+                  ) : null}
+                  <StatusBadge status={issue.status} />
                 </Link>
-              ))}
+                );
+              })}
+              </div>
             </CollapsibleContent>
           </Collapsible>
-        ))
+          );
+        })
       )}
     </div>
   );

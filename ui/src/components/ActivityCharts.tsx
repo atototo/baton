@@ -65,12 +65,23 @@ export function ChartCard({ title, subtitle, children }: { title: string; subtit
 
 /* ---- Chart Components ---- */
 
+function getLast7DayLabels(): { date: string; label: string }[] {
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().slice(0, 10);
+    const label = i === 6 ? "오늘" : dayNames[d.getDay()];
+    return { date: dateStr, label };
+  });
+}
+
 export function RunActivityChart({ runs }: { runs: HeartbeatRun[] }) {
   const { t } = useTranslation();
-  const days = getLast14Days();
+  const recentDays = getLast7DayLabels();
 
   const grouped = new Map<string, { succeeded: number; failed: number; other: number }>();
-  for (const day of days) grouped.set(day, { succeeded: 0, failed: 0, other: 0 });
+  for (const { date } of recentDays) grouped.set(date, { succeeded: 0, failed: 0, other: 0 });
   for (const run of runs) {
     const day = new Date(run.createdAt).toISOString().slice(0, 10);
     const entry = grouped.get(day);
@@ -86,28 +97,42 @@ export function RunActivityChart({ runs }: { runs: HeartbeatRun[] }) {
   if (!hasData) return <p className="text-xs text-muted-foreground">{t("activityCharts.noRuns")}</p>;
 
   return (
-    <div>
-      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
-        {days.map(day => {
-          const entry = grouped.get(day)!;
-          const total = entry.succeeded + entry.failed + entry.other;
-          const heightPct = (total / maxValue) * 100;
-          return (
-            <div key={day} className="flex-1 h-full flex flex-col justify-end" title={`${day}: ${total} runs`}>
-              {total > 0 ? (
-                <div className="flex flex-col-reverse gap-px overflow-hidden" style={{ height: `${heightPct}%`, minHeight: 2 }}>
-                  {entry.succeeded > 0 && <div className="bg-emerald-500" style={{ flex: entry.succeeded }} />}
-                  {entry.failed > 0 && <div className="bg-red-500" style={{ flex: entry.failed }} />}
-                  {entry.other > 0 && <div className="bg-neutral-500" style={{ flex: entry.other }} />}
-                </div>
-              ) : (
-                <div className="bg-muted/30 rounded-sm" style={{ height: 2 }} />
+    <div className="flex flex-col gap-[6px]">
+      {recentDays.map(({ date, label }) => {
+        const entry = grouped.get(date)!;
+        const total = entry.succeeded + entry.failed + entry.other;
+        return (
+          <div key={date} className="flex items-center gap-2">
+            <span className="w-8 shrink-0 text-right text-[11px] text-muted-foreground">{label}</span>
+            <div className="flex h-3 flex-1 overflow-hidden rounded-[3px] bg-[var(--bg-overlay)]">
+              {entry.succeeded > 0 && (
+                <div className="bg-emerald-500/70" style={{ width: `${(entry.succeeded / maxValue) * 100}%` }} />
+              )}
+              {entry.other > 0 && (
+                <div className="bg-violet-400/60" style={{ width: `${(entry.other / maxValue) * 100}%` }} />
+              )}
+              {entry.failed > 0 && (
+                <div className="bg-red-500/60" style={{ width: `${(entry.failed / maxValue) * 100}%` }} />
               )}
             </div>
-          );
-        })}
+            <span className="w-6 shrink-0 text-[10px] text-muted-foreground">{total}</span>
+          </div>
+        );
+      })}
+      <div className="mt-2.5 flex gap-3.5 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-emerald-500/70" />
+          {t("activityCharts.done", { defaultValue: "완료" })}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-violet-400/75" />
+          {t("activityCharts.inProgress", { defaultValue: "진행" })}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-sm bg-red-500/60" />
+          {t("activityCharts.blocked", { defaultValue: "차단" })}
+        </span>
       </div>
-      <DateLabels days={days} />
     </div>
   );
 }
@@ -118,45 +143,37 @@ const priorityOrder = ["critical", "high", "medium", "low"] as const;
 
 export function PriorityChart({ issues }: { issues: { priority: string; createdAt: Date }[] }) {
   const { t } = useTranslation();
-  const days = getLast14Days();
-  const grouped = new Map<string, Record<string, number>>();
-  for (const day of days) grouped.set(day, { critical: 0, high: 0, medium: 0, low: 0 });
+
+  const counts: Record<string, number> = {};
   for (const issue of issues) {
-    const day = new Date(issue.createdAt).toISOString().slice(0, 10);
-    const entry = grouped.get(day);
-    if (!entry) continue;
-    if (issue.priority in entry) entry[issue.priority]++;
+    counts[issue.priority] = (counts[issue.priority] ?? 0) + 1;
   }
 
-  const maxValue = Math.max(...Array.from(grouped.values()).map(v => Object.values(v).reduce((a, b) => a + b, 0)), 1);
-  const hasData = Array.from(grouped.values()).some(v => Object.values(v).reduce((a, b) => a + b, 0) > 0);
+  const visiblePriorities = priorityOrder.filter(p => (counts[p] ?? 0) > 0);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const hasData = total > 0;
 
   if (!hasData) return <p className="text-xs text-muted-foreground">{t("activityCharts.noIssues")}</p>;
 
   return (
-    <div>
-      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
-        {days.map(day => {
-          const entry = grouped.get(day)!;
-          const total = Object.values(entry).reduce((a, b) => a + b, 0);
-          const heightPct = (total / maxValue) * 100;
-          return (
-            <div key={day} className="flex-1 h-full flex flex-col justify-end" title={`${day}: ${total} issues`}>
-              {total > 0 ? (
-                <div className="flex flex-col-reverse gap-px overflow-hidden" style={{ height: `${heightPct}%`, minHeight: 2 }}>
-                  {priorityOrder.map(p => entry[p] > 0 ? (
-                    <div key={p} style={{ flex: entry[p], backgroundColor: priorityColors[p] ?? priorityColorValueDefault }} />
-                  ) : null)}
-                </div>
-              ) : (
-                <div className="bg-muted/30 rounded-sm" style={{ height: 2 }} />
-              )}
+    <div className="flex flex-col gap-1.5">
+      {visiblePriorities.map(p => {
+        const count = counts[p] ?? 0;
+        const pct = total > 0 ? (count / total) * 100 : 0;
+        const color = priorityColors[p] ?? priorityColorValueDefault;
+        return (
+          <div key={p}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+              <span className="flex-1 text-[11px] text-secondary-foreground">{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+              <span className="text-[11px] font-semibold text-foreground">{count}</span>
             </div>
-          );
-        })}
-      </div>
-      <DateLabels days={days} />
-      <ChartLegend items={priorityOrder.map(p => ({ color: priorityColors[p] ?? priorityColorValueDefault, label: p.charAt(0).toUpperCase() + p.slice(1) }))} />
+            <div className="mt-0.5 h-1 w-full overflow-hidden rounded-sm" style={{ backgroundColor: `${color}15` }}>
+              <div className="h-full rounded-sm" style={{ width: `${pct}%`, backgroundColor: color }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -175,48 +192,37 @@ const statusLabels: Record<string, string> = {
 
 export function IssueStatusChart({ issues }: { issues: { status: string; createdAt: Date }[] }) {
   const { t } = useTranslation();
-  const days = getLast14Days();
-  const allStatuses = new Set<string>();
-  const grouped = new Map<string, Record<string, number>>();
-  for (const day of days) grouped.set(day, {});
+
+  const counts: Record<string, number> = {};
   for (const issue of issues) {
-    const day = new Date(issue.createdAt).toISOString().slice(0, 10);
-    const entry = grouped.get(day);
-    if (!entry) continue;
-    entry[issue.status] = (entry[issue.status] ?? 0) + 1;
-    allStatuses.add(issue.status);
+    counts[issue.status] = (counts[issue.status] ?? 0) + 1;
   }
 
-  const statusOrder = ["todo", "in_progress", "in_review", "done", "blocked", "cancelled", "backlog"].filter(s => allStatuses.has(s));
-  const maxValue = Math.max(...Array.from(grouped.values()).map(v => Object.values(v).reduce((a, b) => a + b, 0)), 1);
-  const hasData = allStatuses.size > 0;
+  const statusOrder = ["in_progress", "blocked", "in_review", "done", "todo", "cancelled", "backlog"].filter(s => (counts[s] ?? 0) > 0);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const hasData = total > 0;
 
   if (!hasData) return <p className="text-xs text-muted-foreground">{t("activityCharts.noIssues")}</p>;
 
   return (
-    <div>
-      <div className="flex h-24 items-end gap-[3px] rounded-lg bg-[var(--bg-overlay)]/70 px-2 py-2">
-        {days.map(day => {
-          const entry = grouped.get(day)!;
-          const total = Object.values(entry).reduce((a, b) => a + b, 0);
-          const heightPct = (total / maxValue) * 100;
-          return (
-            <div key={day} className="flex-1 h-full flex flex-col justify-end" title={`${day}: ${total} issues`}>
-              {total > 0 ? (
-                <div className="flex flex-col-reverse gap-px overflow-hidden" style={{ height: `${heightPct}%`, minHeight: 2 }}>
-                  {statusOrder.map(s => (entry[s] ?? 0) > 0 ? (
-                    <div key={s} style={{ flex: entry[s], backgroundColor: statusColors[s] ?? issueStatusColorValueDefault }} />
-                  ) : null)}
-                </div>
-              ) : (
-                <div className="bg-muted/30 rounded-sm" style={{ height: 2 }} />
-              )}
+    <div className="flex flex-col gap-1.5">
+      {statusOrder.map(s => {
+        const count = counts[s] ?? 0;
+        const pct = total > 0 ? (count / total) * 100 : 0;
+        const color = statusColors[s] ?? issueStatusColorValueDefault;
+        return (
+          <div key={s}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+              <span className="flex-1 text-[11px] text-secondary-foreground">{statusLabels[s] ?? s}</span>
+              <span className="text-[11px] font-semibold text-foreground">{count}</span>
             </div>
-          );
-        })}
-      </div>
-      <DateLabels days={days} />
-      <ChartLegend items={statusOrder.map(s => ({ color: statusColors[s] ?? issueStatusColorValueDefault, label: statusLabels[s] ?? s }))} />
+            <div className="mt-0.5 h-1 w-full overflow-hidden rounded-sm" style={{ backgroundColor: `${color}15` }}>
+              <div className="h-full rounded-sm" style={{ width: `${pct}%`, backgroundColor: color }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowRightLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { Button } from "@/components/ui/button";
@@ -23,36 +23,25 @@ export function HandoffBar({ handoff, onDismiss }: HandoffBarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-start gap-3 rounded-[8px] border px-4 py-3 shadow-[0_1px_4px_rgba(37,99,235,0.08)] bg-[rgba(37,99,235,0.04)] border-[rgba(37,99,235,0.12)]">
-      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[rgba(37,99,235,0.08)] text-[var(--status-active)]">
-        <ArrowRightLeft className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--status-active)]">
-          {t("dashboard.handoffLabel")}
-        </p>
-        <p className="mt-1 text-sm text-foreground">
-          {t("dashboard.handoffMessage", {
-            actor: handoff.actorName,
-            assignee: handoff.assigneeName,
-          })}
-          {" · "}
-          <Link to={handoff.issueHref} className="font-medium underline decoration-[rgba(37,99,235,0.28)] underline-offset-2">
-            {handoff.issueRef}
-          </Link>
-          <span className="text-muted-foreground"> — {handoff.issueTitle}</span>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{timeAgo(handoff.createdAt)}</p>
-      </div>
+    <div className="flex items-center gap-2.5 rounded-[6px] border border-[rgba(37,99,235,0.12)] bg-[rgba(37,99,235,0.04)] px-3.5 py-2 text-[12px] text-muted-foreground">
+      <span className="shrink-0 font-medium text-foreground">{handoff.actorName}</span>
+      <span className="shrink-0 text-muted-foreground" aria-hidden="true">→</span>
+      <span className="shrink-0 font-medium text-[var(--status-active)]">{handoff.assigneeName}</span>
+      <Link to={handoff.issueHref} className="min-w-0 truncate text-foreground no-underline">
+        <span className="text-[11px] text-muted-foreground">{handoff.issueRef}</span>
+        {" "}
+        {handoff.issueTitle}
+      </Link>
+      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{timeAgo(handoff.createdAt)}</span>
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
         onClick={onDismiss}
         aria-label={t("dashboard.dismissHandoff")}
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3 w-3" />
       </Button>
     </div>
   );

@@ -4,14 +4,15 @@ import { Link } from "@/lib/router";
 
 interface MetricCardProps {
   icon: LucideIcon;
-  value: string | number;
+  value: ReactNode;
   label: string;
   description?: ReactNode;
   to?: string;
   onClick?: () => void;
+  valueClassName?: string;
 }
 
-export function MetricCard({ icon: Icon, value, label, description, to, onClick }: MetricCardProps) {
+export function MetricCard({ icon: Icon, value, label, description, to, onClick, valueClassName }: MetricCardProps) {
   const isClickable = !!(to || onClick);
 
   const content = (
@@ -21,7 +22,7 @@ export function MetricCard({ icon: Icon, value, label, description, to, onClick 
           <p className="text-[12px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
             {label}
           </p>
-          <p className="text-[28px] font-bold leading-[1.1] mt-1.5 text-foreground">
+          <p className={`mt-1.5 text-[28px] font-bold leading-[1.1] ${valueClassName ?? "text-foreground"}`}>
             {value}
           </p>
           {description && (

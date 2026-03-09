@@ -53,29 +53,40 @@ interface KanbanBoardProps {
   agents?: Agent[];
   liveIssueIds?: Set<string>;
   onUpdateIssue: (id: string, data: Record<string, unknown>) => void;
+  onShowMore?: (status: string) => void;
 }
 
 /* ── Droppable Column ── */
+
+const DONE_COLUMN_LIMIT = 5;
+const doneStatuses = new Set(["done", "cancelled"]);
 
 function KanbanColumn({
   status,
   issues,
   agents,
   liveIssueIds,
+  onShowMore,
 }: {
   status: string;
   issues: Issue[];
   agents?: Agent[];
   liveIssueIds?: Set<string>;
+  onShowMore?: (status: string) => void;
 }) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const isBlocked = status === "blocked";
+  const isDone = doneStatuses.has(status);
 
   const dotClass = statusDotColor[status] ?? "bg-muted-foreground";
 
+  // 완료/취소 컬럼은 최근 N개만 표시
+  const visibleIssues = isDone ? issues.slice(0, DONE_COLUMN_LIMIT) : issues;
+  const hiddenCount = isDone ? Math.max(0, issues.length - DONE_COLUMN_LIMIT) : 0;
+
   return (
-    <div className="flex flex-col min-w-[248px] w-[248px] shrink-0">
+    <div className={`flex flex-col min-w-[180px] flex-1 ${isDone ? "opacity-60" : ""}`}>
       {/* 목업 스타일: 8px 컬러 도트 + 11px uppercase 타이틀 + 카운트 */}
       <div className="flex items-center gap-[7px] px-1.5 pt-1 pb-2">
         <span className={`w-2 h-2 rounded-full shrink-0 ${dotClass}`} />
@@ -93,10 +104,10 @@ function KanbanColumn({
         }`}
       >
         <SortableContext
-          items={issues.map((i) => i.id)}
+          items={visibleIssues.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {issues.map((issue) => (
+          {visibleIssues.map((issue) => (
             <KanbanCard
               key={issue.id}
               issue={issue}
@@ -105,6 +116,15 @@ function KanbanColumn({
             />
           ))}
         </SortableContext>
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => onShowMore?.(status)}
+            className="w-full rounded-[5px] px-3 py-2 text-center text-[11px] text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+          >
+            {t("kanban.showMore", { count: hiddenCount, defaultValue: `${hiddenCount}개 더 보기` })}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -206,6 +226,7 @@ export function KanbanBoard({
   agents,
   liveIssueIds,
   onUpdateIssue,
+  onShowMore,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -274,14 +295,21 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-[10px] overflow-x-auto pb-4 -mx-2 px-2">
-        {boardStatuses.map((status) => (
+      <div className="flex gap-[10px] overflow-x-auto h-full items-stretch">
+        {boardStatuses
+          .filter((status) => {
+            // 완료/취소 컬럼은 이슈가 있을 때만 표시
+            if (status === "cancelled" && (columnIssues[status] ?? []).length === 0) return false;
+            return true;
+          })
+          .map((status) => (
           <KanbanColumn
             key={status}
             status={status}
             issues={columnIssues[status] ?? []}
             agents={agents}
             liveIssueIds={liveIssueIds}
+            onShowMore={onShowMore}
           />
         ))}
       </div>

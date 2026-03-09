@@ -1,9 +1,7 @@
 import { Link } from "@/lib/router";
-import { PanelRightOpen, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useSidebar } from "../context/SidebarContext";
-import { usePanel } from "../context/PanelContext";
-import { useDialog } from "../context/DialogContext";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -21,8 +19,6 @@ export function BreadcrumbBar() {
   const { t } = useTranslation();
   const { breadcrumbs } = useBreadcrumbs();
   const { toggleSidebar, isMobile } = useSidebar();
-  const { panelVisible, togglePanelVisible } = usePanel();
-  const { openNewIssue } = useDialog();
 
   if (breadcrumbs.length === 0) return null;
 
@@ -40,18 +36,6 @@ export function BreadcrumbBar() {
 
   const actions = (
     <div className="ml-auto flex shrink-0 items-center gap-2">
-      {!panelVisible && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={togglePanelVisible}
-          aria-label={t("breadcrumbBar.showPanel")}
-          title={t("breadcrumbBar.showPanel")}
-        >
-          <PanelRightOpen className="h-4 w-4" />
-        </Button>
-      )}
       <Button
         type="button"
         variant="outline"
@@ -65,9 +49,6 @@ export function BreadcrumbBar() {
         <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
           ⌘K
         </kbd>
-      </Button>
-      <Button type="button" size="sm" className="h-8 px-3 text-xs" onClick={() => openNewIssue()}>
-        {t("nav.newIssue")}
       </Button>
     </div>
   );

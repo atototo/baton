@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/lib/router";
 import { Activity, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import type { Agent } from "@atototo/shared";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
@@ -16,10 +17,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "../lib/utils";
 
+const PANEL_WIDTH = 320;
+
 export function PropertiesPanel() {
   const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { panelContent, panelVisible } = usePanel();
+  const location = useLocation();
+  const isDashboardPage = /\/dashboard$/.test(location.pathname);
 
   const {
     data: activity,
@@ -80,17 +85,18 @@ export function PropertiesPanel() {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 overflow-hidden border-l border-border bg-card/70 backdrop-blur-sm transition-[width,opacity] duration-200 ease-out lg:flex",
-        panelVisible ? "w-[256px] opacity-100" : "w-0 border-l-0 opacity-0",
+        "flex shrink-0 overflow-hidden border-l border-border bg-card/70 backdrop-blur-sm transition-[width,opacity] duration-200 ease-out",
+        panelVisible ? "opacity-100" : "w-0 border-l-0 opacity-0",
       )}
+      style={panelVisible ? { width: PANEL_WIDTH } : undefined}
       aria-hidden={!panelVisible}
     >
-      <div className="flex min-h-0 w-[256px] min-w-[256px] flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col" style={{ width: PANEL_WIDTH, minWidth: PANEL_WIDTH }}>
         <div className="border-b border-border px-3 py-3">
           <div className="flex items-start gap-2">
-            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--status-active)]" aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold lowercase tracking-[0.02em] text-foreground">
+            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--status-active)] animate-pulse" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold tracking-[0.02em] text-foreground">
                 {t("propertiesPanel.title")}
               </p>
               <p className="text-xs text-muted-foreground">{t("propertiesPanel.subtitle")}</p>
@@ -127,7 +133,7 @@ export function PropertiesPanel() {
                   agentMap={agentMap}
                   entityNameMap={entityNameMap}
                   entityTitleMap={entityTitleMap}
-                  className="px-3 py-2.5"
+                  className="px-3.5 py-2.5"
                 />
               ))}
             </div>
@@ -137,20 +143,22 @@ export function PropertiesPanel() {
             </div>
           )}
 
-          <div className="border-t border-border/80 bg-background/40 p-3">
-            <div className="mb-3">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                {t("issueDetail.properties")}
-              </p>
-            </div>
-            {panelContent ? (
-              panelContent
-            ) : (
-              <div className="rounded-lg border border-dashed border-border bg-background/80 px-4 py-8 text-center text-sm text-muted-foreground">
-                {t("propertiesPanel.propertiesUnavailable")}
+          {!isDashboardPage ? (
+            <div className="border-t border-border/80 bg-background/40 p-3">
+              <div className="mb-3">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  {t("issueDetail.properties")}
+                </p>
               </div>
-            )}
-          </div>
+              {panelContent ? (
+                panelContent
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-background/80 px-4 py-8 text-center text-sm text-muted-foreground">
+                  {t("propertiesPanel.propertiesUnavailable")}
+                </div>
+              )}
+            </div>
+          ) : null}
         </ScrollArea>
       </div>
     </aside>

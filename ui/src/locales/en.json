@@ -49,6 +49,12 @@
     "welcome": "Welcome to Baton. Set up your first company and agent to get started.",
     "getStarted": "Get Started",
     "selectCompany": "Create or select a company to view the dashboard.",
+    "runningAgents": "Running Agents",
+    "runningAgentsDelta": "{{value}} this hour",
+    "openIssues": "Open Issues",
+    "openIssuesInProgress": "{{count}} in progress",
+    "todayDone": "Done Today",
+    "todayDoneDelta": "{{value}} vs yesterday",
     "agentsEnabled": "Agents Enabled",
     "tasksInProgress": "Tasks In Progress",
     "monthSpend": "Month Spend",
@@ -208,8 +214,8 @@
     "updatedDescription": "updated the description"
   },
   "propertiesPanel": {
-    "title": "activity",
-    "subtitle": "See the activity stream and current entity properties together.",
+    "title": "Live Activity",
+    "subtitle": "See the latest control-plane events in real time.",
     "latestEvents": "Latest control-plane events",
     "openActivity": "Open page",
     "loading": "Loading activity...",

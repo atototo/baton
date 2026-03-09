@@ -1,8 +1,14 @@
 import { Link } from "@/lib/router";
-import { Identity } from "./Identity";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { timeAgo } from "../lib/timeAgo";
 import { cn } from "../lib/utils";
 import { deriveProjectUrlKey, type ActivityEvent, type Agent } from "@atototo/shared";
+
+function deriveInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
 
 const ACTION_VERBS: Record<string, string> = {
   "issue.created": "created",
@@ -106,23 +112,24 @@ export function ActivityRow({ event, agentMap, entityNameMap, entityTitleMap, cl
   const actorName = actor?.name ?? (event.actorType === "system" ? "System" : event.actorType === "user" ? "Board" : event.actorId || "Unknown");
 
   const inner = (
-    <div className="flex gap-3">
-      <p className="flex-1 min-w-0 truncate">
-        <Identity
-          name={actorName}
-          size="xs"
-          className="align-baseline"
-        />
-        <span className="text-muted-foreground ml-1">{verb} </span>
-        {name && <span className="font-medium">{name}</span>}
-        {entityTitle && <span className="text-muted-foreground ml-1">— {entityTitle}</span>}
-      </p>
-      <span className="text-xs text-muted-foreground shrink-0 pt-0.5">{timeAgo(event.createdAt)}</span>
+    <div className="flex gap-2.5">
+      <Avatar size="xs" className="shrink-0 mt-0.5 rounded-[5px]">
+        <AvatarFallback className="rounded-[5px] text-[9px] font-bold">{deriveInitials(actorName)}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <p className="truncate text-[11px] leading-[1.45] text-secondary-foreground">
+          <span className="font-medium text-foreground">{actorName}</span>
+          <span className="text-muted-foreground"> {verb} </span>
+          {name && <span className="font-semibold text-foreground">{name}</span>}
+          {entityTitle && <span className="text-muted-foreground"> — {entityTitle}</span>}
+        </p>
+        <span className="text-[10px] text-muted-foreground mt-0.5 block">{timeAgo(event.createdAt)}</span>
+      </div>
     </div>
   );
 
   const classes = cn(
-    "px-4 py-2 text-sm",
+    "px-3.5 py-2.5 text-[11px]",
     link && "cursor-pointer hover:bg-accent/50 transition-colors",
     className,
   );
