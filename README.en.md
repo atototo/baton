@@ -6,7 +6,7 @@
 
 ## 🎬 Keypoint Demo (Top README Clip)
 
-<video src="./docs/media/baton-readme-keypoints.mp4" controls muted playsinline width="980"></video>
+[![Baton keypoint demo](./docs/media/baton-readme-keypoints.gif)](./docs/media/baton-readme-keypoints.mp4)
 
 > Flow: Company selector/add menu → Dashboard → Issue Kanban board → Issue detail → Agent screen
 

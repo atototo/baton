@@ -6,7 +6,7 @@
 
 ## 🎬 Keypoint Demo (README 상단용)
 
-<video src="./docs/media/baton-readme-keypoints.mp4" controls muted playsinline width="980"></video>
+[![Baton keypoint demo](./docs/media/baton-readme-keypoints.gif)](./docs/media/baton-readme-keypoints.mp4)
 
 > 흐름: 회사 선택/추가 메뉴 → 대시보드 → 이슈 칸반보드 → 이슈 상세 → 에이전트 화면
 
