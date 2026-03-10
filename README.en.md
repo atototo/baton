@@ -4,7 +4,7 @@
 
 > Forked from [paperclipai/paperclip](https://github.com/paperclipai/paperclip) and customized for personal AI-agent orchestration workflows.
 
-## 🎬 Keypoint Demo (Top README Clip)
+## 🎬 Keypoint Demo
 
 [![Baton keypoint demo](./docs/media/baton-readme-keypoints.gif)](./docs/media/baton-readme-keypoints.mp4)
 
