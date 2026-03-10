@@ -4,7 +4,7 @@
 
 > Forked from [paperclipai/paperclip](https://github.com/paperclipai/paperclip) — AI 에이전트 오케스트레이션 플랫폼을 개인 워크플로우에 맞게 개편 중
 
-## 🎬 Keypoint Demo (README 상단용)
+## 🎬 Keypoint Demo
 
 [![Baton keypoint demo](./docs/media/baton-readme-keypoints.gif)](./docs/media/baton-readme-keypoints.mp4)
 
