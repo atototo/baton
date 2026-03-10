@@ -1,6 +1,14 @@
 # Baton ✨
 
+[🇰🇷 한국어](./README.md) | [🇺🇸 English](./README.en.md)
+
 > Forked from [paperclipai/paperclip](https://github.com/paperclipai/paperclip) — AI 에이전트 오케스트레이션 플랫폼을 개인 워크플로우에 맞게 개편 중
+
+## 🎬 Keypoint Demo (README 상단용)
+
+<video src="./docs/media/baton-readme-keypoints.mp4" controls muted playsinline width="980"></video>
+
+> 흐름: 회사 선택/추가 메뉴 → 대시보드 → 이슈 칸반보드 → 이슈 상세 → 에이전트 화면
 
 ## What is Baton?
 
@@ -13,6 +21,13 @@
 - 🏗️ **미션→프로젝트→태스크 계층** — 모든 작업이 상위 목표와 연결
 - 💰 **비용/예산 제어** — 에이전트별 월 예산 강제
 - 🛡️ **거버넌스 + 롤백** — 승인 게이트, 설정 변경 이력, 롤백
+
+## 현재 반영된 커스텀 포인트
+
+- 🎨 UI/테마 개편 (Baton 브랜딩 중심)
+- 🌐 다국어(i18n) 적용 및 누락 문자열 보완
+- 🧩 이슈/대시보드/에이전트 화면 구성 개선
+- 📌 README용 키포인트 데모 영상 추가
 
 ## Original Paperclip과 차이점
 
@@ -58,9 +73,14 @@ pnpm db:migrate       # Apply migrations
 
 - [ ] Claude Code Remote MCP 연동
 - [ ] Codex/Gemini 에이전트 통합 테스트
-- [ ] 한국어 UI 지원
 - [ ] ai-party 플러그인 패턴 흡수 (phase gate, 티켓 시스템)
 - [ ] 커스텀 에이전트 어댑터
+- [ ] README 문서/데모 영상 고도화 (영문/국문 분리)
+
+## Attribution
+
+- This project is based on the original work: [paperclipai/paperclip](https://github.com/paperclipai/paperclip)
+- Baton includes custom branding, workflow, UI changes, and localization improvements on top of the upstream project.
 
 ## License
 
