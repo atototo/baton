@@ -23,7 +23,7 @@ export function InlineHelp({
   return (
     <section
       className={cn(
-        "rounded-lg border border-blue-900/60 bg-blue-950/30 px-3 py-2.5",
+        "rounded-lg border border-border bg-muted/50 px-3 py-2.5",
         className
       )}
     >
@@ -34,7 +34,7 @@ export function InlineHelp({
         onClick={() => setOpen((current) => !current)}
         className="flex w-full items-start gap-2 text-left"
       >
-        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" />
+        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium text-foreground">{title}</span>
@@ -52,7 +52,7 @@ export function InlineHelp({
       {open && children ? (
         <div
           id={contentId}
-          className="ml-6 mt-2 border-t border-blue-900/50 pt-2 text-xs text-muted-foreground"
+          className="ml-6 mt-2 border-t border-border pt-2 text-xs text-muted-foreground"
         >
           {children}
         </div>

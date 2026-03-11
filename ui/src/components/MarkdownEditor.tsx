@@ -310,7 +310,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     }
   }, [projectColorById]);
 
-  // Mention detection: listen for selection changes and input events
+  // Mention detection for contentEditable (MDXEditor)
   const checkMention = useCallback(() => {
     if (!mentions || mentions.length === 0 || !containerRef.current) {
       mentionStateRef.current = null;
@@ -325,6 +325,54 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     } else {
       setMentionState(null);
     }
+  }, [mentions]);
+
+  // Mention detection for plain <textarea> (bordered mode)
+  const checkMentionTextarea = useCallback(() => {
+    if (!mentions || mentions.length === 0) {
+      mentionStateRef.current = null;
+      setMentionState(null);
+      return;
+    }
+    const ta = textareaRef.current;
+    if (!ta || document.activeElement !== ta) {
+      mentionStateRef.current = null;
+      setMentionState(null);
+      return;
+    }
+    const text = ta.value;
+    const offset = ta.selectionStart ?? 0;
+    const mention = findMentionAtCursor(text, offset);
+    if (!mention) {
+      mentionStateRef.current = null;
+      setMentionState(null);
+      return;
+    }
+    // Calculate popup position from textarea cursor
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    const taRect = ta.getBoundingClientRect();
+    if (!containerRect) return;
+    // Approximate position: use a hidden mirror or simple line/char estimation
+    const style = window.getComputedStyle(ta);
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5;
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const textBeforeCursor = text.slice(0, offset);
+    const lines = textBeforeCursor.split("\n");
+    const currentLineIndex = lines.length - 1;
+    const top = taRect.top - containerRect.top + paddingTop + (currentLineIndex + 1) * lineHeight - ta.scrollTop;
+    const left = paddingLeft;
+    const result: MentionState = {
+      query: mention.query,
+      top,
+      left,
+      textNode: null as unknown as Text,
+      atPos: mention.atPos,
+      endPos: offset,
+    };
+    mentionStateRef.current = result;
+    setMentionState(result);
+    setMentionIndex(0);
   }, [mentions]);
 
   useEffect(() => {
@@ -365,6 +413,28 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       const state = mentionStateRef.current;
       if (!state) return;
 
+      const replacement = mentionMarkdown(option);
+
+      // ── Textarea (bordered) mode ──
+      const ta = textareaRef.current;
+      if (ta && bordered) {
+        const current = ta.value;
+        const before = current.slice(0, state.atPos);
+        const after = current.slice(state.endPos);
+        const next = before + replacement + after;
+        latestValueRef.current = next;
+        onChange(next);
+        const cursorPos = state.atPos + replacement.length;
+        requestAnimationFrame(() => {
+          ta.focus();
+          ta.setSelectionRange(cursorPos, cursorPos);
+        });
+        mentionStateRef.current = null;
+        setMentionState(null);
+        return;
+      }
+
+      // ── MDXEditor (contentEditable) mode ──
       if (option.kind === "project" && option.projectId) {
         const current = latestValueRef.current;
         const next = applyMention(current, state.query, option);
@@ -382,13 +452,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
         return;
       }
 
-      const replacement = mentionMarkdown(option);
-
       // Replace @query directly via DOM selection so the cursor naturally
       // lands after the inserted text. Lexical picks up the change through
       // its normal input-event handling.
       const sel = window.getSelection();
-      if (sel && state.textNode.isConnected) {
+      if (sel && state.textNode?.isConnected) {
         const range = document.createRange();
         range.setStart(state.textNode, state.atPos);
         range.setEnd(state.textNode, state.endPos);
@@ -676,8 +744,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             onChange={(e) => {
               latestValueRef.current = e.target.value;
               onChange(e.target.value);
+              requestAnimationFrame(checkMentionTextarea);
             }}
-            onBlur={() => onBlur?.()}
+            onSelect={checkMentionTextarea}
+            onBlur={() => { onBlur?.(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();

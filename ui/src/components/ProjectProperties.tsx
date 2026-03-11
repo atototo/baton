@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PROJECT_STATUSES, type Project } from "@atototo/shared";
+import { PROJECT_STATUSES, type Project, type ProjectStatus } from "@atototo/shared";
 import { InlineHelp } from "./InlineHelp";
 import { StatusBadge } from "./StatusBadge";
 import { formatDate } from "../lib/utils";
@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ExternalLink, Github, Plus, Trash2, User, X } from "lucide-react";
+import { CalendarDays, ExternalLink, FolderOpen, Github, GitBranch, Plus, Save, Trash2, User, X } from "lucide-react";
 import { ChoosePathButton } from "./PathInstructionsModal";
 import { AgentIcon } from "./AgentIconPicker";
 import { HintIcon, useHelpText } from "./agent-config-primitives";
@@ -82,8 +82,8 @@ function WorkspaceHelpContent() {
           {t("projectHelp.workspaceDescription")}
         </p>
       </div>
-      <div className="overflow-hidden rounded-md border border-border bg-blue-950/30">
-        <div className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] border-b border-border/80 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="overflow-hidden rounded-md border border-border bg-muted/50">
+        <div className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] border-b border-border px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <span>{t("projectHelp.columns.mode")}</span>
           <span>{t("projectHelp.columns.meaning")}</span>
           <span>{t("projectHelp.columns.example")}</span>
@@ -91,7 +91,7 @@ function WorkspaceHelpContent() {
         {rows.map((row) => (
           <div
             key={row.key}
-            className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] gap-3 border-t border-border/60 px-3 py-2 text-xs first:border-t-0"
+            className="grid grid-cols-[84px_minmax(0,1fr)_minmax(0,1.1fr)] gap-3 border-t border-border px-3 py-2 text-xs first:border-t-0"
           >
             <span className="font-medium text-foreground">{row.name}</span>
             <span className="text-muted-foreground">{row.value}</span>
@@ -113,16 +113,89 @@ export function ProjectProperties({
   const help = useHelpText();
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
+
+  /* ── Local draft state (saved only on explicit Save click) ── */
+  const initialGoalIds =
+    project.goalIds.length > 0
+      ? project.goalIds
+      : project.goalId
+      ? [project.goalId]
+      : [];
+
+  const [draftStatus, setDraftStatus] = useState<ProjectStatus>(project.status);
+  const [draftLeadAgentId, setDraftLeadAgentId] = useState<string | null>(project.leadAgentId);
+  const [draftGoalIds, setDraftGoalIds] = useState<string[]>(initialGoalIds);
+  const [draftTargetDate, setDraftTargetDate] = useState(project.targetDate ?? "");
+
+  // Reset draft when project prop changes (e.g. after save completes)
+  useEffect(() => {
+    setDraftStatus(project.status);
+    setDraftLeadAgentId(project.leadAgentId);
+    setDraftGoalIds(
+      project.goalIds.length > 0
+        ? project.goalIds
+        : project.goalId
+        ? [project.goalId]
+        : [],
+    );
+    setDraftTargetDate(project.targetDate ?? "");
+  }, [project.status, project.leadAgentId, project.goalIds, project.goalId, project.targetDate]);
+
+  const isDirty = useMemo(() => {
+    if (draftStatus !== project.status) return true;
+    if (draftLeadAgentId !== project.leadAgentId) return true;
+    if ((draftTargetDate || null) !== (project.targetDate || null)) return true;
+    const currentGoalIds =
+      project.goalIds.length > 0
+        ? project.goalIds
+        : project.goalId
+        ? [project.goalId]
+        : [];
+    if (draftGoalIds.length !== currentGoalIds.length) return true;
+    if (draftGoalIds.some((id, i) => id !== currentGoalIds[i])) return true;
+    return false;
+  }, [draftStatus, draftLeadAgentId, draftTargetDate, draftGoalIds, project]);
+
+  const handleSave = () => {
+    if (!onUpdate || !isDirty) return;
+    const payload: Record<string, unknown> = {};
+    if (draftStatus !== project.status) payload.status = draftStatus;
+    if (draftLeadAgentId !== project.leadAgentId) payload.leadAgentId = draftLeadAgentId;
+    if ((draftTargetDate || null) !== (project.targetDate || null)) {
+      payload.targetDate = draftTargetDate || null;
+    }
+    const currentGoalIds =
+      project.goalIds.length > 0
+        ? project.goalIds
+        : project.goalId
+        ? [project.goalId]
+        : [];
+    if (
+      draftGoalIds.length !== currentGoalIds.length ||
+      draftGoalIds.some((id, i) => id !== currentGoalIds[i])
+    ) {
+      payload.goalIds = draftGoalIds;
+    }
+    onUpdate(payload);
+  };
+
+  const handleDiscard = () => {
+    setDraftStatus(project.status);
+    setDraftLeadAgentId(project.leadAgentId);
+    setDraftGoalIds(initialGoalIds);
+    setDraftTargetDate(project.targetDate ?? "");
+  };
+
+  /* ── Popover state ── */
   const [goalOpen, setGoalOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
-  const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(
-    null
-  );
+  const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(null);
   const [workspaceCwd, setWorkspaceCwd] = useState("");
   const [workspaceRepoUrl, setWorkspaceRepoUrl] = useState("");
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
+  /* ── Data queries ── */
   const { data: allGoals } = useQuery({
     queryKey: queryKeys.goals.list(selectedCompanyId!),
     queryFn: () => goalsApi.list(selectedCompanyId!),
@@ -148,31 +221,25 @@ export function ProjectProperties({
               : t("newProject.statuses.cancelled"),
   }));
 
-  const linkedGoalIds =
-    project.goalIds.length > 0
-      ? project.goalIds
-      : project.goalId
-      ? [project.goalId]
-      : [];
-
-  const linkedGoals =
+  const draftGoals =
     project.goals.length > 0
-      ? project.goals
-      : linkedGoalIds.map((id) => ({
+      ? project.goals.filter((g) => draftGoalIds.includes(g.id))
+      : draftGoalIds.map((id) => ({
           id,
           title: allGoals?.find((g) => g.id === id)?.title ?? id.slice(0, 8),
         }));
 
   const availableGoals = (allGoals ?? []).filter(
-    (g) => !linkedGoalIds.includes(g.id)
+    (g) => !draftGoalIds.includes(g.id)
   );
   const availableAgents = (agents ?? []).filter((agent) => agent.status !== "terminated");
-  const leadAgent =
-    project.leadAgentId != null
-      ? availableAgents.find((agent) => agent.id === project.leadAgentId) ?? null
+  const draftLeadAgent =
+    draftLeadAgentId != null
+      ? availableAgents.find((agent) => agent.id === draftLeadAgentId) ?? null
       : null;
   const workspaces = project.workspaces ?? [];
 
+  /* ── Workspace mutations (these save immediately) ── */
   const invalidateProject = () => {
     queryClient.invalidateQueries({
       queryKey: queryKeys.projects.detail(project.id),
@@ -212,17 +279,18 @@ export function ProjectProperties({
     onSuccess: invalidateProject,
   });
 
+  /* ── Goal helpers (now modify draft, not server) ── */
   const removeGoal = (goalId: string) => {
-    if (!onUpdate) return;
-    onUpdate({ goalIds: linkedGoalIds.filter((id) => id !== goalId) });
+    setDraftGoalIds((prev) => prev.filter((id) => id !== goalId));
   };
 
   const addGoal = (goalId: string) => {
-    if (!onUpdate || linkedGoalIds.includes(goalId)) return;
-    onUpdate({ goalIds: [...linkedGoalIds, goalId] });
+    if (draftGoalIds.includes(goalId)) return;
+    setDraftGoalIds((prev) => [...prev, goalId]);
     setGoalOpen(false);
   };
 
+  /* ── Workspace helpers ── */
   const isAbsolutePath = (value: string) =>
     value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
 
@@ -333,180 +401,218 @@ export function ProjectProperties({
     removeWorkspace.mutate(workspace.id);
   };
 
+  const localWorkspaces = workspaces.filter(
+    (ws) => ws.cwd && ws.cwd !== REPO_ONLY_CWD_SENTINEL,
+  );
+  const repoWorkspaces = workspaces.filter((ws) => ws.repoUrl);
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <PropertyRow label="Status" hint={help.projectStatus}>
-          <Popover open={statusOpen} onOpenChange={setStatusOpen}>
-            <PopoverTrigger asChild>
-              <button className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 -mx-1 transition-colors hover:bg-accent/50">
-                <StatusBadge status={project.status} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-44 p-1" align="end">
-              {projectStatuses.map((status) => (
-                <button
-                  key={status.value}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
-                    status.value === project.status ? "bg-accent" : ""
-                  }`}
-                  onClick={() => {
-                    onUpdate?.({ status: status.value });
-                    setStatusOpen(false);
-                  }}
-                >
-                  <StatusBadge status={status.value} />
-                  <span className="truncate">{status.label}</span>
+    <div className="space-y-6">
+      {/* ── Save / Discard bar ── */}
+      {isDirty && onUpdate && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
+          <Save className="h-3.5 w-3.5 text-primary" />
+          <span className="flex-1 text-sm text-primary">
+            {t("projectProperties.unsavedChanges", "저장하지 않은 변경사항이 있습니다.")}
+          </span>
+          <Button variant="ghost" size="sm" className="h-8 px-3" onClick={handleDiscard}>
+            {t("common.discard", "취소")}
+          </Button>
+          <Button size="sm" className="h-8 px-4" onClick={handleSave}>
+            <Save className="h-3.5 w-3.5 mr-1.5" />
+            {t("common.save", "저장")}
+          </Button>
+        </div>
+      )}
+
+      {/* ── Section 1: Basic Properties ── */}
+      <section className="rounded-lg border border-border">
+        <div className="border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("projectProperties.basicInfo", "기본 정보")}
+          </h3>
+        </div>
+        <div className="divide-y divide-border">
+          {/* Status */}
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 text-sm text-muted-foreground">
+              {t("projectDetail.status")}
+            </span>
+            <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+              <PopoverTrigger asChild>
+                <button className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-accent">
+                  <StatusBadge status={draftStatus} />
                 </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </PropertyRow>
-        <PropertyRow label="Lead" hint={help.leadAgentId}>
-          <Popover open={leadOpen} onOpenChange={setLeadOpen}>
-            <PopoverTrigger asChild>
-              <button className="inline-flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 -mx-1 transition-colors hover:bg-accent/50">
-                {leadAgent ? (
-                  <>
-                    <AgentIcon
-                      icon={leadAgent.icon}
-                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                    />
-                    <span className="truncate text-sm">{leadAgent.name}</span>
-                  </>
-                ) : project.leadAgentId ? (
-                  <span className="text-sm font-mono">
-                    {project.leadAgentId.slice(0, 8)}
-                  </span>
-                ) : (
-                  <>
-                    <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {t("common.none")}
-                    </span>
-                  </>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-52 p-1" align="end">
-              <button
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
-                  !project.leadAgentId ? "bg-accent" : ""
-                }`}
-                onClick={() => {
-                  onUpdate?.({ leadAgentId: null });
-                  setLeadOpen(false);
-                }}
-              >
-                <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-                {t("projectProperties.noLead")}
-              </button>
-              {availableAgents.map((agent) => (
-                <button
-                  key={agent.id}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
-                    agent.id === project.leadAgentId ? "bg-accent" : ""
-                  }`}
-                  onClick={() => {
-                    onUpdate?.({ leadAgentId: agent.id });
-                    setLeadOpen(false);
-                  }}
-                >
-                  <AgentIcon
-                    icon={agent.icon}
-                    className="h-3 w-3 shrink-0 text-muted-foreground"
-                  />
-                  <span className="truncate">{agent.name}</span>
+              </PopoverTrigger>
+              <PopoverContent className="w-44 p-1" align="start">
+                {projectStatuses.map((status) => (
+                  <button
+                    key={status.value}
+                    className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${
+                      status.value === draftStatus ? "bg-accent" : ""
+                    }`}
+                    onClick={() => {
+                      setDraftStatus(status.value);
+                      setStatusOpen(false);
+                    }}
+                  >
+                    <StatusBadge status={status.value} />
+                    <span className="truncate">{status.label}</span>
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Lead Agent */}
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 text-sm text-muted-foreground">
+              {t("projectDetail.leadAgent", "리드 에이전트")}
+            </span>
+            <Popover open={leadOpen} onOpenChange={setLeadOpen}>
+              <PopoverTrigger asChild>
+                <button className="inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-accent">
+                  {draftLeadAgent ? (
+                    <>
+                      <AgentIcon icon={draftLeadAgent.icon} className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm">{draftLeadAgent.name}</span>
+                    </>
+                  ) : draftLeadAgentId ? (
+                    <span className="text-sm font-mono">{draftLeadAgentId.slice(0, 8)}</span>
+                  ) : (
+                    <>
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{t("common.none")}</span>
+                    </>
+                  )}
                 </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </PropertyRow>
-        <div className="py-1.5">
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Goals</span>
-            <div className="flex flex-col items-end gap-1.5">
-              {linkedGoals.length === 0 ? (
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-1" align="start">
+                <button
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${!draftLeadAgentId ? "bg-accent" : ""}`}
+                  onClick={() => { setDraftLeadAgentId(null); setLeadOpen(false); }}
+                >
+                  <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  {t("projectProperties.noLead")}
+                </button>
+                {availableAgents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 ${agent.id === draftLeadAgentId ? "bg-accent" : ""}`}
+                    onClick={() => { setDraftLeadAgentId(agent.id); setLeadOpen(false); }}
+                  >
+                    <AgentIcon icon={agent.icon} className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{agent.name}</span>
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Goals */}
+          <div className="flex items-start gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 pt-1 text-sm text-muted-foreground">
+              {t("projectProperties.goal", "목표")}
+            </span>
+            <div className="flex flex-1 flex-wrap items-center gap-1.5">
+              {draftGoals.length === 0 && (
                 <span className="text-sm text-muted-foreground">{t("common.none")}</span>
-              ) : (
-                <div className="flex flex-wrap justify-end gap-1.5 max-w-[220px]">
-                  {linkedGoals.map((goal) => (
-                    <span
-                      key={goal.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs"
-                    >
-                      <Link
-                        to={`/goals/${goal.id}`}
-                        className="hover:underline max-w-[140px] truncate"
+              )}
+              {draftGoals.map((goal) => (
+                <span
+                  key={goal.id}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs"
+                >
+                  <Link to={`/goals/${goal.id}`} className="hover:underline max-w-[180px] truncate">
+                    {goal.title}
+                  </Link>
+                  <button
+                    className="text-muted-foreground hover:text-foreground"
+                    type="button"
+                    onClick={() => removeGoal(goal.id)}
+                    aria-label={`Remove goal ${goal.title}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <Popover open={goalOpen} onOpenChange={setGoalOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="xs" className="h-6 px-2" disabled={availableGoals.length === 0}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    {t("projectProperties.goal")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-1" align="start">
+                  {availableGoals.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("projectProperties.allGoalsLinked")}</div>
+                  ) : (
+                    availableGoals.map((goal) => (
+                      <button
+                        key={goal.id}
+                        className="flex items-center w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
+                        onClick={() => addGoal(goal.id)}
                       >
                         {goal.title}
-                      </Link>
-                      {onUpdate && (
-                        <button
-                          className="text-muted-foreground hover:text-foreground"
-                          type="button"
-                          onClick={() => removeGoal(goal.id)}
-                          aria-label={`Remove goal ${goal.title}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {onUpdate && (
-                <Popover open={goalOpen} onOpenChange={setGoalOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="h-6 px-2"
-                      disabled={availableGoals.length === 0}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {t("projectProperties.goal")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-1" align="end">
-                    {availableGoals.length === 0 ? (
-                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                        {t("projectProperties.allGoalsLinked")}
-                      </div>
-                    ) : (
-                      availableGoals.map((goal) => (
-                        <button
-                          key={goal.id}
-                          className="flex items-center w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
-                          onClick={() => addGoal(goal.id)}
-                        >
-                          {goal.title}
-                        </button>
-                      ))
-                    )}
-                  </PopoverContent>
-                </Popover>
+                      </button>
+                    ))
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Target Date */}
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 text-sm text-muted-foreground">
+              {t("projectDetail.targetDate", "목표일")}
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="date"
+                  className="h-8 rounded-md border border-border bg-transparent pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  value={draftTargetDate}
+                  onChange={(e) => setDraftTargetDate(e.target.value)}
+                />
+              </div>
+              {draftTargetDate && (
+                <button
+                  type="button"
+                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  onClick={() => setDraftTargetDate("")}
+                  aria-label={t("projectProperties.clearTargetDate", "Clear target date")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
           </div>
-        </div>
-        <PropertyRow label="Target Date" hint={help.targetDate}>
-          {project.targetDate ? (
-            <span className="text-sm">{formatDate(project.targetDate)}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              {t("common.none")}
+
+          {/* Created / Updated */}
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 text-sm text-muted-foreground">
+              {t("projectProperties.created", "생성일")}
             </span>
-          )}
-        </PropertyRow>
-      </div>
+            <span className="text-sm">{formatDate(project.createdAt)}</span>
+          </div>
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="w-28 shrink-0 text-sm text-muted-foreground">
+              {t("projectProperties.updated", "수정일")}
+            </span>
+            <span className="text-sm">{formatDate(project.updatedAt)}</span>
+          </div>
+        </div>
+      </section>
 
-      <Separator />
-
-      <div className="space-y-1">
-        <div className="py-1.5 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{t("projectProperties.workspaces")}</span>
+      {/* ── Section 2: Workspaces ── */}
+      <section className="rounded-lg border border-border">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("projectProperties.workspaces")}
+            </h3>
             <HintIcon
               hint={{
                 text: help.workspaceTooltip,
@@ -516,9 +622,33 @@ export function ProjectProperties({
               }}
             />
           </div>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-7 px-2.5"
+              onClick={() => { setWorkspaceMode("local"); setWorkspaceError(null); }}
+            >
+              <FolderOpen className="h-3 w-3 mr-1" />
+              {t("projectProperties.addWorkspaceLocal")}
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-7 px-2.5"
+              onClick={() => { setWorkspaceMode("repo"); setWorkspaceError(null); }}
+            >
+              <GitBranch className="h-3 w-3 mr-1" />
+              {t("projectProperties.addWorkspaceRepo")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-4">
           <InlineHelp
             title={t("inlineHelp.workspace.title")}
             summary={t("inlineHelp.workspace.summary")}
+            defaultOpen={workspaces.length === 0}
           >
             <ul className="space-y-1.5">
               <li>{t("projectHelp.workspaceModes.local.value")}</li>
@@ -527,86 +657,97 @@ export function ProjectProperties({
               <li>{t("inlineHelp.workspace.recommendation")}</li>
             </ul>
           </InlineHelp>
-          {workspaces.length === 0 ? (
-            <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-              {t("projectProperties.noWorkspace")}
-            </p>
+
+          {workspaces.length === 0 && !workspaceMode ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+              <p className="text-sm text-muted-foreground">{t("projectProperties.noWorkspace")}</p>
+            </div>
           ) : (
-            <div className="space-y-1">
-              {workspaces.map((workspace) => (
-                <div key={workspace.id} className="space-y-1">
-                  {workspace.cwd && workspace.cwd !== REPO_ONLY_CWD_SENTINEL ? (
-                    <div className="flex items-center justify-between gap-2 py-1">
-                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-                        {workspace.cwd}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => clearLocalWorkspace(workspace)}
-                        aria-label={t("projectProperties.deleteLocalFolder")}
+            <div className="space-y-3">
+              {/* Local folders */}
+              {localWorkspaces.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("projectProperties.localFolders", "로컬 폴더")}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {localWorkspaces.map((workspace) => (
+                      <div
+                        key={`local-${workspace.id}`}
+                        className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : null}
-                  {workspace.repoUrl ? (
-                    <div className="flex items-center justify-between gap-2 py-1">
-                      <a
-                        href={workspace.repoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
-                      >
-                        <Github className="h-3 w-3 shrink-0" />
-                        <span className="truncate">
-                          {formatGitHubRepo(workspace.repoUrl)}
+                        <span className="min-w-0 truncate font-mono text-xs">
+                          {workspace.cwd}
                         </span>
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => clearRepoWorkspace(workspace)}
-                        aria-label={t("projectProperties.deleteWorkspaceRepo")}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : null}
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0"
+                          onClick={() => clearLocalWorkspace(workspace)}
+                          aria-label={t("projectProperties.deleteLocalFolder")}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Repository links */}
+              {repoWorkspaces.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Github className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("projectProperties.repositories", "저장소")}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {repoWorkspaces.map((workspace) => (
+                      <div
+                        key={`repo-${workspace.id}`}
+                        className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
+                      >
+                        <a
+                          href={workspace.repoUrl!}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex min-w-0 items-center gap-1.5 text-xs hover:text-foreground hover:underline"
+                        >
+                          <span className="truncate">{formatGitHubRepo(workspace.repoUrl!)}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        </a>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0"
+                          onClick={() => clearRepoWorkspace(workspace)}
+                          aria-label={t("projectProperties.deleteWorkspaceRepo")}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <div className="flex flex-col items-start gap-2">
-            <Button
-              variant="outline"
-              size="xs"
-              className="h-7 px-2.5"
-              onClick={() => {
-                setWorkspaceMode("local");
-                setWorkspaceError(null);
-              }}
-            >
-              {t("projectProperties.addWorkspaceLocal")}
-            </Button>
-            <Button
-              variant="outline"
-              size="xs"
-              className="h-7 px-2.5"
-              onClick={() => {
-                setWorkspaceMode("repo");
-                setWorkspaceError(null);
-              }}
-            >
-              {t("projectProperties.addWorkspaceRepo")}
-            </Button>
-          </div>
+
+          {/* Add workspace forms */}
           {workspaceMode === "local" && (
-            <div className="space-y-1.5 rounded-md border border-border p-2">
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <FolderOpen className="h-3.5 w-3.5" />
+                {t("projectProperties.addWorkspaceLocal")}
+              </div>
               <div className="flex items-center gap-2">
                 <input
-                  className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs font-mono outline-none"
+                  className="flex-1 rounded-md border border-border bg-transparent px-3 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-ring"
                   value={workspaceCwd}
                   onChange={(e) => setWorkspaceCwd(e.target.value)}
                   placeholder="/absolute/path/to/workspace"
@@ -615,93 +756,62 @@ export function ProjectProperties({
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
                   size="xs"
-                  className="h-6 px-2"
+                  className="h-7 px-3"
                   disabled={!workspaceCwd.trim() || createWorkspace.isPending}
                   onClick={submitLocalWorkspace}
                 >
-                  Save
+                  {t("common.save", "저장")}
                 </Button>
                 <Button
                   variant="ghost"
                   size="xs"
-                  className="h-6 px-2"
-                  onClick={() => {
-                    setWorkspaceMode(null);
-                    setWorkspaceCwd("");
-                    setWorkspaceError(null);
-                  }}
+                  className="h-7 px-3"
+                  onClick={() => { setWorkspaceMode(null); setWorkspaceCwd(""); setWorkspaceError(null); }}
                 >
-                  Cancel
+                  {t("common.discard", "취소")}
                 </Button>
               </div>
             </div>
           )}
           {workspaceMode === "repo" && (
-            <div className="space-y-1.5 rounded-md border border-border p-2">
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <GitBranch className="h-3.5 w-3.5" />
+                {t("projectProperties.addWorkspaceRepo")}
+              </div>
               <input
-                className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none"
+                className="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
                 value={workspaceRepoUrl}
                 onChange={(e) => setWorkspaceRepoUrl(e.target.value)}
                 placeholder="https://github.com/org/repo"
               />
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
                   size="xs"
-                  className="h-6 px-2"
-                  disabled={
-                    !workspaceRepoUrl.trim() || createWorkspace.isPending
-                  }
+                  className="h-7 px-3"
+                  disabled={!workspaceRepoUrl.trim() || createWorkspace.isPending}
                   onClick={submitRepoWorkspace}
                 >
-                  Save
+                  {t("common.save", "저장")}
                 </Button>
                 <Button
                   variant="ghost"
                   size="xs"
-                  className="h-6 px-2"
-                  onClick={() => {
-                    setWorkspaceMode(null);
-                    setWorkspaceRepoUrl("");
-                    setWorkspaceError(null);
-                  }}
+                  className="h-7 px-3"
+                  onClick={() => { setWorkspaceMode(null); setWorkspaceRepoUrl(""); setWorkspaceError(null); }}
                 >
-                  Cancel
+                  {t("common.discard", "취소")}
                 </Button>
               </div>
             </div>
           )}
-          {workspaceError && (
-            <p className="text-xs text-destructive">{workspaceError}</p>
-          )}
-          {createWorkspace.isError && (
-            <p className="text-xs text-destructive">
-              Failed to save workspace.
-            </p>
-          )}
-          {removeWorkspace.isError && (
-            <p className="text-xs text-destructive">
-              Failed to delete workspace.
-            </p>
-          )}
-          {updateWorkspace.isError && (
-            <p className="text-xs text-destructive">
-              Failed to update workspace.
-            </p>
-          )}
+          {workspaceError && <p className="text-xs text-destructive">{workspaceError}</p>}
+          {createWorkspace.isError && <p className="text-xs text-destructive">Failed to save workspace.</p>}
+          {removeWorkspace.isError && <p className="text-xs text-destructive">Failed to delete workspace.</p>}
+          {updateWorkspace.isError && <p className="text-xs text-destructive">Failed to update workspace.</p>}
         </div>
-
-        <Separator />
-
-        <PropertyRow label="Created">
-          <span className="text-sm">{formatDate(project.createdAt)}</span>
-        </PropertyRow>
-        <PropertyRow label="Updated">
-          <span className="text-sm">{formatDate(project.updatedAt)}</span>
-        </PropertyRow>
-      </div>
+      </section>
     </div>
   );
 }
