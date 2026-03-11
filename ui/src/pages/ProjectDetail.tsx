@@ -382,74 +382,15 @@ function WorkspaceCard({ workspace }: { workspace: ProjectWorkspace }) {
 }
 
 function ProjectSettingsTab({
-  companyId,
-  projectId,
-  leadAgentId,
+  project,
+  onUpdate,
 }: {
-  companyId: string;
-  projectId: string;
-  leadAgentId: string | null;
+  project: Project;
+  onUpdate: (data: Record<string, unknown>) => void;
 }) {
-  const { t } = useTranslation();
-  const { data: workspaces, isLoading, error } = useQuery({
-    queryKey: [...queryKeys.projects.detail(projectId), "workspaces"],
-    queryFn: () => projectsApi.listWorkspaces(projectId, companyId),
-    enabled: !!companyId,
-  });
-  const { data: agents } = useQuery({
-    queryKey: queryKeys.agents.list(companyId),
-    queryFn: () => agentsApi.list(companyId),
-    enabled: !!companyId,
-  });
-  const leadAgent = useMemo(
-    () => (leadAgentId ? (agents ?? []).find((agent) => agent.id === leadAgentId) ?? null : null),
-    [agents, leadAgentId],
-  );
-
-  if (isLoading) return <PageSkeleton variant="list" />;
-  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
-
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-border p-4">
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">{t("projectDetail.settingsSummary")}</h3>
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("projectDetail.leadAgent")}</p>
-            {leadAgent ? (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                <AgentIcon icon={leadAgent.icon} className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>{leadAgent.name}</span>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">{t("projectDetail.noLeadAgent")}</p>
-            )}
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("projectDetail.workspaceCount")}</p>
-            <p className="mt-2 text-sm">{t("projectDetail.workspaceCountValue", { count: workspaces?.length ?? 0 })}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">{t("projectDetail.workspaces")}</h3>
-          <p className="text-xs text-muted-foreground">{t("projectDetail.settingsHint")}</p>
-        </div>
-        {workspaces && workspaces.length > 0 ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {workspaces.map((workspace) => (
-              <WorkspaceCard key={workspace.id} workspace={workspace} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState icon={FolderGit2} message={t("projectDetail.noWorkspaces")} />
-        )}
-      </div>
+    <div className="max-w-2xl">
+      <ProjectProperties project={project} onUpdate={onUpdate} />
     </div>
   );
 }
@@ -562,7 +503,7 @@ export function ProjectDetail() {
 
   useEffect(() => {
     if (!project) return;
-    setPanelVisible(activeTab !== "settings");
+    setPanelVisible(true);
   }, [activeTab, project, setPanelVisible]);
 
   // Redirect bare /projects/:id to /projects/:id/issues
@@ -652,9 +593,8 @@ export function ProjectDetail() {
 
       {activeTab === "settings" && project?.id && resolvedCompanyId && (
         <ProjectSettingsTab
-          companyId={resolvedCompanyId}
-          projectId={project.id}
-          leadAgentId={project.leadAgentId}
+          project={project}
+          onUpdate={(data) => updateProject.mutate(data)}
         />
       )}
     </div>
