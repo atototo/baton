@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 import i18n from "../lib/i18n";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdapterEnvironmentTestResult } from "@atototo/shared";
+import type {
+  AdapterEnvironmentTestResult,
+  SupportedLocale,
+} from "@atototo/shared";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { companiesApi } from "../api/companies";
@@ -59,6 +62,22 @@ type AdapterType =
   | "process"
   | "http";
 
+const onboardingSteps = {
+  intro: 1,
+  company: 2,
+  agent: 3,
+  task: 4,
+  launch: 5,
+} as const satisfies Record<string, Step>;
+
+function getNextOnboardingStep(step: Exclude<Step, 5>): Step {
+  return (step + 1) as Step;
+}
+
+function getOnboardingLocale(language?: string | null): SupportedLocale {
+  return language?.startsWith("ko") ? "ko" : "en";
+}
+
 function getDefaultAgentName(t: (key: string) => string) {
   return t("onboarding.defaultAgentName");
 }
@@ -74,11 +93,11 @@ function getDefaultTaskDescription(t: (key: string) => string) {
 export function OnboardingWizard() {
   const { t } = useTranslation();
   const { onboardingOpen, onboardingOptions, closeOnboarding } = useDialog();
-  const { selectedCompanyId, companies, setSelectedCompanyId } = useCompany();
+  const { companies, setSelectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const initialStep = onboardingOptions.initialStep ?? 1;
+  const initialStep = onboardingOptions.initialStep ?? onboardingSteps.intro;
   const existingCompanyId = onboardingOptions.companyId;
 
   const [step, setStep] = useState<Step>(initialStep);
@@ -86,11 +105,14 @@ export function OnboardingWizard() {
   const [error, setError] = useState<string | null>(null);
   const [modelOpen, setModelOpen] = useState(false);
 
-  // Step 1
+  // Step 2
   const [companyName, setCompanyName] = useState("");
   const [companyGoal, setCompanyGoal] = useState("");
+  const [companyLocale, setCompanyLocale] = useState<SupportedLocale>(() =>
+    getOnboardingLocale(i18n.language)
+  );
 
-  // Step 2
+  // Step 3
   const [agentName, setAgentName] = useState(() => getDefaultAgentName(t));
   const [adapterType, setAdapterType] = useState<AdapterType>("claude_local");
   const [cwd, setCwd] = useState("");
@@ -106,7 +128,7 @@ export function OnboardingWizard() {
     useState(false);
   const [unsetAnthropicLoading, setUnsetAnthropicLoading] = useState(false);
 
-  // Step 3
+  // Step 4
   const [taskTitle, setTaskTitle] = useState(() => getDefaultTaskTitle(t));
   const [taskDescription, setTaskDescription] = useState(() =>
     getDefaultTaskDescription(t)
@@ -137,7 +159,7 @@ export function OnboardingWizard() {
   useEffect(() => {
     if (!onboardingOpen) return;
     const cId = onboardingOptions.companyId ?? null;
-    setStep(onboardingOptions.initialStep ?? 1);
+    setStep(onboardingOptions.initialStep ?? onboardingSteps.intro);
     setCreatedCompanyId(cId);
     setCreatedCompanyPrefix(null);
   }, [
@@ -153,15 +175,15 @@ export function OnboardingWizard() {
     if (company) setCreatedCompanyPrefix(company.issuePrefix);
   }, [onboardingOpen, createdCompanyId, createdCompanyPrefix, companies]);
 
-  // Resize textarea when step 3 is shown or description changes
+  // Resize textarea when the task step is shown or description changes
   useEffect(() => {
-    if (step === 3) autoResizeTextarea();
+    if (step === onboardingSteps.task) autoResizeTextarea();
   }, [step, taskDescription, autoResizeTextarea]);
 
   const { data: adapterModels } = useQuery({
     queryKey: ["adapter-models", adapterType],
     queryFn: () => agentsApi.adapterModels(adapterType),
-    enabled: onboardingOpen && step === 2,
+    enabled: onboardingOpen && step === onboardingSteps.agent,
   });
   const isLocalAdapter =
     adapterType === "claude_local" ||
@@ -179,7 +201,7 @@ export function OnboardingWizard() {
       : "claude");
 
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== onboardingSteps.agent) return;
     setAdapterEnvResult(null);
     setAdapterEnvError(null);
   }, [step, adapterType, cwd, model, command, args, url]);
@@ -196,11 +218,12 @@ export function OnboardingWizard() {
     hasAnthropicApiKeyOverrideCheck;
 
   function reset() {
-    setStep(1);
+    setStep(onboardingSteps.intro);
     setLoading(false);
     setError(null);
     setCompanyName("");
     setCompanyGoal("");
+    setCompanyLocale(getOnboardingLocale(i18n.language));
     setAgentName(getDefaultAgentName(t));
     setAdapterType("claude_local");
     setCwd("");
@@ -295,11 +318,15 @@ export function OnboardingWizard() {
     }
   }
 
-  async function handleStep1Next() {
+  async function handleCompanyStepNext() {
     setLoading(true);
     setError(null);
     try {
-      const company = await companiesApi.create({ name: companyName.trim() });
+      const companyPayload = {
+        name: companyName.trim(),
+        locale: companyLocale,
+      };
+      const company = await companiesApi.create(companyPayload);
       setCreatedCompanyId(company.id);
       setCreatedCompanyPrefix(company.issuePrefix);
       setSelectedCompanyId(company.id);
@@ -316,7 +343,7 @@ export function OnboardingWizard() {
         });
       }
 
-      setStep(2);
+      setStep(getNextOnboardingStep(onboardingSteps.company));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t("onboarding.errors.createCompany")
@@ -326,7 +353,7 @@ export function OnboardingWizard() {
     }
   }
 
-  async function handleStep2Next() {
+  async function handleAgentStepNext() {
     if (!createdCompanyId) return;
     setLoading(true);
     setError(null);
@@ -355,7 +382,7 @@ export function OnboardingWizard() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.agents.list(createdCompanyId),
       });
-      setStep(3);
+      setStep(getNextOnboardingStep(onboardingSteps.agent));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t("onboarding.errors.createAgent")
@@ -412,7 +439,7 @@ export function OnboardingWizard() {
     }
   }
 
-  async function handleStep3Next() {
+  async function handleTaskStepNext() {
     if (!createdCompanyId || !createdAgentId) return;
     setLoading(true);
     setError(null);
@@ -429,7 +456,7 @@ export function OnboardingWizard() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.issues.list(createdCompanyId),
       });
-      setStep(4);
+      setStep(getNextOnboardingStep(onboardingSteps.task));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t("onboarding.errors.createTask")
@@ -460,11 +487,17 @@ export function OnboardingWizard() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (step === 1) setStep(2);
-      else if (step === 2 && companyName.trim()) handleStep1Next();
-      else if (step === 3 && agentName.trim()) handleStep2Next();
-      else if (step === 4 && taskTitle.trim()) handleStep3Next();
-      else if (step === 5) handleLaunch();
+      if (step === onboardingSteps.intro) {
+        setStep(getNextOnboardingStep(onboardingSteps.intro));
+      } else if (step === onboardingSteps.company && companyName.trim()) {
+        void handleCompanyStepNext();
+      } else if (step === onboardingSteps.agent && agentName.trim()) {
+        void handleAgentStepNext();
+      } else if (step === onboardingSteps.task && taskTitle.trim()) {
+        void handleTaskStepNext();
+      } else if (step === onboardingSteps.launch) {
+        void handleLaunch();
+      }
     }
   }
 
@@ -522,7 +555,7 @@ export function OnboardingWizard() {
               </div>
 
               {/* Step content */}
-              {step === 1 && (
+              {step === onboardingSteps.intro && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
@@ -624,7 +657,7 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 2 && (
+              {step === onboardingSteps.company && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
@@ -668,8 +701,12 @@ export function OnboardingWizard() {
                     </label>
                     <select
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring text-foreground"
-                      value={i18n.language?.startsWith("ko") ? "ko" : "en"}
-                      onChange={(e) => i18n.changeLanguage(e.target.value)}
+                      value={companyLocale}
+                      onChange={(e) => {
+                        const nextLocale = e.target.value as SupportedLocale;
+                        setCompanyLocale(nextLocale);
+                        void i18n.changeLanguage(nextLocale);
+                      }}
                     >
                       <option value="en">{t("settings.languageEnglish")}</option>
                       <option value="ko">{t("settings.languageKorean")}</option>
@@ -681,7 +718,7 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 3 && (
+              {step === onboardingSteps.agent && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
@@ -1036,7 +1073,7 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 4 && (
+              {step === onboardingSteps.task && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
@@ -1078,7 +1115,7 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {step === 5 && (
+              {step === onboardingSteps.launch && (
                 <div className="space-y-5">
                   <div className="flex items-center gap-3 mb-1">
                     <div className="bg-muted/50 p-2">
@@ -1144,7 +1181,10 @@ export function OnboardingWizard() {
               {/* Footer navigation */}
               <div className="flex items-center justify-between mt-8">
                 <div>
-                  {step > 1 && step > (onboardingOptions.initialStep ?? 1) && (
+                  {step > onboardingSteps.intro &&
+                    step >
+                      (onboardingOptions.initialStep ??
+                        onboardingSteps.intro) && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1157,17 +1197,23 @@ export function OnboardingWizard() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {step === 1 && (
-                    <Button size="sm" disabled={loading} onClick={() => setStep(2)}>
+                  {step === onboardingSteps.intro && (
+                    <Button
+                      size="sm"
+                      disabled={loading}
+                      onClick={() =>
+                        setStep(getNextOnboardingStep(onboardingSteps.intro))
+                      }
+                    >
                       <ArrowRight className="h-3.5 w-3.5 mr-1" />
                       {t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 2 && (
+                  {step === onboardingSteps.company && (
                     <Button
                       size="sm"
                       disabled={!companyName.trim() || loading}
-                      onClick={handleStep1Next}
+                      onClick={handleCompanyStepNext}
                     >
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
@@ -1179,13 +1225,13 @@ export function OnboardingWizard() {
                         : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 3 && (
+                  {step === onboardingSteps.agent && (
                     <Button
                       size="sm"
                       disabled={
                         !agentName.trim() || loading || adapterEnvLoading
                       }
-                      onClick={handleStep2Next}
+                      onClick={handleAgentStepNext}
                     >
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
@@ -1197,11 +1243,11 @@ export function OnboardingWizard() {
                         : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 4 && (
+                  {step === onboardingSteps.task && (
                     <Button
                       size="sm"
                       disabled={!taskTitle.trim() || loading}
-                      onClick={handleStep3Next}
+                      onClick={handleTaskStepNext}
                     >
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
@@ -1213,7 +1259,7 @@ export function OnboardingWizard() {
                         : t("onboarding.next")}
                     </Button>
                   )}
-                  {step === 5 && (
+                  {step === onboardingSteps.launch && (
                     <Button size="sm" disabled={loading} onClick={handleLaunch}>
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
