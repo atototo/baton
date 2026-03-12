@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-13
+
 ### Added / 추가
 - Automatic approval request creation when agents hand off issues back to the board in `in_review`
   - 에이전트가 이슈를 `in_review` 상태로 board에 다시 넘길 때 승인 요청이 자동 생성되도록 추가
@@ -76,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark/light theme with indigo design system
   - 인디고 디자인 시스템 기반 다크/라이트 테마
 
-[Unreleased]: https://github.com/atototo/baton/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/atototo/baton/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/atototo/baton/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/atototo/baton/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/atototo/baton/releases/tag/v0.1.0
