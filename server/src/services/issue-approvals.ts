@@ -104,6 +104,46 @@ export function issueApprovalService(db: Db) {
         .orderBy(desc(issueApprovals.createdAt));
     },
 
+    listActiveApprovalsForIssue: async (
+      issueId: string,
+      types?: string[],
+      statuses: string[] = ["pending", "revision_requested"],
+    ) => {
+      const issue = await getIssue(issueId);
+      if (!issue) throw notFound("Issue not found");
+
+      const result = await db
+        .select({
+          id: approvals.id,
+          companyId: approvals.companyId,
+          type: approvals.type,
+          requestedByAgentId: approvals.requestedByAgentId,
+          requestedByUserId: approvals.requestedByUserId,
+          status: approvals.status,
+          payload: approvals.payload,
+          decisionNote: approvals.decisionNote,
+          decidedByUserId: approvals.decidedByUserId,
+          decidedAt: approvals.decidedAt,
+          createdAt: approvals.createdAt,
+          updatedAt: approvals.updatedAt,
+        })
+        .from(issueApprovals)
+        .innerJoin(approvals, eq(issueApprovals.approvalId, approvals.id))
+        .where(
+          and(
+            eq(issueApprovals.issueId, issueId),
+            inArray(approvals.status, statuses),
+            types && types.length > 0 ? inArray(approvals.type, types) : undefined,
+          ),
+        )
+        .orderBy(desc(issueApprovals.createdAt));
+
+      return result.map((approval) => ({
+        ...approval,
+        payload: redactEventPayload(approval.payload) ?? {},
+      }));
+    },
+
     link: async (issueId: string, approvalId: string, actor?: LinkActor) => {
       const { issue } = await assertIssueAndApprovalSameCompany(issueId, approvalId);
 

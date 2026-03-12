@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added / 추가
+- Automatic approval request creation when agents hand off issues back to the board in `in_review`
+  - 에이전트가 이슈를 `in_review` 상태로 board에 다시 넘길 때 승인 요청이 자동 생성되도록 추가
+- New approval types for issue plan approval and pull request approval
+  - 이슈 계획 승인과 PR 승인을 위한 신규 승인 타입 추가
+
+### Changed / 변경
+- Approval cards and issue detail views now render labels/payloads for issue plan and pull request approvals
+  - 승인 카드와 이슈 상세에서 이슈 계획 승인 및 PR 승인 라벨/페이로드를 표시하도록 변경
+- Issue execution guards now block implementation while plan approval is pending and pause implementation while PR approval is pending
+  - 계획 승인 대기 중에는 구현이 차단되고, PR 승인 대기 중에는 구현 재개가 제한되도록 이슈 실행 가드 강화
+
+### Fixed / 수정
+- Adapter type changes in agent settings no longer wipe shared prompt/instructions fields such as prompt template, bootstrap prompt, working directory, and instructions path
+  - 에이전트 설정에서 어댑터 유형을 바꿀 때 프롬프트 템플릿, 부트스트랩 프롬프트, 작업 디렉터리, instruction 경로 등 공통 필드가 초기화되던 문제 수정
+
 ## [0.2.0] - 2026-03-12
 
 ### Added / 추가
