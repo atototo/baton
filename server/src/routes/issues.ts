@@ -15,6 +15,7 @@ import { validate } from "../middleware/validate.js";
 import {
   accessService,
   agentService,
+  approvalService,
   goalService,
   heartbeatService,
   issueApprovalService,
@@ -41,6 +42,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
   const access = accessService(db);
   const heartbeat = heartbeatService(db);
   const agentsSvc = agentService(db);
+  const approvalsSvc = approvalService(db);
   const projectsSvc = projectService(db);
   const goalsSvc = goalService(db);
   const issueApprovalsSvc = issueApprovalService(db);
@@ -105,6 +107,135 @@ export function issueRoutes(db: Db, storage: StorageService) {
       throw forbidden("Missing permission: tasks:assign");
     }
     throw unauthorized();
+  }
+
+  async function assertIssuePlanApprovalAllowsExecution(
+    issueId: string,
+    reason: "checkout" | "assign" | "subtask" | "in_progress",
+  ) {
+    const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
+      issueId,
+      ["approve_issue_plan", "approve_pull_request"],
+      ["pending", "revision_requested"],
+    );
+    if (blockingApprovals.length === 0) return;
+    const blockingPlanApproval = blockingApprovals.find((approval) => approval.type === "approve_issue_plan");
+    const blockingPullRequestApproval = blockingApprovals.find(
+      (approval) => approval.type === "approve_pull_request" && approval.status === "pending",
+    );
+    const messageByReason = {
+      checkout: "Cannot start work while issue plan approval is pending",
+      assign: "Cannot assign work while issue plan approval is pending",
+      subtask: "Cannot create subtasks while issue plan approval is pending",
+      in_progress: "Cannot move issue to in_progress while issue plan approval is pending",
+    } as const;
+    if (blockingPlanApproval) {
+      throw forbidden(messageByReason[reason]);
+    }
+    if (blockingPullRequestApproval) {
+      throw forbidden("Cannot resume implementation while pull request approval is pending");
+    }
+  }
+
+  function extractPlanText(description: string | null | undefined) {
+    if (!description) return null;
+    const match = description.match(/<plan>\s*([\s\S]*?)\s*<\/plan>/i);
+    return match ? match[1].trim() : null;
+  }
+
+  function extractBranchName(...sources: Array<string | null | undefined>) {
+    for (const source of sources) {
+      if (!source) continue;
+      const match = source.match(/\b(?:feature|bugfix|hotfix|chore|fix|refactor)\/[A-Za-z0-9._/-]+\b/);
+      if (match) return match[0];
+    }
+    return null;
+  }
+
+  async function maybeCreateBoardReviewApproval(args: {
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    existing: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    actor: ReturnType<typeof getActorInfo>;
+    commentBody?: string;
+    isAgentReturningIssueToCreator: boolean;
+  }) {
+    const { issue, existing, actor, commentBody, isAgentReturningIssueToCreator } = args;
+    if (!isAgentReturningIssueToCreator) return;
+    if (actor.actorType !== "agent" || !actor.agentId) return;
+    if (issue.status !== "in_review") return;
+    if (!issue.assigneeUserId || !existing.createdByUserId || issue.assigneeUserId !== existing.createdByUserId) return;
+
+    const planText = extractPlanText(issue.description);
+    const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(issue.id);
+    const hasApprovedPlanApproval = linkedApprovals.some(
+      (approval) => approval.type === "approve_issue_plan" && approval.status === "approved",
+    );
+
+    const approvalType = planText && !hasApprovedPlanApproval ? "approve_issue_plan" : "approve_pull_request";
+    const existingActionableApproval = linkedApprovals.find(
+      (approval) =>
+        approval.type === approvalType &&
+        (approval.status === "pending" || approval.status === "revision_requested"),
+    );
+    if (existingActionableApproval) return;
+
+    const branchName = extractBranchName(commentBody, issue.description);
+    const approvalPayload =
+      approvalType === "approve_issue_plan"
+        ? {
+            title: issue.title,
+            issueIdentifier: issue.identifier,
+            plan: planText,
+            summary: commentBody ?? "Requesting board approval for the proposed implementation plan.",
+          }
+        : {
+            title: issue.title,
+            issueIdentifier: issue.identifier,
+            branch: branchName,
+            baseBranch: "develop",
+            summary: commentBody ?? "Requesting board approval before opening a pull request.",
+          };
+
+    const approval = await approvalsSvc.create(issue.companyId, {
+      type: approvalType,
+      requestedByAgentId: actor.agentId,
+      requestedByUserId: null,
+      payload: approvalPayload,
+      status: "pending",
+      decisionNote: null,
+      decidedByUserId: null,
+      decidedAt: null,
+      updatedAt: new Date(),
+    });
+
+    await issueApprovalsSvc.link(issue.id, approval.id, {
+      agentId: actor.agentId,
+      userId: null,
+    });
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "approval.created",
+      entityType: "approval",
+      entityId: approval.id,
+      details: { type: approval.type, issueIds: [issue.id], source: "issue.review_handoff" },
+    });
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.approval_linked",
+      entityType: "issue",
+      entityId: issue.id,
+      details: { approvalId: approval.id, source: "issue.review_handoff" },
+    });
   }
 
   function requireAgentRunId(req: Request, res: Response) {
@@ -356,6 +487,9 @@ export function issueRoutes(db: Db, storage: StorageService) {
   router.post("/companies/:companyId/issues", validate(createIssueSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
+    if (typeof req.body.parentId === "string" && req.body.parentId.length > 0) {
+      await assertIssuePlanApprovalAllowsExecution(req.body.parentId, "subtask");
+    }
     if (req.body.assigneeAgentId || req.body.assigneeUserId) {
       await assertCanAssignTasks(req, companyId);
     }
@@ -418,9 +552,13 @@ export function issueRoutes(db: Db, storage: StorageService) {
       req.body.assigneeUserId === existing.createdByUserId;
 
     if (assigneeWillChange) {
+      await assertIssuePlanApprovalAllowsExecution(existing.id, "assign");
       if (!isAgentReturningIssueToCreator) {
         await assertCanAssignTasks(req, existing.companyId);
       }
+    }
+    if (req.body.status === "in_progress") {
+      await assertIssuePlanApprovalAllowsExecution(existing.id, "in_progress");
     }
     if (!(await assertAgentRunCheckoutOwnership(req, res, existing))) return;
 
@@ -479,6 +617,14 @@ export function issueRoutes(db: Db, storage: StorageService) {
       entityType: "issue",
       entityId: issue.id,
       details: { ...updateFields, identifier: issue.identifier, _previous: Object.keys(previous).length > 0 ? previous : undefined },
+    });
+
+    await maybeCreateBoardReviewApproval({
+      issue,
+      existing,
+      actor,
+      commentBody,
+      isAgentReturningIssueToCreator,
     });
 
     let comment = null;
@@ -617,6 +763,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
 
+    await assertIssuePlanApprovalAllowsExecution(issue.id, "checkout");
     const checkoutRunId = requireAgentRunId(req, res);
     if (req.actor.type === "agent" && !checkoutRunId) return;
     const updated = await svc.checkout(id, req.body.agentId, req.body.expectedStatuses, checkoutRunId);

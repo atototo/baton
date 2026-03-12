@@ -24,6 +24,7 @@ import { StatusIcon } from "../components/StatusIcon";
 import { PriorityIcon } from "../components/PriorityIcon";
 import { StatusBadge } from "../components/StatusBadge";
 import { Identity } from "../components/Identity";
+import { useTypeLabel } from "../components/ApprovalPayload";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,7 @@ function ActorIdentity({ evt, agentMap }: { evt: ActivityEvent; agentMap: Map<st
 
 export function IssueDetail() {
   const { t } = useTranslation();
+  const approvalTypeLabels = useTypeLabel();
   const { issueId } = useParams<{ issueId: string }>();
   const { selectedCompanyId } = useCompany();
   const { pushToast } = useToast();
@@ -866,7 +868,8 @@ export function IssueDetail() {
                   <div className="flex items-center gap-2">
                     <StatusBadge status={approval.status} />
                     <span className="font-medium">
-                      {approval.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      {approvalTypeLabels[approval.type] ??
+                        approval.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                     </span>
                     <span className="font-mono text-muted-foreground">{approval.id.slice(0, 8)}</span>
                   </div>

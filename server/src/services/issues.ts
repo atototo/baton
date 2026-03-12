@@ -7,7 +7,9 @@ import {
   companyMemberships,
   goals,
   heartbeatRuns,
+  approvals,
   issueAttachments,
+  issueApprovals,
   issueLabels,
   issueComments,
   issues,
@@ -207,6 +209,26 @@ export function issueService(db: Db) {
       .then((rows) => rows[0] ?? null);
     if (!membership) {
       throw notFound("Assignee user not found");
+    }
+  }
+
+  async function assertNoPendingIssuePlanApproval(issueId: string) {
+    const blockingApprovals = await db
+      .select({ id: approvals.id })
+      .from(issueApprovals)
+      .innerJoin(approvals, eq(issueApprovals.approvalId, approvals.id))
+      .where(
+        and(
+          eq(issueApprovals.issueId, issueId),
+          eq(approvals.type, "approve_issue_plan"),
+          inArray(approvals.status, ["pending", "revision_requested"]),
+        ),
+      );
+
+    if (blockingApprovals.length > 0) {
+      throw conflict("Issue plan approval is still pending", {
+        approvalIds: blockingApprovals.map((approval) => approval.id),
+      });
     }
   }
 
@@ -533,6 +555,7 @@ export function issueService(db: Db) {
         .where(eq(issues.id, id))
         .then((rows) => rows[0] ?? null);
       if (!issueCompany) throw notFound("Issue not found");
+      await assertNoPendingIssuePlanApproval(id);
       await assertAssignableAgent(issueCompany.companyId, agentId);
 
       const now = new Date();

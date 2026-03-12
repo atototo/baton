@@ -38,7 +38,6 @@ import {
   useHelpText,
   adapterLabels,
 } from "./agent-config-primitives";
-import { defaultCreateValues } from "./agent-config-defaults";
 import { getUIAdapter } from "../adapters";
 import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import { InlineHelp } from "./InlineHelp";
@@ -155,6 +154,73 @@ const claudeThinkingEffortOptions = [
   { id: "medium", label: "Medium" },
   { id: "high", label: "High" },
 ] as const;
+
+function buildCreateValuesForAdapterSwitch(
+  current: CreateConfigValues,
+  adapterType: string,
+): CreateConfigValues {
+  const nextValues: CreateConfigValues = {
+    ...current,
+    adapterType,
+    model: "",
+    thinkingEffort: "",
+    chrome: false,
+    dangerouslySkipPermissions: false,
+    search: false,
+    dangerouslyBypassSandbox: false,
+    command: "",
+    args: "",
+    extraArgs: "",
+    envVars: "",
+    envBindings: {},
+    url: "",
+  };
+
+  if (adapterType === "codex_local") {
+    nextValues.model = DEFAULT_CODEX_LOCAL_MODEL;
+    nextValues.dangerouslyBypassSandbox =
+      DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX;
+  } else if (adapterType === "cursor") {
+    nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
+  } else if (adapterType === "opencode_local") {
+    nextValues.model = DEFAULT_OPENCODE_LOCAL_MODEL;
+  }
+
+  return nextValues;
+}
+
+function buildPreservedAdapterConfigForSwitch(
+  adapterType: string,
+  current: Record<string, unknown>,
+): Record<string, unknown> {
+  const nextConfig: Record<string, unknown> = {
+    cwd: current.cwd,
+    instructionsFilePath: current.instructionsFilePath,
+    promptTemplate: current.promptTemplate,
+    bootstrapPromptTemplate: current.bootstrapPromptTemplate,
+    model:
+      adapterType === "codex_local"
+        ? DEFAULT_CODEX_LOCAL_MODEL
+        : adapterType === "cursor"
+        ? DEFAULT_CURSOR_LOCAL_MODEL
+        : adapterType === "opencode_local"
+        ? DEFAULT_OPENCODE_LOCAL_MODEL
+        : "",
+    effort: "",
+    modelReasoningEffort: "",
+    variant: "",
+    mode: "",
+  };
+
+  if (adapterType === "codex_local") {
+    nextConfig.dangerouslyBypassApprovalsAndSandbox =
+      DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX;
+  }
+
+  return Object.fromEntries(
+    Object.entries(nextConfig).filter(([, value]) => value !== undefined),
+  );
+}
 
 /* ---- Form ---- */
 
@@ -582,48 +648,19 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               value={adapterType}
               onChange={(t) => {
                 if (isCreate) {
-                  // Reset all adapter-specific fields to defaults when switching adapter type
-                  const { adapterType: _at, ...defaults } = defaultCreateValues;
-                  const nextValues: CreateConfigValues = {
-                    ...defaults,
-                    adapterType: t,
-                  };
-                  if (t === "codex_local") {
-                    nextValues.model = DEFAULT_CODEX_LOCAL_MODEL;
-                    nextValues.dangerouslyBypassSandbox =
-                      DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX;
-                  } else if (t === "cursor") {
-                    nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
-                  } else if (t === "opencode_local") {
-                    nextValues.model = DEFAULT_OPENCODE_LOCAL_MODEL;
-                  }
-                  set!(nextValues);
+                  set!(buildCreateValuesForAdapterSwitch(props.values, t));
                 } else {
-                  // Clear all adapter config and explicitly blank out model + effort/mode keys
-                  // so the old adapter's values don't bleed through via eff()
+                  const currentEffectiveConfig = {
+                    ...config,
+                    ...overlay.adapterConfig,
+                  };
                   setOverlay((prev) => ({
                     ...prev,
                     adapterType: t,
-                    adapterConfig: {
-                      model:
-                        t === "codex_local"
-                          ? DEFAULT_CODEX_LOCAL_MODEL
-                          : t === "cursor"
-                          ? DEFAULT_CURSOR_LOCAL_MODEL
-                          : t === "opencode_local"
-                          ? DEFAULT_OPENCODE_LOCAL_MODEL
-                          : "",
-                      effort: "",
-                      modelReasoningEffort: "",
-                      variant: "",
-                      mode: "",
-                      ...(t === "codex_local"
-                        ? {
-                            dangerouslyBypassApprovalsAndSandbox:
-                              DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
-                          }
-                        : {}),
-                    },
+                    adapterConfig: buildPreservedAdapterConfigForSwitch(
+                      t,
+                      currentEffectiveConfig,
+                    ),
                   }));
                 }
               }}

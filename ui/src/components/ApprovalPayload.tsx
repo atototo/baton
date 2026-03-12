@@ -1,9 +1,11 @@
-import { UserPlus, Lightbulb, ShieldCheck } from "lucide-react";
+import { GitPullRequest, Lightbulb, ListChecks, ShieldCheck, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export const typeIcon: Record<string, typeof UserPlus> = {
   hire_agent: UserPlus,
   approve_ceo_strategy: Lightbulb,
+  approve_issue_plan: ListChecks,
+  approve_pull_request: GitPullRequest,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -13,6 +15,8 @@ export function useTypeLabel(): Record<string, string> {
   return {
     hire_agent: t("approval.typeHireAgent"),
     approve_ceo_strategy: t("approval.typeCeoStrategy"),
+    approve_issue_plan: t("approval.typeIssuePlan"),
+    approve_pull_request: t("approval.typePullRequest"),
   };
 }
 
@@ -20,6 +24,8 @@ export function useTypeLabel(): Record<string, string> {
 export const typeLabel: Record<string, string> = {
   hire_agent: "Hire Agent",
   approve_ceo_strategy: "CEO Strategy",
+  approve_issue_plan: "Issue Plan",
+  approve_pull_request: "Pull Request",
 };
 
 function PayloadField({ label, value }: { label: string; value: unknown }) {
@@ -81,7 +87,39 @@ export function CeoStrategyPayload({ payload }: { payload: Record<string, unknow
   );
 }
 
+export function GenericApprovalPayload({ payload }: { payload: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const summary =
+    payload.summary ??
+    payload.title ??
+    payload.plan ??
+    payload.description ??
+    payload.body ??
+    payload.reason;
+
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <PayloadField label={t("approval.title")} value={payload.title} />
+      <PayloadField label={t("approval.branch")} value={payload.branch} />
+      <PayloadField label={t("approval.baseBranch")} value={payload.baseBranch} />
+      <PayloadField label={t("approval.headBranch")} value={payload.headBranch} />
+      <PayloadField label={t("approval.repository")} value={payload.repository} />
+      {!!summary && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap font-mono text-xs max-h-48 overflow-y-auto">
+          {String(summary)}
+        </div>
+      )}
+      {!summary && (
+        <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({ type, payload }: { type: string; payload: Record<string, unknown> }) {
   if (type === "hire_agent") return <HireAgentPayload payload={payload} />;
-  return <CeoStrategyPayload payload={payload} />;
+  if (type === "approve_ceo_strategy") return <CeoStrategyPayload payload={payload} />;
+  return <GenericApprovalPayload payload={payload} />;
 }
