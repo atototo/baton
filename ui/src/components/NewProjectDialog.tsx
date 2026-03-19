@@ -51,6 +51,7 @@ export function NewProjectDialog() {
   const [workspaceSetup, setWorkspaceSetup] = useState<WorkspaceSetup>("none");
   const [workspaceLocalPath, setWorkspaceLocalPath] = useState("");
   const [workspaceRepoUrl, setWorkspaceRepoUrl] = useState("");
+  const [workspaceBaseBranch, setWorkspaceBaseBranch] = useState("main");
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   const [statusOpen, setStatusOpen] = useState(false);
@@ -92,6 +93,7 @@ export function NewProjectDialog() {
     setWorkspaceSetup("none");
     setWorkspaceLocalPath("");
     setWorkspaceRepoUrl("");
+    setWorkspaceBaseBranch("main");
     setWorkspaceError(null);
   }
 
@@ -168,17 +170,20 @@ export function NewProjectDialog() {
           name: deriveWorkspaceNameFromPath(localPath),
           cwd: localPath,
           repoUrl,
+          defaultBaseBranch: workspaceBaseBranch.trim() || "main",
         });
       } else if (localRequired) {
         workspacePayloads.push({
           name: deriveWorkspaceNameFromPath(localPath),
           cwd: localPath,
+          defaultBaseBranch: workspaceBaseBranch.trim() || "main",
         });
       } else if (repoRequired) {
         workspacePayloads.push({
           name: deriveWorkspaceNameFromRepo(repoUrl),
           cwd: REPO_ONLY_CWD_SENTINEL,
           repoUrl,
+          defaultBaseBranch: workspaceBaseBranch.trim() || "main",
         });
       }
       for (const workspacePayload of workspacePayloads) {
@@ -389,6 +394,15 @@ export function NewProjectDialog() {
                 />
                 <ChoosePathButton />
               </div>
+              <label className="mb-1 mt-2 block text-xs text-muted-foreground">
+                {t("newProject.defaultBaseBranch", "기본 베이스 브랜치")}
+              </label>
+              <input
+                className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                value={workspaceBaseBranch}
+                onChange={(e) => setWorkspaceBaseBranch(e.target.value)}
+                placeholder={t("newProject.defaultBaseBranchPlaceholder", "main")}
+              />
             </div>
           )}
           {(workspaceSetup === "repo" || workspaceSetup === "both") && (
@@ -401,6 +415,15 @@ export function NewProjectDialog() {
                 value={workspaceRepoUrl}
                 onChange={(e) => setWorkspaceRepoUrl(e.target.value)}
                 placeholder={t("newProject.repoUrlPlaceholder")}
+              />
+              <label className="mb-1 mt-2 block text-xs text-muted-foreground">
+                {t("newProject.defaultBaseBranch", "기본 베이스 브랜치")}
+              </label>
+              <input
+                className="w-full rounded border border-border bg-transparent px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                value={workspaceBaseBranch}
+                onChange={(e) => setWorkspaceBaseBranch(e.target.value)}
+                placeholder={t("newProject.defaultBaseBranchPlaceholder", "main")}
               />
             </div>
           )}

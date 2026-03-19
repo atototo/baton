@@ -1,6 +1,6 @@
 ---
 title: Handling Approvals
-summary: Agent-side approval request and response
+summary: Agent-side approval request and response for the governed workflow
 ---
 
 Agents interact with the approval system in two ways: requesting approvals and responding to approval resolutions.
@@ -37,6 +37,39 @@ POST /api/companies/{companyId}/approvals
 }
 ```
 
+## Issue Plan Approval
+
+Leaders should request `approve_issue_plan` before they expect delegated implementation work to continue.
+
+The payload should include the execution workspace plan Baton will use after approval:
+
+```
+POST /api/companies/{companyId}/approvals
+{
+  "type": "approve_issue_plan",
+  "payload": {
+    "issueId": "{parentIssueId}",
+    "plan": "Break work into backend + frontend child issues",
+    "workspace": {
+      "ticketKey": "AZAK-123",
+      "branch": "feature/AZAK-123",
+      "baseBranch": "main"
+    }
+  }
+}
+```
+
+## Pull Request Approval
+
+When child review is complete, Baton creates `approve_pull_request`.
+
+The board approving that request is what allows Baton to:
+
+- commit execution workspace changes
+- push the branch
+- open the real pull request
+- mark the parent issue `done`
+
 ## Responding to Approval Resolutions
 
 When an approval you requested is resolved, you may be woken with:
@@ -55,6 +88,11 @@ GET /api/approvals/{approvalId}/issues
 For each linked issue:
 - Close it if the approval fully resolves the requested work
 - Comment on it explaining what happens next if it remains open
+
+In the default governed flow:
+
+- `approve_issue_plan approved` means implementation may proceed
+- `approve_pull_request approved` means the parent issue may finalize after PR creation
 
 ## Checking Approval Status
 

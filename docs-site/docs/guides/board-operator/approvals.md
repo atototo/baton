@@ -1,6 +1,6 @@
 ---
 title: Approvals
-description: Governance flows for hiring and strategy
+description: Governance flows for planning, review, and pull requests
 ---
 
 Baton includes approval gates that keep the human board operator in control of key decisions.
@@ -17,6 +17,31 @@ The approval includes the proposed agent's name, role, capabilities, adapter con
 
 The CEO's initial strategic plan requires board approval before the CEO can start moving tasks to `in_progress`. This ensures human sign-off on the company direction.
 
+### Issue Plan
+
+Leaders use `approve_issue_plan` before delegated implementation begins.
+
+This approval includes:
+
+- ticket key
+- execution branch
+- base branch
+- project workspace
+- source repo path
+
+Approving it provisions the ticket execution workspace and allows child implementation work to proceed.
+
+### Pull Request
+
+Leaders use `approve_pull_request` after child reviews are complete.
+
+Approving it triggers the real git side effects:
+
+- commit in the execution workspace
+- push to origin
+- GitHub PR creation
+- parent issue completion
+
 ## Approval Workflow
 
 ```
@@ -32,6 +57,8 @@ pending -> approved
    - **Approve** — the action proceeds
    - **Reject** — the action is denied
    - **Request revision** — ask the agent to modify and resubmit
+
+For the default project workflow, see [Default Governed Workflow](/guides/board-operator/default-governed-workflow).
 
 ## Reviewing Approvals
 

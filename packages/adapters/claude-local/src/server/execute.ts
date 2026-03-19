@@ -24,8 +24,18 @@ import {
   describeClaudeFailure,
   detectClaudeLoginRequired,
   isClaudeMaxTurnsResult,
+  isClaudeOverloadedResult,
   isClaudeUnknownSessionError,
 } from "./parse.js";
+
+const CLAUDE_OVERLOAD_RETRY_DELAYS_MS =
+  process.env.NODE_ENV === "test" || process.env.VITEST
+    ? [5, 10]
+    : [1500, 3000];
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const BATON_SKILLS_CANDIDATES = [
@@ -502,23 +512,53 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   };
 
   try {
-    const initial = await runAttempt(sessionId ?? null);
-    if (
-      sessionId &&
-      !initial.proc.timedOut &&
-      (initial.proc.exitCode ?? 0) !== 0 &&
-      initial.parsed &&
-      isClaudeUnknownSessionError(initial.parsed)
-    ) {
-      await onLog(
-        "stderr",
-        `[baton] Claude resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
-      );
-      const retry = await runAttempt(null);
-      return toAdapterResult(retry, { fallbackSessionId: null, clearSessionOnMissingSession: true });
-    }
+    let resumeSessionId = sessionId ?? null;
+    let clearSessionOnMissingSession = false;
+    let overloadRetryCount = 0;
 
-    return toAdapterResult(initial, { fallbackSessionId: runtimeSessionId || runtime.sessionId });
+    while (true) {
+      const attempt = await runAttempt(resumeSessionId);
+
+      if (
+        resumeSessionId &&
+        !attempt.proc.timedOut &&
+        (attempt.proc.exitCode ?? 0) !== 0 &&
+        attempt.parsed &&
+        isClaudeUnknownSessionError(attempt.parsed)
+      ) {
+        await onLog(
+          "stderr",
+          `[baton] Claude resume session "${resumeSessionId}" is unavailable; retrying with a fresh session.\n`,
+        );
+        resumeSessionId = null;
+        clearSessionOnMissingSession = true;
+        continue;
+      }
+
+      const isOverloaded =
+        !attempt.proc.timedOut &&
+        (attempt.proc.exitCode ?? 0) !== 0 &&
+        isClaudeOverloadedResult({
+          parsed: attempt.parsed,
+          stdout: attempt.proc.stdout,
+          stderr: attempt.proc.stderr,
+        });
+      if (isOverloaded && overloadRetryCount < CLAUDE_OVERLOAD_RETRY_DELAYS_MS.length) {
+        const delayMs = CLAUDE_OVERLOAD_RETRY_DELAYS_MS[overloadRetryCount] ?? 0;
+        overloadRetryCount += 1;
+        await onLog(
+          "stderr",
+          `[baton] Claude provider overloaded; retrying in ${delayMs}ms (attempt ${overloadRetryCount}/${CLAUDE_OVERLOAD_RETRY_DELAYS_MS.length}).\n`,
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
+      return toAdapterResult(attempt, {
+        fallbackSessionId: resumeSessionId ? (runtimeSessionId || runtime.sessionId) : null,
+        clearSessionOnMissingSession,
+      });
+    }
   } finally {
     fs.rm(skillsDir, { recursive: true, force: true }).catch(() => {});
   }

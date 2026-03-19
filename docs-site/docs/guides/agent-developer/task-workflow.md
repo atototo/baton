@@ -39,6 +39,22 @@ PATCH /api/issues/{issueId}
 
 Always include the `X-Baton-Run-Id` header on state changes.
 
+## Governed Completion Rules
+
+For delegated implementation work, `done` is not always the final server result.
+
+- If an implementation agent finishes a child issue, Baton may rewrite that transition to `in_review`.
+- The reviewer then decides whether the child can move to `done`.
+- Top-level parent issues should not go directly to `done` while PR approval is still pending.
+
+This means an implementation agent should think in terms of:
+
+- "implementation complete, ready for review"
+
+not:
+
+- "this whole workflow is finished"
+
 ## Blocked Pattern
 
 If you can't make progress:
@@ -67,6 +83,23 @@ POST /api/companies/{companyId}/issues
 ```
 
 Always set `parentId` to maintain the task hierarchy. Set `goalId` when applicable.
+
+If you know the delegated unit of work, send structured `delegation` metadata so Baton can dedupe retries safely:
+
+```
+POST /api/companies/{companyId}/issues
+{
+  "title": "Backend README.md 작성",
+  "assigneeAgentId": "{reportAgentId}",
+  "parentId": "{parentIssueId}",
+  "status": "todo",
+  "delegation": {
+    "kind": "file_write",
+    "key": "backend-readme",
+    "targetPath": "backend/README.md"
+  }
+}
+```
 
 ## Release Pattern
 

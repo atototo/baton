@@ -12,6 +12,7 @@ import {
   issueApprovals,
   issueLabels,
   issueComments,
+  costEvents,
   issues,
   labels,
   projectWorkspaces,
@@ -20,6 +21,7 @@ import {
 import { extractProjectMentionIds } from "@atototo/shared";
 import { extractMentionedAgentIds } from "./issue-mentions.js";
 import { conflict, notFound, unprocessable } from "../errors.js";
+import { extractJiraTicketKey } from "./execution-workspaces.js";
 
 const ALL_ISSUE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
 
@@ -424,6 +426,32 @@ export function issueService(db: Db) {
       if (data.status === "in_progress" && !data.assigneeAgentId && !data.assigneeUserId) {
         throw unprocessable("in_progress issues require an assignee");
       }
+      let inheritedBillingCode: string | null = null;
+      let inheritedExecutionWorkspaceId: string | null = null;
+      if (!issueData.billingCode && issueData.parentId) {
+        const parent = await db
+          .select({
+            billingCode: issues.billingCode,
+            identifier: issues.identifier,
+            title: issues.title,
+            description: issues.description,
+            executionWorkspaceId: issues.executionWorkspaceId,
+          })
+          .from(issues)
+          .where(and(eq(issues.companyId, companyId), eq(issues.id, issueData.parentId)))
+          .then((rows) => rows[0] ?? null);
+        inheritedBillingCode =
+          parent?.billingCode ??
+          extractJiraTicketKey(parent?.title, parent?.description, parent?.identifier) ??
+          null;
+        inheritedExecutionWorkspaceId = parent?.executionWorkspaceId ?? null;
+      } else if (issueData.parentId) {
+        inheritedExecutionWorkspaceId = await db
+          .select({ executionWorkspaceId: issues.executionWorkspaceId })
+          .from(issues)
+          .where(and(eq(issues.companyId, companyId), eq(issues.id, issueData.parentId)))
+          .then((rows) => rows[0]?.executionWorkspaceId ?? null);
+      }
       return db.transaction(async (tx) => {
         const [company] = await tx
           .update(companies)
@@ -434,7 +462,14 @@ export function issueService(db: Db) {
         const issueNumber = company.issueCounter;
         const identifier = `${company.issuePrefix}-${issueNumber}`;
 
-        const values = { ...issueData, companyId, issueNumber, identifier } as typeof issues.$inferInsert;
+        const values = {
+          ...issueData,
+          companyId,
+          issueNumber,
+          identifier,
+          billingCode: issueData.billingCode ?? inheritedBillingCode,
+          executionWorkspaceId: issueData.executionWorkspaceId ?? inheritedExecutionWorkspaceId,
+        } as typeof issues.$inferInsert;
         if (values.status === "in_progress" && !values.startedAt) {
           values.startedAt = new Date();
         }
@@ -530,6 +565,10 @@ export function issueService(db: Db) {
           .select({ assetId: issueAttachments.assetId })
           .from(issueAttachments)
           .where(eq(issueAttachments.issueId, id));
+
+        await tx.delete(issueComments).where(eq(issueComments.issueId, id));
+        await tx.update(costEvents).set({ issueId: null }).where(eq(costEvents.issueId, id));
+        await tx.update(issues).set({ parentId: null }).where(eq(issues.parentId, id));
 
         const removedIssue = await tx
           .delete(issues)
@@ -1135,19 +1174,27 @@ export function issueService(db: Db) {
         }).from(projects).where(inArray(projects.id, projectIds));
         for (const r of rows) {
           const projectWorkspaceRows = workspaceMap.get(r.id) ?? [];
-          const workspaces = projectWorkspaceRows.map((workspace) => ({
-            id: workspace.id,
-            companyId: workspace.companyId,
-            projectId: workspace.projectId,
-            name: workspace.name,
-            cwd: workspace.cwd,
-            repoUrl: workspace.repoUrl ?? null,
-            repoRef: workspace.repoRef ?? null,
-            metadata: (workspace.metadata as Record<string, unknown> | null) ?? null,
-            isPrimary: workspace.isPrimary,
-            createdAt: workspace.createdAt,
-            updatedAt: workspace.updatedAt,
-          }));
+          const workspaces = projectWorkspaceRows.map((workspace) => {
+            const metadata = (workspace.metadata as Record<string, unknown> | null) ?? null;
+            const defaultBaseBranch =
+              typeof metadata?.defaultBaseBranch === "string" && metadata.defaultBaseBranch.trim().length > 0
+                ? metadata.defaultBaseBranch.trim()
+                : null;
+            return {
+              id: workspace.id,
+              companyId: workspace.companyId,
+              projectId: workspace.projectId,
+              name: workspace.name,
+              cwd: workspace.cwd,
+              repoUrl: workspace.repoUrl ?? null,
+              repoRef: workspace.repoRef ?? null,
+              metadata,
+              defaultBaseBranch,
+              isPrimary: workspace.isPrimary,
+              createdAt: workspace.createdAt,
+              updatedAt: workspace.updatedAt,
+            };
+          });
           const primaryWorkspace = workspaces.find((workspace) => workspace.isPrimary) ?? workspaces[0] ?? null;
           projectMap.set(r.id, {
             ...r,

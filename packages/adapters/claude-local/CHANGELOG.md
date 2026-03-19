@@ -1,5 +1,13 @@
 # @atototo/adapter-claude-local
 
+## Unreleased
+
+## 0.4.0
+
+### Minor Changes
+
+- Retry transient Claude overload responses (`API 529 overloaded_error`) instead of failing the run immediately
+
 ## 0.2.7
 
 ### Patch Changes

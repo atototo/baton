@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Db } from "@atototo/db";
-import { agents as agentsTable, companies, heartbeatRuns } from "@atototo/db";
+import { agents as agentsTable, companies, heartbeatRuns, issues } from "@atototo/db";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
 import {
   createAgentKeySchema,
@@ -38,6 +38,7 @@ import {
 } from "@atototo/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@atototo/adapter-cursor-local";
 import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@atototo/adapter-opencode-local";
+import { inferIssueIdForManualAgentInvoke } from "./agent-run-context.js";
 
 export function agentRoutes(db: Db) {
   const DEFAULT_INSTRUCTIONS_PATH_KEYS: Record<string, string> = {
@@ -99,6 +100,20 @@ export function agentRoutes(db: Db) {
     if (!actorAgent || actorAgent.companyId !== companyId) return false;
     const allowedByGrant = await access.hasPermission(companyId, "agent", actorAgent.id, "agents:create");
     return allowedByGrant || canCreateAgents(actorAgent);
+  }
+
+  async function inferManualInvokeIssueId(agentId: string, companyId: string): Promise<string | null> {
+    const assignedIssues = await db
+      .select({
+        id: issues.id,
+        status: issues.status,
+        executionWorkspaceId: issues.executionWorkspaceId,
+      })
+      .from(issues)
+      .where(and(eq(issues.companyId, companyId), eq(issues.assigneeAgentId, agentId)))
+      .orderBy(desc(issues.updatedAt), desc(issues.createdAt));
+
+    return inferIssueIdForManualAgentInvoke(assignedIssues);
   }
 
   async function assertCanUpdateAgent(req: Request, targetAgent: { id: string; companyId: string }) {
@@ -1127,12 +1142,23 @@ export function agentRoutes(db: Db) {
       return;
     }
 
+    const body =
+      typeof req.body === "object" && req.body !== null ? (req.body as Record<string, unknown>) : {};
+    const explicitIssueId =
+      typeof body.issueId === "string" && body.issueId.trim().length > 0 ? body.issueId.trim() : null;
+    const issueId = explicitIssueId ?? await inferManualInvokeIssueId(id, agent.companyId);
+    const taskId =
+      typeof body.taskId === "string" && body.taskId.trim().length > 0
+        ? body.taskId.trim()
+        : issueId;
     const run = await heartbeat.invoke(
       id,
       "on_demand",
       {
         triggeredBy: req.actor.type,
         actorId: req.actor.type === "agent" ? req.actor.agentId : req.actor.userId,
+        ...(issueId ? { issueId } : {}),
+        ...(taskId ? { taskId } : {}),
       },
       "manual",
       {

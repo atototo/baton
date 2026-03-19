@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
-import type { Db } from "@atototo/db";
+import { issues as issueTable, type Db } from "@atototo/db";
+import { and, eq } from "drizzle-orm";
 import {
   addIssueCommentSchema,
   createIssueAttachmentMetadataSchema,
@@ -16,6 +17,8 @@ import {
   accessService,
   agentService,
   approvalService,
+  buildExecutionWorkspacePlanForIssue,
+  executionWorkspaceService,
   goalService,
   heartbeatService,
   issueApprovalService,
@@ -24,8 +27,17 @@ import {
   projectService,
 } from "../services/index.js";
 import { logger } from "../middleware/logger.js";
-import { forbidden, HttpError, unauthorized } from "../errors.js";
+import { conflict, forbidden, HttpError, unauthorized } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { sanitizeProjectWorkspacePaths } from "./issue-response.js";
+import {
+  isAssigneeAgentReviewCompletionAttempt,
+  isAssigneeAgentDoneAttempt,
+  isAssigneeAgentReviewRequestAttempt,
+  rewriteChildAgentDoneToReview,
+  rewriteParentAgentDoneToReview,
+  TERMINAL_ISSUE_STATUSES,
+} from "./issue-workflow.js";
 
 const MAX_ATTACHMENT_BYTES = Number(process.env.BATON_ATTACHMENT_MAX_BYTES) || 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_CONTENT_TYPES = new Set([
@@ -35,12 +47,12 @@ const ALLOWED_ATTACHMENT_CONTENT_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
-
 export function issueRoutes(db: Db, storage: StorageService) {
   const router = Router();
   const svc = issueService(db);
   const access = accessService(db);
   const heartbeat = heartbeatService(db);
+  const executionWorkspacesSvc = executionWorkspaceService(db);
   const agentsSvc = agentService(db);
   const approvalsSvc = approvalService(db);
   const projectsSvc = projectService(db);
@@ -90,6 +102,82 @@ export function issueRoutes(db: Db, storage: StorageService) {
     return Boolean((agent.permissions as Record<string, unknown>).canCreateAgents);
   }
 
+  function normalizeDelegatedChildTitle(title: string | null | undefined) {
+    let normalized = (title ?? "").trim();
+    normalized = normalized.replace(/^\[[^\]]+\]\s*/, "").trim();
+    while (/\s*\([^)]*\)\s*$/.test(normalized)) {
+      normalized = normalized.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    }
+    return normalized.toLowerCase();
+  }
+
+  function normalizeDelegationValue(value: string | null | undefined) {
+    return (value ?? "").trim().toLowerCase();
+  }
+
+  function normalizeIssueDelegation(
+    delegation:
+      | {
+          kind?: string | null;
+          key?: string | null;
+          targetPath?: string | null;
+          scope?: string | null;
+        }
+      | null
+      | undefined,
+  ) {
+    if (!delegation) return null;
+    const kind = normalizeDelegationValue(delegation.kind);
+    const key = normalizeDelegationValue(delegation.key);
+    if (!kind || !key) return null;
+    return {
+      kind,
+      key,
+      targetPath: delegation.targetPath?.trim() || null,
+      scope: delegation.scope?.trim() || null,
+    };
+  }
+
+  async function findReusableActiveChildIssue(args: {
+    companyId: string;
+    parentId: string;
+    assigneeAgentId?: string | null;
+    assigneeUserId?: string | null;
+    title: string;
+    delegation?:
+      | {
+          kind?: string | null;
+          key?: string | null;
+          targetPath?: string | null;
+          scope?: string | null;
+        }
+      | null;
+  }) {
+    const siblings = await db
+      .select()
+      .from(issueTable)
+      .where(and(eq(issueTable.companyId, args.companyId), eq(issueTable.parentId, args.parentId)));
+
+    const requestedDelegation = normalizeIssueDelegation(args.delegation);
+    const requestedTitle = normalizeDelegatedChildTitle(args.title);
+    return (
+      siblings.find((sibling) => {
+        if (TERMINAL_ISSUE_STATUSES.has(sibling.status)) return false;
+        if ((args.assigneeAgentId ?? null) !== (sibling.assigneeAgentId ?? null)) return false;
+        if ((args.assigneeUserId ?? null) !== (sibling.assigneeUserId ?? null)) return false;
+        if (requestedDelegation) {
+          const siblingDelegation = normalizeIssueDelegation(sibling.delegation);
+          if (!siblingDelegation) return false;
+          return (
+            siblingDelegation.kind === requestedDelegation.kind &&
+            siblingDelegation.key === requestedDelegation.key
+          );
+        }
+        return normalizeDelegatedChildTitle(sibling.title) === requestedTitle;
+      }) ?? null
+    );
+  }
+
   async function assertCanAssignTasks(req: Request, companyId: string) {
     assertCompanyAccess(req, companyId);
     if (req.actor.type === "board") {
@@ -137,10 +225,109 @@ export function issueRoutes(db: Db, storage: StorageService) {
     }
   }
 
+  async function assertAncestorIssuePlanApprovalAllowsExecution(
+    issueId: string,
+    reason: "checkout" | "in_progress",
+  ) {
+    const ancestors = await svc.getAncestors(issueId);
+    if (ancestors.length === 0) return;
+
+    for (const ancestor of ancestors) {
+      const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
+        ancestor.id,
+        ["approve_issue_plan"],
+        ["pending", "revision_requested"],
+      );
+      if (blockingApprovals.length === 0) continue;
+      const messageByReason = {
+        checkout: "Cannot start work while parent issue plan approval is pending",
+        in_progress: "Cannot move issue to in_progress while parent issue plan approval is pending",
+      } as const;
+      throw forbidden(messageByReason[reason]);
+    }
+  }
+
+  async function assertIssueCompletionAllowed(issueId: string) {
+    const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
+      issueId,
+      ["approve_pull_request"],
+      ["pending", "revision_requested"],
+    );
+    if (blockingApprovals.length > 0) {
+      throw conflict("Cannot mark issue done while pull request approval is pending", {
+        approvalIds: blockingApprovals.map((approval) => approval.id),
+      });
+    }
+  }
+
   function extractPlanText(description: string | null | undefined) {
     if (!description) return null;
     const match = description.match(/<plan>\s*([\s\S]*?)\s*<\/plan>/i);
     return match ? match[1].trim() : null;
+  }
+
+  async function buildExecutionWorkspacePlan(
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>,
+  ) {
+    if (!issue.projectId) {
+      throw conflict("Issue must belong to a project before requesting implementation approval.");
+    }
+    const projectWorkspaces = await projectsSvc.listWorkspaces(issue.projectId);
+    return buildExecutionWorkspacePlanForIssue({
+      issue,
+      projectWorkspaces,
+    });
+  }
+
+  async function findExistingActionableIssueApproval(args: {
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    type: "approve_issue_plan" | "approve_pull_request";
+  }) {
+    const { issue, type } = args;
+    const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(issue.id);
+    const linkedExisting = linkedApprovals.find(
+      (approval) =>
+        approval.type === type && (approval.status === "pending" || approval.status === "revision_requested"),
+    );
+    if (linkedExisting) return linkedExisting;
+
+    return approvalsSvc.findActionableForIssue({
+      companyId: issue.companyId,
+      type,
+      issueId: issue.id,
+      issueIdentifier: issue.identifier,
+    });
+  }
+
+  async function maybeBlockIssueForPendingPlanApproval(args: {
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    actor: ReturnType<typeof getActorInfo>;
+    approvalId: string;
+    source: string;
+  }) {
+    const { issue, actor, approvalId, source } = args;
+    if (issue.status !== "todo" && issue.status !== "in_progress") return;
+
+    const blockedIssue = await svc.update(issue.id, { status: "blocked" });
+    if (!blockedIssue) return;
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.blocked_for_approval",
+      entityType: "issue",
+      entityId: issue.id,
+      details: {
+        approvalId,
+        approvalType: "approve_issue_plan",
+        previousStatus: issue.status,
+        nextStatus: blockedIssue.status,
+        source,
+      },
+    });
   }
 
   function extractBranchName(...sources: Array<string | null | undefined>) {
@@ -150,6 +337,47 @@ export function issueRoutes(db: Db, storage: StorageService) {
       if (match) return match[0];
     }
     return null;
+  }
+
+  async function resolveIssueBranchName(
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>,
+    ...fallbackSources: Array<string | null | undefined>
+  ) {
+    if (issue.executionWorkspaceId) {
+      const executionWorkspace = await executionWorkspacesSvc.getById(issue.executionWorkspaceId);
+      if (typeof executionWorkspace?.branch === "string" && executionWorkspace.branch.trim().length > 0) {
+        return executionWorkspace.branch;
+      }
+    }
+
+    return extractBranchName(...fallbackSources);
+  }
+
+  async function resolveIssueBaseBranch(
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>,
+    fallback = "main",
+  ) {
+    if (issue.executionWorkspaceId) {
+      const executionWorkspace = await executionWorkspacesSvc.getById(issue.executionWorkspaceId);
+      if (typeof executionWorkspace?.baseBranch === "string" && executionWorkspace.baseBranch.trim().length > 0) {
+        return executionWorkspace.baseBranch;
+      }
+    }
+
+    if (issue.projectId) {
+      const projectWorkspaces = await projectsSvc.listWorkspaces(issue.projectId);
+      const primaryWorkspace =
+        projectWorkspaces.find((workspace) => workspace.isPrimary) ?? projectWorkspaces[0] ?? null;
+      if (
+        primaryWorkspace &&
+        typeof primaryWorkspace.defaultBaseBranch === "string" &&
+        primaryWorkspace.defaultBaseBranch.trim().length > 0
+      ) {
+        return primaryWorkspace.defaultBaseBranch;
+      }
+    }
+
+    return fallback;
   }
 
   async function maybeCreateBoardReviewApproval(args: {
@@ -172,27 +400,39 @@ export function issueRoutes(db: Db, storage: StorageService) {
     );
 
     const approvalType = planText && !hasApprovedPlanApproval ? "approve_issue_plan" : "approve_pull_request";
-    const existingActionableApproval = linkedApprovals.find(
-      (approval) =>
-        approval.type === approvalType &&
-        (approval.status === "pending" || approval.status === "revision_requested"),
-    );
-    if (existingActionableApproval) return;
+    const existingActionableApproval = await findExistingActionableIssueApproval({
+      issue,
+      type: approvalType,
+    });
+    if (existingActionableApproval) {
+      await issueApprovalsSvc.link(issue.id, existingActionableApproval.id, {
+        agentId: actor.agentId,
+        userId: null,
+      });
+      return;
+    }
 
-    const branchName = extractBranchName(commentBody, issue.description);
+    const workspacePlan =
+      approvalType === "approve_issue_plan" ? await buildExecutionWorkspacePlan(issue) : null;
+    const branchName =
+      approvalType === "approve_pull_request"
+        ? await resolveIssueBranchName(issue, commentBody, issue.description)
+        : workspacePlan?.branch ?? extractBranchName(commentBody, issue.description);
+    const baseBranch = await resolveIssueBaseBranch(issue);
     const approvalPayload =
       approvalType === "approve_issue_plan"
         ? {
             title: issue.title,
             issueIdentifier: issue.identifier,
             plan: planText,
+            workspace: workspacePlan,
             summary: commentBody ?? "Requesting board approval for the proposed implementation plan.",
           }
         : {
             title: issue.title,
             issueIdentifier: issue.identifier,
             branch: branchName,
-            baseBranch: "develop",
+            baseBranch,
             summary: commentBody ?? "Requesting board approval before opening a pull request.",
           };
 
@@ -235,6 +475,317 @@ export function issueRoutes(db: Db, storage: StorageService) {
       entityType: "issue",
       entityId: issue.id,
       details: { approvalId: approval.id, source: "issue.review_handoff" },
+    });
+
+    if (approvalType === "approve_issue_plan") {
+      await maybeBlockIssueForPendingPlanApproval({
+        issue,
+        actor,
+        approvalId: approval.id,
+        source: "issue.review_handoff",
+      });
+    }
+  }
+
+  async function maybeCreatePullRequestApprovalForBoardHandoff(args: {
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    existing: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    actor: ReturnType<typeof getActorInfo>;
+    commentBody?: string;
+  }) {
+    const { issue, existing, actor, commentBody } = args;
+    if (actor.actorType !== "agent" || !actor.agentId) return;
+    if (issue.status !== "in_review") return;
+    if (!issue.assigneeUserId || !existing.createdByUserId || issue.assigneeUserId !== existing.createdByUserId) return;
+
+    const existingActionableApproval = await findExistingActionableIssueApproval({
+      issue,
+      type: "approve_pull_request",
+    });
+    if (existingActionableApproval) {
+      await issueApprovalsSvc.link(issue.id, existingActionableApproval.id, {
+        agentId: actor.agentId,
+        userId: null,
+      });
+      return;
+    }
+
+    const branchName = await resolveIssueBranchName(issue, commentBody, issue.description);
+    const baseBranch = await resolveIssueBaseBranch(issue);
+    const approval = await approvalsSvc.create(issue.companyId, {
+      type: "approve_pull_request",
+      requestedByAgentId: actor.agentId,
+      requestedByUserId: null,
+      payload: {
+        title: issue.title,
+        issueIdentifier: issue.identifier,
+        branch: branchName,
+        baseBranch,
+        summary: commentBody ?? "Requesting board approval before opening a pull request.",
+      },
+      status: "pending",
+      decisionNote: null,
+      decidedByUserId: null,
+      decidedAt: null,
+      updatedAt: new Date(),
+    });
+
+    await issueApprovalsSvc.link(issue.id, approval.id, {
+      agentId: actor.agentId,
+      userId: null,
+    });
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "approval.created",
+      entityType: "approval",
+      entityId: approval.id,
+      details: { type: approval.type, issueIds: [issue.id], source: "issue.review_handoff" },
+    });
+
+    await logActivity(db, {
+      companyId: issue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.approval_linked",
+      entityType: "issue",
+      entityId: issue.id,
+      details: { approvalId: approval.id, source: "issue.review_handoff" },
+    });
+  }
+
+  async function maybeAdvanceParentAfterChildReviewCompletion(args: {
+    issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    existing: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
+    actor: ReturnType<typeof getActorInfo>;
+  }) {
+    const { issue, existing, actor } = args;
+    if (actor.actorType !== "agent" || !actor.agentId) return;
+    if (!existing.parentId || existing.status !== "in_review" || issue.status !== "done") return;
+
+    const parentIssue = await svc.getById(existing.parentId);
+    if (!parentIssue) return;
+
+    const directChildren = await db
+      .select({
+        id: issueTable.id,
+        identifier: issueTable.identifier,
+        status: issueTable.status,
+      })
+      .from(issueTable)
+      .where(and(eq(issueTable.companyId, parentIssue.companyId), eq(issueTable.parentId, parentIssue.id)));
+    const nonTerminalChildren = directChildren.filter((child) => !TERMINAL_ISSUE_STATUSES.has(child.status));
+    if (nonTerminalChildren.length > 0) return;
+
+    if (
+      parentIssue.status === "in_review" &&
+      parentIssue.assigneeAgentId == null &&
+      parentIssue.assigneeUserId != null &&
+      parentIssue.assigneeUserId === parentIssue.createdByUserId
+    ) {
+      return;
+    }
+
+    const parentPatch = rewriteParentAgentDoneToReview({
+      patch: { status: "done" },
+      createdByUserId: parentIssue.createdByUserId,
+    });
+    const updatedParent = await svc.update(parentIssue.id, parentPatch);
+    if (!updatedParent) return;
+
+    const previous: Record<string, unknown> = {};
+    for (const key of Object.keys(parentPatch)) {
+      if (
+        key in parentIssue &&
+        (parentIssue as Record<string, unknown>)[key] !== (parentPatch as Record<string, unknown>)[key]
+      ) {
+        previous[key] = (parentIssue as Record<string, unknown>)[key];
+      }
+    }
+
+    await logActivity(db, {
+      companyId: updatedParent.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.updated",
+      entityType: "issue",
+      entityId: updatedParent.id,
+      details: {
+        ...parentPatch,
+        identifier: updatedParent.identifier,
+        _previous: Object.keys(previous).length > 0 ? previous : undefined,
+      },
+    });
+
+    const summary =
+      `## 리뷰 완료 — 보드 승인 요청\n\n` +
+      `하위 이슈 리뷰가 모두 끝났습니다. PR 승인 후 parent를 마감할 수 있습니다.\n\n` +
+      directChildren
+        .map((child) => {
+          const issuePrefix = parentIssue.identifier?.split("-")[0] ?? "issues";
+          return `- [${child.identifier}](/${issuePrefix}/issues/${child.identifier})`;
+        })
+        .join("\n");
+
+    await maybeCreatePullRequestApprovalForBoardHandoff({
+      issue: updatedParent,
+      existing: parentIssue,
+      actor,
+      commentBody: summary,
+    });
+
+    const parentComment = await svc.addComment(parentIssue.id, summary, {
+      agentId: actor.agentId ?? undefined,
+    });
+    await logActivity(db, {
+      companyId: updatedParent.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.comment_added",
+      entityType: "issue",
+      entityId: updatedParent.id,
+      details: {
+        commentId: parentComment.id,
+        bodySnippet: parentComment.body.slice(0, 120),
+        identifier: updatedParent.identifier,
+        issueTitle: updatedParent.title,
+      },
+    });
+  }
+
+  async function maybeCreateParentPlanApprovalForDelegation(args: {
+    parentIssueId: string;
+    actor: ReturnType<typeof getActorInfo>;
+    summary?: string;
+    source: "subtask_create" | "assignee_change";
+  }) {
+    const { parentIssueId, actor, summary, source } = args;
+    if (actor.actorType !== "agent" || !actor.agentId) return;
+
+    const parentIssue = await svc.getById(parentIssueId);
+    if (!parentIssue) return;
+
+    const planText = extractPlanText(parentIssue.description);
+    const workspacePlan = await buildExecutionWorkspacePlan(parentIssue);
+
+    const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(parentIssue.id);
+    const hasApprovedPlanApproval = linkedApprovals.some(
+      (approval) => approval.type === "approve_issue_plan" && approval.status === "approved",
+    );
+    if (hasApprovedPlanApproval) return;
+
+    const existingActionableApproval = await findExistingActionableIssueApproval({
+      issue: parentIssue,
+      type: "approve_issue_plan",
+    });
+    if (existingActionableApproval) {
+      await issueApprovalsSvc.link(parentIssue.id, existingActionableApproval.id, {
+        agentId: actor.agentId,
+        userId: null,
+      });
+      return;
+    }
+
+    const approval = await approvalsSvc.create(parentIssue.companyId, {
+      type: "approve_issue_plan",
+      requestedByAgentId: actor.agentId,
+      requestedByUserId: null,
+      payload: {
+        title: parentIssue.title,
+        issueIdentifier: parentIssue.identifier,
+        plan: planText,
+        description: parentIssue.description,
+        branch: workspacePlan?.branch ?? extractBranchName(parentIssue.description),
+        workspace: workspacePlan,
+        summary:
+          summary ??
+          "Requesting board approval for the implementation plan and delegated subtasks before execution starts.",
+      },
+      status: "pending",
+      decisionNote: null,
+      decidedByUserId: null,
+      decidedAt: null,
+      updatedAt: new Date(),
+    });
+
+    await issueApprovalsSvc.link(parentIssue.id, approval.id, {
+      agentId: actor.agentId,
+      userId: null,
+    });
+
+    await logActivity(db, {
+      companyId: parentIssue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "approval.created",
+      entityType: "approval",
+      entityId: approval.id,
+      details: { type: approval.type, issueIds: [parentIssue.id], source },
+    });
+
+    await logActivity(db, {
+      companyId: parentIssue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.approval_linked",
+      entityType: "issue",
+      entityId: parentIssue.id,
+      details: { approvalId: approval.id, source },
+    });
+
+    await maybeBlockIssueForPendingPlanApproval({
+      issue: parentIssue,
+      actor,
+      approvalId: approval.id,
+      source,
+    });
+  }
+
+  async function assertParentPlanApprovedBeforeDelegation(args: {
+    parentIssueId: string;
+    actor: ReturnType<typeof getActorInfo>;
+    source: "subtask_create" | "assignee_change";
+  }) {
+    const { parentIssueId, actor, source } = args;
+    if (actor.actorType !== "agent" || !actor.agentId) return;
+
+    const parentIssue = await svc.getById(parentIssueId);
+    if (!parentIssue) return;
+
+    const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(parentIssue.id);
+    const hasApprovedPlanApproval = linkedApprovals.some(
+      (approval) => approval.type === "approve_issue_plan" && approval.status === "approved",
+    );
+    if (hasApprovedPlanApproval) return;
+
+    await maybeCreateParentPlanApprovalForDelegation({
+      parentIssueId,
+      actor,
+      source,
+    });
+
+    const messageBySource = {
+      subtask_create: "Parent issue plan approval is required before creating subtasks",
+      assignee_change: "Parent issue plan approval is required before assigning delegated subtasks",
+    } as const;
+
+    throw conflict(messageBySource[source], {
+      parentIssueId,
+      source,
     });
   }
 
@@ -401,16 +952,47 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
     assertCompanyAccess(req, issue.companyId);
-    const [ancestors, project, goal, mentionedProjectIds] = await Promise.all([
+    const [ancestors, project, goal, mentionedProjectIds, executionWorkspace] = await Promise.all([
       svc.getAncestors(issue.id),
       issue.projectId ? projectsSvc.getById(issue.projectId) : null,
       issue.goalId ? goalsSvc.getById(issue.goalId) : null,
       svc.findMentionedProjectIds(issue.id),
+      issue.executionWorkspaceId ? executionWorkspacesSvc.getById(issue.executionWorkspaceId) : null,
     ]);
     const mentionedProjects = mentionedProjectIds.length > 0
       ? await projectsSvc.listByIds(issue.companyId, mentionedProjectIds)
       : [];
-    res.json({ ...issue, ancestors, project: project ?? null, goal: goal ?? null, mentionedProjects });
+    const shouldSanitizeSourceRepoPaths = req.actor.type === "agent" && !!issue.executionWorkspaceId;
+    const responseAncestors = shouldSanitizeSourceRepoPaths
+      ? ancestors.map((ancestor) => ({
+          ...ancestor,
+          project: sanitizeProjectWorkspacePaths(ancestor.project),
+        }))
+      : ancestors;
+    const responseProject = shouldSanitizeSourceRepoPaths
+      ? sanitizeProjectWorkspacePaths(project)
+      : project;
+    const responseMentionedProjects = shouldSanitizeSourceRepoPaths
+      ? mentionedProjects.map((mentionedProject) => sanitizeProjectWorkspacePaths(mentionedProject))
+      : mentionedProjects;
+
+    res.json({
+      ...issue,
+      ancestors: responseAncestors,
+      project: responseProject ?? null,
+      goal: goal ?? null,
+      mentionedProjects: responseMentionedProjects,
+      executionWorkspace:
+        executionWorkspace && typeof executionWorkspace.executionCwd === "string"
+          ? {
+              id: executionWorkspace.id,
+              cwd: executionWorkspace.executionCwd,
+              branch: executionWorkspace.branch,
+              baseBranch: executionWorkspace.baseBranch,
+              ticketKey: executionWorkspace.ticketKey,
+            }
+          : null,
+    });
   });
 
   router.get("/issues/:id/approvals", async (req, res) => {
@@ -489,12 +1071,32 @@ export function issueRoutes(db: Db, storage: StorageService) {
     assertCompanyAccess(req, companyId);
     if (typeof req.body.parentId === "string" && req.body.parentId.length > 0) {
       await assertIssuePlanApprovalAllowsExecution(req.body.parentId, "subtask");
+      await assertParentPlanApprovedBeforeDelegation({
+        parentIssueId: req.body.parentId,
+        actor: getActorInfo(req),
+        source: "subtask_create",
+      });
     }
     if (req.body.assigneeAgentId || req.body.assigneeUserId) {
       await assertCanAssignTasks(req, companyId);
     }
 
     const actor = getActorInfo(req);
+    if (typeof req.body.parentId === "string" && req.body.parentId.length > 0) {
+      const existingChild = await findReusableActiveChildIssue({
+        companyId,
+        parentId: req.body.parentId,
+        assigneeAgentId: req.body.assigneeAgentId ?? null,
+        assigneeUserId: req.body.assigneeUserId ?? null,
+        title: req.body.title,
+        delegation: req.body.delegation ?? null,
+      });
+      if (existingChild) {
+        res.status(200).json(existingChild);
+        return;
+      }
+    }
+
     const issue = await svc.create(companyId, {
       ...req.body,
       createdByAgentId: actor.agentId,
@@ -538,34 +1140,137 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
-    const assigneeWillChange =
+    const actor = getActorInfo(req);
+    const { comment: commentBody, hiddenAt: hiddenAtRaw, ...requestedUpdateFields } = req.body;
+    if (hiddenAtRaw !== undefined) {
+      requestedUpdateFields.hiddenAt = hiddenAtRaw ? new Date(hiddenAtRaw) : null;
+    }
+
+    let updateFields = { ...requestedUpdateFields };
+    let workflowForcedAssigneeChange = false;
+
+    // Governed completion flow for assignee agents:
+    // - child in_progress done -> in_review (+ optional leader reassignment)
+    // - child in_progress in_review -> in_review (+ optional leader reassignment)
+    // - child in_review done -> allowed as reviewer completion
+    // - top-level done -> blocked if active children, otherwise in_review + creator reassignment
+    if (
+      isAssigneeAgentDoneAttempt({
+        actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
+        issue: {
+          parentId: existing.parentId,
+          assigneeAgentId: existing.assigneeAgentId,
+          createdByUserId: existing.createdByUserId,
+        },
+        patch: updateFields,
+      })
+    ) {
+      if (typeof existing.parentId === "string" && existing.parentId.length > 0) {
+        if (!isAssigneeAgentReviewCompletionAttempt({
+          actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
+          issue: {
+            parentId: existing.parentId,
+            assigneeAgentId: existing.assigneeAgentId,
+            createdByUserId: existing.createdByUserId,
+            status: existing.status,
+          },
+          patch: updateFields,
+        })) {
+          const parentIssue = await svc.getById(existing.parentId);
+          updateFields = rewriteChildAgentDoneToReview({
+            patch: updateFields,
+            parentAssigneeAgentId: parentIssue?.assigneeAgentId ?? null,
+          });
+          if (parentIssue?.assigneeAgentId) {
+            workflowForcedAssigneeChange = true;
+          }
+        }
+      } else {
+        const directChildren = await db
+          .select({
+            id: issueTable.id,
+            identifier: issueTable.identifier,
+            status: issueTable.status,
+          })
+          .from(issueTable)
+          .where(and(eq(issueTable.companyId, existing.companyId), eq(issueTable.parentId, existing.id)));
+        const nonTerminalChildren = directChildren.filter((child) => !TERMINAL_ISSUE_STATUSES.has(child.status));
+        if (nonTerminalChildren.length > 0) {
+          throw conflict("Cannot mark parent issue done while direct child issues are still active", {
+            issueId: existing.id,
+            openChildIssueIds: nonTerminalChildren.map((child) => child.id),
+            openChildIssueIdentifiers: nonTerminalChildren.map((child) => child.identifier),
+          });
+        }
+        updateFields = rewriteParentAgentDoneToReview({
+          patch: updateFields,
+          createdByUserId: existing.createdByUserId,
+        });
+        workflowForcedAssigneeChange = true;
+      }
+    }
+
+    if (
+      isAssigneeAgentReviewRequestAttempt({
+        actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
+        issue: {
+          parentId: existing.parentId,
+          assigneeAgentId: existing.assigneeAgentId,
+          createdByUserId: existing.createdByUserId,
+        },
+        patch: updateFields,
+      })
+    ) {
+      if (typeof existing.parentId === "string" && existing.parentId.length > 0) {
+        const parentIssue = await svc.getById(existing.parentId);
+        updateFields = rewriteChildAgentDoneToReview({
+          patch: updateFields,
+          parentAssigneeAgentId: parentIssue?.assigneeAgentId ?? null,
+        });
+        if (parentIssue?.assigneeAgentId) {
+          workflowForcedAssigneeChange = true;
+        }
+      }
+    }
+
+    const requestedAssigneeWillChange =
       (req.body.assigneeAgentId !== undefined && req.body.assigneeAgentId !== existing.assigneeAgentId) ||
       (req.body.assigneeUserId !== undefined && req.body.assigneeUserId !== existing.assigneeUserId);
+    const assigneeWillChange =
+      (updateFields.assigneeAgentId !== undefined && updateFields.assigneeAgentId !== existing.assigneeAgentId) ||
+      (updateFields.assigneeUserId !== undefined && updateFields.assigneeUserId !== existing.assigneeUserId);
 
     const isAgentReturningIssueToCreator =
-      req.actor.type === "agent" &&
-      !!req.actor.agentId &&
-      existing.assigneeAgentId === req.actor.agentId &&
-      req.body.assigneeAgentId === null &&
-      typeof req.body.assigneeUserId === "string" &&
+      actor.actorType === "agent" &&
+      !!actor.agentId &&
+      existing.assigneeAgentId === actor.agentId &&
+      updateFields.assigneeAgentId === null &&
+      typeof updateFields.assigneeUserId === "string" &&
       !!existing.createdByUserId &&
-      req.body.assigneeUserId === existing.createdByUserId;
+      updateFields.assigneeUserId === existing.createdByUserId;
 
     if (assigneeWillChange) {
       await assertIssuePlanApprovalAllowsExecution(existing.id, "assign");
-      if (!isAgentReturningIssueToCreator) {
+      if (!isAgentReturningIssueToCreator && !workflowForcedAssigneeChange) {
         await assertCanAssignTasks(req, existing.companyId);
       }
+      if (!workflowForcedAssigneeChange && typeof existing.parentId === "string" && existing.parentId.length > 0) {
+        await assertParentPlanApprovedBeforeDelegation({
+          parentIssueId: existing.parentId,
+          actor,
+          source: "assignee_change",
+        });
+      }
     }
-    if (req.body.status === "in_progress") {
+    if (updateFields.status === "in_progress") {
       await assertIssuePlanApprovalAllowsExecution(existing.id, "in_progress");
+      await assertAncestorIssuePlanApprovalAllowsExecution(existing.id, "in_progress");
+    }
+    if (updateFields.status === "done") {
+      await assertIssueCompletionAllowed(existing.id);
     }
     if (!(await assertAgentRunCheckoutOwnership(req, res, existing))) return;
 
-    const { comment: commentBody, hiddenAt: hiddenAtRaw, ...updateFields } = req.body;
-    if (hiddenAtRaw !== undefined) {
-      updateFields.hiddenAt = hiddenAtRaw ? new Date(hiddenAtRaw) : null;
-    }
     let issue;
     try {
       issue = await svc.update(id, updateFields);
@@ -576,15 +1281,14 @@ export function issueRoutes(db: Db, storage: StorageService) {
             issueId: id,
             companyId: existing.companyId,
             assigneePatch: {
-              assigneeAgentId:
-                req.body.assigneeAgentId === undefined ? "__omitted__" : req.body.assigneeAgentId,
-              assigneeUserId:
-                req.body.assigneeUserId === undefined ? "__omitted__" : req.body.assigneeUserId,
+              assigneeAgentId: updateFields.assigneeAgentId === undefined ? "__omitted__" : updateFields.assigneeAgentId,
+              assigneeUserId: updateFields.assigneeUserId === undefined ? "__omitted__" : updateFields.assigneeUserId,
             },
             currentAssignee: {
               assigneeAgentId: existing.assigneeAgentId,
               assigneeUserId: existing.assigneeUserId,
             },
+            requestedAssigneeWillChange,
             error: err.message,
             details: err.details,
           },
@@ -605,8 +1309,6 @@ export function issueRoutes(db: Db, storage: StorageService) {
         previous[key] = (existing as Record<string, unknown>)[key];
       }
     }
-
-    const actor = getActorInfo(req);
     await logActivity(db, {
       companyId: issue.companyId,
       actorType: actor.actorType,
@@ -625,6 +1327,12 @@ export function issueRoutes(db: Db, storage: StorageService) {
       actor,
       commentBody,
       isAgentReturningIssueToCreator,
+    });
+
+    await maybeAdvanceParentAfterChildReviewCompletion({
+      issue,
+      existing,
+      actor,
     });
 
     let comment = null;
@@ -764,6 +1472,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
     }
 
     await assertIssuePlanApprovalAllowsExecution(issue.id, "checkout");
+    await assertAncestorIssuePlanApprovalAllowsExecution(issue.id, "checkout");
     const checkoutRunId = requireAgentRunId(req, res);
     if (req.actor.type === "agent" && !checkoutRunId) return;
     const updated = await svc.checkout(id, req.body.agentId, req.body.expectedStatuses, checkoutRunId);

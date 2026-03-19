@@ -1,5 +1,15 @@
 # @atototo/db
 
+## Unreleased
+
+## 0.4.0
+
+### Minor Changes
+
+- Added `execution_workspaces` table for ticket-scoped Baton-managed worktrees
+- Added `issues.execution_workspace_id` and `issues.delegation` to support governed execution and child dedupe
+- Added migration `0026_bored_winter_soldier.sql`
+
 ## 0.2.7
 
 ### Patch Changes

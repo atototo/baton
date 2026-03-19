@@ -18,6 +18,7 @@ type CreateWorkspaceInput = {
   cwd?: string | null;
   repoUrl?: string | null;
   repoRef?: string | null;
+  defaultBaseBranch?: string | null;
   metadata?: Record<string, unknown> | null;
   isPrimary?: boolean;
 };
@@ -70,6 +71,11 @@ async function attachGoals(db: Db, rows: ProjectRow[]): Promise<ProjectWithGoals
 }
 
 function toWorkspace(row: ProjectWorkspaceRow): ProjectWorkspace {
+  const metadata = (row.metadata as Record<string, unknown> | null) ?? null;
+  const defaultBaseBranch =
+    typeof metadata?.defaultBaseBranch === "string" && metadata.defaultBaseBranch.trim().length > 0
+      ? metadata.defaultBaseBranch.trim()
+      : null;
   return {
     id: row.id,
     companyId: row.companyId,
@@ -78,7 +84,8 @@ function toWorkspace(row: ProjectWorkspaceRow): ProjectWorkspace {
     cwd: row.cwd,
     repoUrl: row.repoUrl ?? null,
     repoRef: row.repoRef ?? null,
-    metadata: (row.metadata as Record<string, unknown> | null) ?? null,
+    metadata,
+    defaultBaseBranch,
     isPrimary: row.isPrimary,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -190,6 +197,23 @@ function deriveWorkspaceName(input: {
   if (repoUrl) return deriveNameFromRepoUrl(repoUrl);
 
   return "Workspace";
+}
+
+function mergeWorkspaceMetadata(input: {
+  existing?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  defaultBaseBranch?: string | null;
+}) {
+  const next: Record<string, unknown> = {
+    ...((input.existing ?? {}) as Record<string, unknown>),
+    ...((input.metadata ?? {}) as Record<string, unknown>),
+  };
+  if (input.defaultBaseBranch !== undefined) {
+    const trimmed = readNonEmptyString(input.defaultBaseBranch);
+    if (trimmed) next.defaultBaseBranch = trimmed;
+    else delete next.defaultBaseBranch;
+  }
+  return Object.keys(next).length > 0 ? next : null;
 }
 
 async function ensureSinglePrimaryWorkspace(
@@ -392,7 +416,10 @@ export function projectService(db: Db) {
             cwd: cwd ?? null,
             repoUrl: repoUrl ?? null,
             repoRef: readNonEmptyString(data.repoRef),
-            metadata: (data.metadata as Record<string, unknown> | null | undefined) ?? null,
+            metadata: mergeWorkspaceMetadata({
+              metadata: (data.metadata as Record<string, unknown> | null | undefined) ?? null,
+              defaultBaseBranch: data.defaultBaseBranch,
+            }),
             isPrimary: shouldBePrimary,
           })
           .returning()
@@ -440,7 +467,13 @@ export function projectService(db: Db) {
       if (data.cwd !== undefined) patch.cwd = nextCwd ?? null;
       if (data.repoUrl !== undefined) patch.repoUrl = nextRepoUrl ?? null;
       if (data.repoRef !== undefined) patch.repoRef = readNonEmptyString(data.repoRef);
-      if (data.metadata !== undefined) patch.metadata = data.metadata;
+      if (data.metadata !== undefined || data.defaultBaseBranch !== undefined) {
+        patch.metadata = mergeWorkspaceMetadata({
+          existing: (existing.metadata as Record<string, unknown> | null | undefined) ?? null,
+          metadata: data.metadata,
+          defaultBaseBranch: data.defaultBaseBranch,
+        });
+      }
 
       const updated = await db.transaction(async (tx) => {
         if (data.isPrimary === true) {

@@ -8,6 +8,7 @@ import {
   agentTaskSessions,
   agentWakeupRequests,
   companies,
+  executionWorkspaces,
   heartbeatRunEvents,
   heartbeatRuns,
   costEvents,
@@ -24,6 +25,7 @@ import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
+import { executionWorkspaceService } from "./execution-workspaces.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -82,6 +84,11 @@ export type ResolvedWorkspaceForRun = {
   workspaceId: string | null;
   repoUrl: string | null;
   repoRef: string | null;
+  sourceRepoCwd: string | null;
+  executionWorkspaceId: string | null;
+  branch: string | null;
+  baseBranch: string | null;
+  ticketKey: string | null;
   workspaceHints: Array<{
     workspaceId: string;
     cwd: string | null;
@@ -347,6 +354,84 @@ function normalizeSessionParams(params: Record<string, unknown> | null | undefin
   return Object.keys(params).length > 0 ? params : null;
 }
 
+function basenameFromPath(value: string | null) {
+  if (!value) return null;
+  const normalized = value.replace(/[\\/]+$/, "");
+  const base = path.basename(normalized);
+  return base.trim().length > 0 ? base : null;
+}
+
+function repoSlugFromUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    const pathname = url.pathname.replace(/\/+$/, "");
+    const slug = pathname.split("/").filter(Boolean).pop() ?? null;
+    return slug ? slug.replace(/\.git$/i, "") : null;
+  } catch {
+    const slug = value.split("/").filter(Boolean).pop() ?? null;
+    return slug ? slug.replace(/\.git$/i, "") : null;
+  }
+}
+
+function normalizeHintText(value: string | null | undefined) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+}
+
+function workspaceRoleHint(value: string | null) {
+  const normalized = normalizeHintText(value);
+  if (!normalized) return null;
+  if (/(^|[^a-z])(fe|frontend|front|ui)([^a-z]|$)/.test(normalized)) return "fe";
+  if (/(^|[^a-z])(be|backend|back|api|server)([^a-z]|$)/.test(normalized)) return "be";
+  return null;
+}
+
+function scoreWorkspaceForIssue(input: {
+  workspace: typeof projectWorkspaces.$inferSelect;
+  issueTitle: string | null;
+  issueDescription: string | null;
+  issueBillingCode: string | null;
+  issueIdentifier: string | null;
+}) {
+  const { workspace, issueTitle, issueDescription, issueBillingCode, issueIdentifier } = input;
+  const issueText = [issueTitle, issueDescription, issueBillingCode, issueIdentifier]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join("\n");
+  const issueTextLower = issueText.toLowerCase();
+  let score = workspace.isPrimary ? 5 : 0;
+
+  const cwd = readNonEmptyString(workspace.cwd);
+  const repoUrl = readNonEmptyString(workspace.repoUrl);
+  const workspaceName = readNonEmptyString(workspace.name);
+  const cwdBase = basenameFromPath(cwd);
+  const repoSlug = repoSlugFromUrl(repoUrl);
+
+  const exactNeedles = [cwd, repoUrl].filter((value): value is string => Boolean(value));
+  for (const needle of exactNeedles) {
+    if (issueText.includes(needle)) score += 1000;
+  }
+
+  const normalizedNeedles = [cwdBase, repoSlug, workspaceName]
+    .map((value) => normalizeHintText(value))
+    .filter((value): value is string => Boolean(value));
+  for (const needle of normalizedNeedles) {
+    if (needle && issueTextLower.includes(needle)) score += 200;
+  }
+
+  const issueRole = workspaceRoleHint(issueText);
+  const workspaceRole =
+    workspaceRoleHint(cwdBase) ??
+    workspaceRoleHint(repoSlug) ??
+    workspaceRoleHint(workspaceName);
+  if (issueRole && workspaceRole && issueRole === workspaceRole) {
+    score += 100;
+  }
+
+  return score;
+}
+
 function resolveNextSessionState(input: {
   codec: AdapterSessionCodec;
   adapterResult: AdapterExecutionResult;
@@ -407,6 +492,7 @@ function resolveNextSessionState(input: {
 export function heartbeatService(db: Db) {
   const runLogStore = getRunLogStore();
   const secretsSvc = secretService(db);
+  const executionWorkspacesSvc = executionWorkspaceService(db);
 
   async function getAgent(agentId: string) {
     return db
@@ -486,13 +572,22 @@ export function heartbeatService(db: Db) {
   ): Promise<ResolvedWorkspaceForRun> {
     const issueId = readNonEmptyString(context.issueId);
     const contextProjectId = readNonEmptyString(context.projectId);
-    const issueProjectId = issueId
+    const issueRow = issueId
       ? await db
-          .select({ projectId: issues.projectId })
+          .select({
+            projectId: issues.projectId,
+            parentId: issues.parentId,
+            executionWorkspaceId: issues.executionWorkspaceId,
+            identifier: issues.identifier,
+            billingCode: issues.billingCode,
+            title: issues.title,
+            description: issues.description,
+          })
           .from(issues)
           .where(and(eq(issues.id, issueId), eq(issues.companyId, agent.companyId)))
-          .then((rows) => rows[0]?.projectId ?? null)
+          .then((rows) => rows[0] ?? null)
       : null;
+    const issueProjectId = issueRow?.projectId ?? null;
     const resolvedProjectId = issueProjectId ?? contextProjectId;
     const useProjectWorkspace = opts?.useProjectWorkspace !== false;
     const workspaceProjectId = useProjectWorkspace ? resolvedProjectId : null;
@@ -517,10 +612,116 @@ export function heartbeatService(db: Db) {
       repoRef: readNonEmptyString(workspace.repoRef),
     }));
 
+    const orderedProjectWorkspaces =
+      issueRow
+        ? [...projectWorkspaceRows].sort((left, right) => {
+            const rightScore = scoreWorkspaceForIssue({
+              workspace: right,
+              issueTitle: issueRow.title,
+              issueDescription: issueRow.description ?? null,
+              issueBillingCode: issueRow.billingCode ?? null,
+              issueIdentifier: issueRow.identifier ?? null,
+            });
+            const leftScore = scoreWorkspaceForIssue({
+              workspace: left,
+              issueTitle: issueRow.title,
+              issueDescription: issueRow.description ?? null,
+              issueBillingCode: issueRow.billingCode ?? null,
+              issueIdentifier: issueRow.identifier ?? null,
+            });
+            if (rightScore !== leftScore) return rightScore - leftScore;
+            if (left.isPrimary !== right.isPrimary) return Number(right.isPrimary) - Number(left.isPrimary);
+            return left.createdAt.getTime() - right.createdAt.getTime();
+          })
+        : projectWorkspaceRows;
+
+    const fallbackCwd = resolveDefaultAgentWorkspaceDir(agent.id);
+    const bestProjectWorkspace = orderedProjectWorkspaces[0] ?? projectWorkspaceRows[0] ?? null;
+    const bestProjectWorkspaceBaseBranch =
+      typeof bestProjectWorkspace?.metadata?.defaultBaseBranch === "string" &&
+      bestProjectWorkspace.metadata.defaultBaseBranch.trim().length > 0
+        ? bestProjectWorkspace.metadata.defaultBaseBranch.trim()
+        : null;
+
+    if (issueRow && !issueRow.parentId) {
+      await fs.mkdir(fallbackCwd, { recursive: true });
+      return {
+        cwd: fallbackCwd,
+        source: "project_primary" as const,
+        projectId: resolvedProjectId,
+        workspaceId: bestProjectWorkspace?.id ?? null,
+        repoUrl: bestProjectWorkspace?.repoUrl ?? null,
+        repoRef: bestProjectWorkspace?.repoRef ?? null,
+        sourceRepoCwd: null,
+        executionWorkspaceId: issueRow.executionWorkspaceId ?? null,
+        branch: null,
+        baseBranch: bestProjectWorkspaceBaseBranch,
+        ticketKey: issueRow.billingCode ?? issueRow.identifier ?? null,
+        workspaceHints,
+        warnings: [
+          `Using fallback workspace "${fallbackCwd}" for top-level planning/coordination so approved implementation work is isolated to ticket execution workspaces.`,
+        ],
+      };
+    }
+
+    if (issueRow?.executionWorkspaceId) {
+      const executionWorkspace = await executionWorkspacesSvc.getById(issueRow.executionWorkspaceId);
+      const executionWorkspaceCwd = readNonEmptyString(executionWorkspace?.executionCwd);
+      const executionWorkspaceExists = executionWorkspaceCwd
+        ? await fs
+            .stat(executionWorkspaceCwd)
+            .then((stats) => stats.isDirectory())
+            .catch(() => false)
+        : false;
+      const linkedProjectWorkspace =
+        executionWorkspace?.projectWorkspaceId != null
+          ? projectWorkspaceRows.find((workspace) => workspace.id === executionWorkspace.projectWorkspaceId) ?? null
+          : null;
+
+      if (executionWorkspace && executionWorkspaceExists && executionWorkspaceCwd) {
+        return {
+          cwd: executionWorkspaceCwd,
+          source: "project_primary" as const,
+          projectId: resolvedProjectId,
+          workspaceId: executionWorkspace.projectWorkspaceId ?? linkedProjectWorkspace?.id ?? null,
+          repoUrl: linkedProjectWorkspace?.repoUrl ?? null,
+          repoRef: linkedProjectWorkspace?.repoRef ?? null,
+          sourceRepoCwd: executionWorkspace.sourceRepoCwd,
+          executionWorkspaceId: executionWorkspace.id,
+          branch: executionWorkspace.branch,
+          baseBranch: executionWorkspace.baseBranch,
+          ticketKey: executionWorkspace.ticketKey,
+          workspaceHints,
+          warnings: [],
+        };
+      }
+
+      await fs.mkdir(fallbackCwd, { recursive: true });
+      return {
+        cwd: fallbackCwd,
+        source: "project_primary" as const,
+        projectId: resolvedProjectId,
+        workspaceId: executionWorkspace?.projectWorkspaceId ?? bestProjectWorkspace?.id ?? null,
+        repoUrl: linkedProjectWorkspace?.repoUrl ?? bestProjectWorkspace?.repoUrl ?? null,
+        repoRef: linkedProjectWorkspace?.repoRef ?? bestProjectWorkspace?.repoRef ?? null,
+        sourceRepoCwd: executionWorkspace?.sourceRepoCwd ?? null,
+        executionWorkspaceId: executionWorkspace?.id ?? issueRow.executionWorkspaceId,
+        branch: executionWorkspace?.branch ?? null,
+        baseBranch: executionWorkspace?.baseBranch ?? bestProjectWorkspaceBaseBranch,
+        ticketKey: executionWorkspace?.ticketKey ?? issueRow.billingCode ?? issueRow.identifier ?? null,
+        workspaceHints,
+        warnings: [
+          executionWorkspace
+            ? `Execution workspace "${executionWorkspace.executionCwd}" is not available. Using fallback workspace "${fallbackCwd}" for this run.`
+            : `Approved execution workspace "${issueRow.executionWorkspaceId}" could not be found. Using fallback workspace "${fallbackCwd}" for this run.`,
+        ],
+      };
+    }
+
     if (projectWorkspaceRows.length > 0) {
       const missingProjectCwds: string[] = [];
       let hasConfiguredProjectCwd = false;
-      for (const workspace of projectWorkspaceRows) {
+      for (const workspace of orderedProjectWorkspaces) {
         const projectCwd = readNonEmptyString(workspace.cwd);
         if (!projectCwd || projectCwd === REPO_ONLY_CWD_SENTINEL) {
           continue;
@@ -531,6 +732,11 @@ export function heartbeatService(db: Db) {
           .then((stats) => stats.isDirectory())
           .catch(() => false);
         if (projectCwdExists) {
+          const workspaceDefaultBaseBranch =
+            typeof workspace.metadata?.defaultBaseBranch === "string" &&
+            workspace.metadata.defaultBaseBranch.trim().length > 0
+              ? workspace.metadata.defaultBaseBranch.trim()
+              : null;
           return {
             cwd: projectCwd,
             source: "project_primary" as const,
@@ -538,6 +744,11 @@ export function heartbeatService(db: Db) {
             workspaceId: workspace.id,
             repoUrl: workspace.repoUrl,
             repoRef: workspace.repoRef,
+            sourceRepoCwd: projectCwd,
+            executionWorkspaceId: null,
+            branch: null,
+            baseBranch: workspaceDefaultBaseBranch,
+            ticketKey: null,
             workspaceHints,
             warnings: [],
           };
@@ -545,7 +756,6 @@ export function heartbeatService(db: Db) {
         missingProjectCwds.push(projectCwd);
       }
 
-      const fallbackCwd = resolveDefaultAgentWorkspaceDir(agent.id);
       await fs.mkdir(fallbackCwd, { recursive: true });
       const warnings: string[] = [];
       if (missingProjectCwds.length > 0) {
@@ -568,6 +778,11 @@ export function heartbeatService(db: Db) {
         workspaceId: projectWorkspaceRows[0]?.id ?? null,
         repoUrl: projectWorkspaceRows[0]?.repoUrl ?? null,
         repoRef: projectWorkspaceRows[0]?.repoRef ?? null,
+        sourceRepoCwd: null,
+        executionWorkspaceId: null,
+        branch: null,
+        baseBranch: null,
+        ticketKey: null,
         workspaceHints,
         warnings,
       };
@@ -587,6 +802,11 @@ export function heartbeatService(db: Db) {
           workspaceId: readNonEmptyString(previousSessionParams?.workspaceId),
           repoUrl: readNonEmptyString(previousSessionParams?.repoUrl),
           repoRef: readNonEmptyString(previousSessionParams?.repoRef),
+          sourceRepoCwd: readNonEmptyString(previousSessionParams?.sourceRepoCwd),
+          executionWorkspaceId: readNonEmptyString(previousSessionParams?.executionWorkspaceId),
+          branch: readNonEmptyString(previousSessionParams?.branch),
+          baseBranch: readNonEmptyString(previousSessionParams?.baseBranch),
+          ticketKey: readNonEmptyString(previousSessionParams?.ticketKey),
           workspaceHints,
           warnings: [],
         };
@@ -616,6 +836,11 @@ export function heartbeatService(db: Db) {
       workspaceId: null,
       repoUrl: null,
       repoRef: null,
+      sourceRepoCwd: null,
+      executionWorkspaceId: null,
+      branch: null,
+      baseBranch: null,
+      ticketKey: null,
       workspaceHints,
       warnings,
     };
@@ -1112,7 +1337,20 @@ export function heartbeatService(db: Db) {
       previousSessionParams,
       resolvedWorkspace,
     });
-    const runtimeSessionParams = runtimeSessionResolution.sessionParams;
+    const runtimeSessionParams: Record<string, unknown> = {
+      ...(runtimeSessionResolution.sessionParams ?? {}),
+      cwd: resolvedWorkspace.cwd,
+      ...(resolvedWorkspace.workspaceId ? { workspaceId: resolvedWorkspace.workspaceId } : {}),
+      ...(resolvedWorkspace.repoUrl ? { repoUrl: resolvedWorkspace.repoUrl } : {}),
+      ...(resolvedWorkspace.repoRef ? { repoRef: resolvedWorkspace.repoRef } : {}),
+      ...(resolvedWorkspace.sourceRepoCwd ? { sourceRepoCwd: resolvedWorkspace.sourceRepoCwd } : {}),
+      ...(resolvedWorkspace.executionWorkspaceId
+        ? { executionWorkspaceId: resolvedWorkspace.executionWorkspaceId }
+        : {}),
+      ...(resolvedWorkspace.branch ? { branch: resolvedWorkspace.branch } : {}),
+      ...(resolvedWorkspace.baseBranch ? { baseBranch: resolvedWorkspace.baseBranch } : {}),
+      ...(resolvedWorkspace.ticketKey ? { ticketKey: resolvedWorkspace.ticketKey } : {}),
+    };
     const runtimeWorkspaceWarnings = [
       ...resolvedWorkspace.warnings,
       ...(runtimeSessionResolution.warning ? [runtimeSessionResolution.warning] : []),
@@ -1132,6 +1370,11 @@ export function heartbeatService(db: Db) {
       workspaceId: resolvedWorkspace.workspaceId,
       repoUrl: resolvedWorkspace.repoUrl,
       repoRef: resolvedWorkspace.repoRef,
+      sourceRepoCwd: resolvedWorkspace.sourceRepoCwd,
+      executionWorkspaceId: resolvedWorkspace.executionWorkspaceId,
+      branch: resolvedWorkspace.branch,
+      baseBranch: resolvedWorkspace.baseBranch,
+      ticketKey: resolvedWorkspace.ticketKey,
     };
     context.batonWorkspaces = resolvedWorkspace.workspaceHints;
     if (resolvedWorkspace.projectId && !readNonEmptyString(context.projectId)) {
@@ -1478,6 +1721,7 @@ export function heartbeatService(db: Db) {
         .select({
           id: issues.id,
           companyId: issues.companyId,
+          executionWorkspaceId: issues.executionWorkspaceId,
         })
         .from(issues)
         .where(and(eq(issues.companyId, run.companyId), eq(issues.executionRunId, run.id)))
@@ -1503,7 +1747,9 @@ export function heartbeatService(db: Db) {
             and(
               eq(agentWakeupRequests.companyId, issue.companyId),
               eq(agentWakeupRequests.status, "deferred_issue_execution"),
-              sql`${agentWakeupRequests.payload} ->> 'issueId' = ${issue.id}`,
+              issue.executionWorkspaceId
+                ? sql`${agentWakeupRequests.payload} ->> 'executionWorkspaceId' = ${issue.executionWorkspaceId}`
+                : sql`${agentWakeupRequests.payload} ->> 'issueId' = ${issue.id}`,
             ),
           )
           .orderBy(asc(agentWakeupRequests.requestedAt))
@@ -1539,6 +1785,19 @@ export function heartbeatService(db: Db) {
 
         const deferredPayload = parseObject(deferred.payload);
         const deferredContextSeed = parseObject(deferredPayload[DEFERRED_WAKE_CONTEXT_KEY]);
+        const deferredIssueId = readNonEmptyString(deferredPayload.issueId);
+        if (!deferredIssueId) {
+          await tx
+            .update(agentWakeupRequests)
+            .set({
+              status: "failed",
+              finishedAt: new Date(),
+              error: "Deferred wake could not be promoted: issue id missing from payload",
+              updatedAt: new Date(),
+            })
+            .where(eq(agentWakeupRequests.id, deferred.id));
+          continue;
+        }
         const promotedContextSeed: Record<string, unknown> = { ...deferredContextSeed };
         const promotedReason = readNonEmptyString(deferred.reason) ?? "issue_execution_promoted";
         const promotedSource =
@@ -1597,7 +1856,7 @@ export function heartbeatService(db: Db) {
             executionLockedAt: now,
             updatedAt: now,
           })
-          .where(eq(issues.id, issue.id));
+          .where(eq(issues.id, deferredIssueId));
 
         return newRun;
       }
@@ -1694,6 +1953,7 @@ export function heartbeatService(db: Db) {
           .select({
             id: issues.id,
             companyId: issues.companyId,
+            executionWorkspaceId: issues.executionWorkspaceId,
             executionRunId: issues.executionRunId,
             executionAgentNameKey: issues.executionAgentNameKey,
           })
@@ -1716,6 +1976,119 @@ export function heartbeatService(db: Db) {
             finishedAt: new Date(),
           });
           return { kind: "skipped" as const };
+        }
+
+        if (issue.executionWorkspaceId) {
+          await tx.execute(
+            sql`select id from ${executionWorkspaces} where id = ${issue.executionWorkspaceId} and company_id = ${agent.companyId} for update`,
+          );
+
+          const workspaceExecutionIssues = await tx
+            .select({
+              id: issues.id,
+              executionRunId: issues.executionRunId,
+            })
+            .from(issues)
+            .where(
+              and(
+                eq(issues.companyId, issue.companyId),
+                eq(issues.executionWorkspaceId, issue.executionWorkspaceId),
+                eq(issues.status, "in_progress"),
+              ),
+            )
+            .orderBy(asc(issues.executionLockedAt), asc(issues.updatedAt));
+
+          let activeWorkspaceExecutionIssueId: string | null = null;
+          for (const workspaceIssue of workspaceExecutionIssues) {
+            if (workspaceIssue.id === issue.id || !workspaceIssue.executionRunId) continue;
+            const workspaceRun = await tx
+              .select()
+              .from(heartbeatRuns)
+              .where(eq(heartbeatRuns.id, workspaceIssue.executionRunId))
+              .then((rows) => rows[0] ?? null);
+            if (workspaceRun && (workspaceRun.status === "queued" || workspaceRun.status === "running")) {
+              activeWorkspaceExecutionIssueId = workspaceIssue.id;
+              break;
+            }
+
+            await tx
+              .update(issues)
+              .set({
+                executionRunId: null,
+                executionAgentNameKey: null,
+                executionLockedAt: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(issues.id, workspaceIssue.id));
+          }
+
+          if (activeWorkspaceExecutionIssueId) {
+            const deferredPayload = {
+              ...(payload ?? {}),
+              issueId,
+              executionWorkspaceId: issue.executionWorkspaceId,
+              [DEFERRED_WAKE_CONTEXT_KEY]: enrichedContextSnapshot,
+            };
+
+            const existingDeferred = await tx
+              .select()
+              .from(agentWakeupRequests)
+              .where(
+                and(
+                  eq(agentWakeupRequests.companyId, agent.companyId),
+                  eq(agentWakeupRequests.agentId, agentId),
+                  eq(agentWakeupRequests.status, "deferred_issue_execution"),
+                  sql`${agentWakeupRequests.payload} ->> 'issueId' = ${issue.id}`,
+                ),
+              )
+              .orderBy(asc(agentWakeupRequests.requestedAt))
+              .limit(1)
+              .then((rows) => rows[0] ?? null);
+
+            if (existingDeferred) {
+              const existingDeferredPayload = parseObject(existingDeferred.payload);
+              const existingDeferredContext = parseObject(
+                existingDeferredPayload[DEFERRED_WAKE_CONTEXT_KEY],
+              );
+              const mergedDeferredContext = mergeCoalescedContextSnapshot(
+                existingDeferredContext,
+                enrichedContextSnapshot,
+              );
+              const mergedDeferredPayload = {
+                ...existingDeferredPayload,
+                ...(payload ?? {}),
+                issueId,
+                executionWorkspaceId: issue.executionWorkspaceId,
+                [DEFERRED_WAKE_CONTEXT_KEY]: mergedDeferredContext,
+              };
+
+              await tx
+                .update(agentWakeupRequests)
+                .set({
+                  payload: mergedDeferredPayload,
+                  coalescedCount: (existingDeferred.coalescedCount ?? 0) + 1,
+                  updatedAt: new Date(),
+                })
+                .where(eq(agentWakeupRequests.id, existingDeferred.id));
+
+              return { kind: "deferred" as const };
+            }
+
+            await tx.insert(agentWakeupRequests).values({
+              companyId: agent.companyId,
+              agentId,
+              source,
+              triggerDetail,
+              reason: "issue_execution_deferred",
+              payload: deferredPayload,
+              status: "deferred_issue_execution",
+              requestedByActorType: opts.requestedByActorType ?? null,
+              requestedByActorId: opts.requestedByActorId ?? null,
+              idempotencyKey: opts.idempotencyKey ?? null,
+            });
+
+            return { kind: "deferred" as const };
+          }
         }
 
         let activeExecutionRun = issue.executionRunId
@@ -1834,6 +2207,7 @@ export function heartbeatService(db: Db) {
           const deferredPayload = {
             ...(payload ?? {}),
             issueId,
+            ...(issue.executionWorkspaceId ? { executionWorkspaceId: issue.executionWorkspaceId } : {}),
             [DEFERRED_WAKE_CONTEXT_KEY]: enrichedContextSnapshot,
           };
 
@@ -1859,12 +2233,13 @@ export function heartbeatService(db: Db) {
               existingDeferredContext,
               enrichedContextSnapshot,
             );
-            const mergedDeferredPayload = {
-              ...existingDeferredPayload,
-              ...(payload ?? {}),
-              issueId,
-              [DEFERRED_WAKE_CONTEXT_KEY]: mergedDeferredContext,
-            };
+              const mergedDeferredPayload = {
+                ...existingDeferredPayload,
+                ...(payload ?? {}),
+                issueId,
+                ...(issue.executionWorkspaceId ? { executionWorkspaceId: issue.executionWorkspaceId } : {}),
+                [DEFERRED_WAKE_CONTEXT_KEY]: mergedDeferredContext,
+              };
 
             await tx
               .update(agentWakeupRequests)

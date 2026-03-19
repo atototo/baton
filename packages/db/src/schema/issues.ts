@@ -14,6 +14,7 @@ import { projects } from "./projects.js";
 import { goals } from "./goals.js";
 import { companies } from "./companies.js";
 import { heartbeatRuns } from "./heartbeat_runs.js";
+import { executionWorkspaces } from "./execution_workspaces.js";
 
 export const issues = pgTable(
   "issues",
@@ -29,6 +30,9 @@ export const issues = pgTable(
     priority: text("priority").notNull().default("medium"),
     assigneeAgentId: uuid("assignee_agent_id").references(() => agents.id),
     assigneeUserId: text("assignee_user_id"),
+    executionWorkspaceId: uuid("execution_workspace_id").references(() => executionWorkspaces.id, {
+      onDelete: "set null",
+    }),
     checkoutRunId: uuid("checkout_run_id").references(() => heartbeatRuns.id, { onDelete: "set null" }),
     executionRunId: uuid("execution_run_id").references(() => heartbeatRuns.id, { onDelete: "set null" }),
     executionAgentNameKey: text("execution_agent_name_key"),
@@ -39,6 +43,12 @@ export const issues = pgTable(
     identifier: text("identifier"),
     requestDepth: integer("request_depth").notNull().default(0),
     billingCode: text("billing_code"),
+    delegation: jsonb("delegation").$type<{
+      kind: string;
+      key: string;
+      targetPath?: string | null;
+      scope?: string | null;
+    }>(),
     assigneeAdapterOverrides: jsonb("assignee_adapter_overrides").$type<Record<string, unknown>>(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),

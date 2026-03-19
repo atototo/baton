@@ -1,5 +1,16 @@
 # @atototo/server
 
+## Unreleased
+
+## 0.4.0
+
+### Minor Changes
+
+- Added governed ticket execution flow with `approve_issue_plan`, ticket worktree provisioning, review handoff, and real PR creation on `approve_pull_request`
+- Added parent finalization guard so issues cannot close before PR approval succeeds
+- Added retry handling for Claude overload (`529`) and transient child-process spawn errors
+- Added structured child dedupe using delegation metadata to prevent duplicate child issues during retries and resumes
+
 ## 0.2.7
 
 ### Patch Changes

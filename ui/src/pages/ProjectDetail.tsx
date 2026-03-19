@@ -13,6 +13,7 @@ import { activityApi } from "../api/activity";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useToast } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";
 import { ProjectProperties } from "../components/ProjectProperties";
 import { InlineEditor } from "../components/InlineEditor";
@@ -376,6 +377,12 @@ function WorkspaceCard({ workspace }: { workspace: ProjectWorkspace }) {
             <dd className="break-all text-xs text-muted-foreground">{workspace.repoUrl}</dd>
           </div>
         )}
+        {workspace.repoUrl && (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Base Branch</dt>
+            <dd className="break-all text-xs text-muted-foreground">{workspace.defaultBaseBranch ?? "main"}</dd>
+          </div>
+        )}
       </dl>
     </div>
   );
@@ -384,13 +391,15 @@ function WorkspaceCard({ workspace }: { workspace: ProjectWorkspace }) {
 function ProjectSettingsTab({
   project,
   onUpdate,
+  isSaving,
 }: {
   project: Project;
-  onUpdate: (data: Record<string, unknown>) => void;
+  onUpdate: (data: Record<string, unknown>) => void | Promise<unknown>;
+  isSaving: boolean;
 }) {
   return (
     <div className="max-w-2xl">
-      <ProjectProperties project={project} onUpdate={onUpdate} />
+      <ProjectProperties project={project} onUpdate={onUpdate} isSaving={isSaving} />
     </div>
   );
 }
@@ -405,6 +414,7 @@ export function ProjectDetail() {
     filter?: string;
   }>();
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
+  const { pushToast } = useToast();
   const { openPanel, closePanel, setPanelVisible } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
@@ -451,7 +461,19 @@ export function ProjectDetail() {
   const updateProject = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       projectsApi.update(projectLookupRef, data, resolvedCompanyId ?? lookupCompanyId),
-    onSuccess: invalidateProject,
+    onSuccess: () => {
+      invalidateProject();
+      pushToast({
+        tone: "success",
+        title: t("projectProperties.basicInfoSaved", "기본 정보가 저장되었습니다."),
+      });
+    },
+    onError: () => {
+      pushToast({
+        tone: "error",
+        title: t("projectProperties.basicInfoSaveFailed", "기본 정보 저장에 실패했습니다."),
+      });
+    },
   });
 
   const uploadImage = useMutation({
@@ -496,10 +518,16 @@ export function ProjectDetail() {
 
   useEffect(() => {
     if (project) {
-      openPanel(<ProjectProperties project={project} onUpdate={(data) => updateProject.mutate(data)} />);
+      openPanel(
+        <ProjectProperties
+          project={project}
+          onUpdate={(data) => updateProject.mutateAsync(data)}
+          isSaving={updateProject.isPending}
+        />,
+      );
     }
     return () => closePanel();
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, updateProject.isPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!project) return;
@@ -594,7 +622,8 @@ export function ProjectDetail() {
       {activeTab === "settings" && project?.id && resolvedCompanyId && (
         <ProjectSettingsTab
           project={project}
-          onUpdate={(data) => updateProject.mutate(data)}
+          onUpdate={(data) => updateProject.mutateAsync(data)}
+          isSaving={updateProject.isPending}
         />
       )}
     </div>

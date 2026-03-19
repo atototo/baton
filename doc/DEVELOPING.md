@@ -114,6 +114,16 @@ When a local agent run has no resolved project/session workspace, Baton falls ba
 
 This path honors `BATON_HOME` and `BATON_INSTANCE_ID` in non-default setups.
 
+## Default Governed Execution Workflow
+
+Baton now distinguishes planning work from approved implementation work.
+
+- Top-level leader planning uses the fallback agent workspace above.
+- Approved implementation uses a Baton-managed ticket execution workspace.
+- Baton provisions one execution workspace per ticket, using `feature/<TICKET>` from the project workspace base branch.
+
+See [WORKFLOWS.md](./WORKFLOWS.md) for the full default process, reviewer behavior, and parallel ticket execution rules.
+
 ## Quick Health Checks
 
 In another terminal:
@@ -136,6 +146,8 @@ To wipe local dev data and start fresh:
 rm -rf ~/.baton/instances/default/db
 pnpm dev
 ```
+
+If the dev server reports a pending migration, apply it before continuing so the runtime schema matches the current server code.
 
 ## Optional: Use External Postgres
 
@@ -239,4 +251,3 @@ pnpm atototo dashboard get
 ```
 
 See full command reference in `doc/CLI.md`.
-

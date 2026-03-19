@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-19
+
+### Added / 추가
+- Default governed execution workflow with `approve_issue_plan`, ticket-scoped worktree provisioning, review handoff, and `approve_pull_request`
+  - `approve_issue_plan`, 티켓 단위 워크트리 생성, 리뷰 핸드오프, `approve_pull_request`를 포함한 기본 governed 실행 워크플로우 추가
+- Real pull request creation after PR approval, including commit, push, and GitHub PR creation
+  - PR 승인 이후 실제 commit, push, GitHub PR 생성 흐름 추가
+- Structured child delegation metadata for active-child dedupe during retries and resumes
+  - 재시도/재개 시 활성 child 이슈를 안정적으로 재사용하기 위한 구조화된 delegation 메타데이터 추가
+- Parallel ticket execution support using ticket-scoped execution workspaces
+  - 티켓 단위 execution workspace를 사용하는 병렬 티켓 실행 지원 추가
+- Workflow documentation for board operators and agent developers in product docs and docs-site
+  - 보드 운영자 및 에이전트 개발자용 워크플로우 문서를 내부 문서와 docs-site에 추가
+
+### Changed / 변경
+- Parent issues now stay in `in_review` until PR approval succeeds and only transition to `done` after real PR creation completes
+  - 부모 이슈는 PR 승인이 완료될 때까지 `in_review`를 유지하고, 실제 PR 생성이 끝난 뒤에만 `done`으로 전이되도록 변경
+- Child issue dedupe now prefers structured delegation keys over title-only matching
+  - child 이슈 중복 방지는 제목 문자열보다 구조화된 delegation key를 우선 사용하도록 변경
+- Guide docs now describe leader fallback workspaces, ticket-scoped execution worktrees, reviewer defaults, and project workflow expectations
+  - 가이드 문서에 리더 fallback 워크스페이스, 티켓 단위 실행 워크트리, 기본 리뷰어 동작, 프로젝트 워크플로우 기대 동작을 반영
+
+### Fixed / 수정
+- Fixed source-repo contamination by ensuring implementation work runs only inside Baton-managed execution worktrees
+  - 구현 작업이 Baton-managed execution worktree 안에서만 실행되도록 보장해 source repo 오염 문제 수정
+- Fixed orphan approvals and duplicate child issue creation during resumed or parallel parent flows
+  - 재개/병렬 parent 흐름에서 orphan approval 및 중복 child 생성 문제 수정
+- Fixed branch and execution context contamination across parallel tickets
+  - 병렬 티켓 간 branch 및 실행 컨텍스트 오염 문제 수정
+- Fixed premature parent completion before `approve_pull_request` approval
+  - `approve_pull_request` 승인 전에 부모 이슈가 먼저 완료되던 문제 수정
+- Added retry handling for transient Claude `529 overloaded_error` and transient local spawn failures such as `EBADF`
+  - 일시적인 Claude `529 overloaded_error` 및 `EBADF` 같은 로컬 spawn 실패에 대한 재시도 처리 추가
+
 ## [0.3.0] - 2026-03-13
 
 ### Added / 추가
@@ -78,7 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark/light theme with indigo design system
   - 인디고 디자인 시스템 기반 다크/라이트 테마
 
-[Unreleased]: https://github.com/atototo/baton/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/atototo/baton/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/atototo/baton/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/atototo/baton/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/atototo/baton/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/atototo/baton/releases/tag/v0.1.0
