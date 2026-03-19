@@ -114,7 +114,7 @@ When a local agent run has no resolved project/session workspace, Baton falls ba
 
 This path honors `BATON_HOME` and `BATON_INSTANCE_ID` in non-default setups.
 
-## Default Governed Execution Workflow
+## Default Governed Ticket Execution
 
 Baton now distinguishes planning work from approved implementation work.
 

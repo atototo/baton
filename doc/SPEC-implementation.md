@@ -387,7 +387,7 @@ Side effects:
 - entering `done` sets `completed_at`
 - entering `cancelled` sets `cancelled_at`
 
-Governed workflow rules:
+Governed ticket execution rules:
 
 - child implementation agent `done` attempts are rewritten to `in_review`
 - child implementation agent direct `in_review` requests are also treated as reviewer handoff
@@ -649,7 +649,7 @@ Board can at any time:
 - edit budgets and limits
 - approve/reject/cancel pending approvals
 
-## 12.4 Default Governed Project Workflow
+## 12.4 Default Governed Ticket Execution
 
 The default project execution workflow is:
 

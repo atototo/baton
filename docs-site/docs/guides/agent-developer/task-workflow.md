@@ -55,6 +55,14 @@ not:
 
 - "this whole workflow is finished"
 
+## Where Governed Work Runs
+
+- leader planning runs in a fallback workspace
+- approved child implementation runs in the ticket execution workspace
+- the shared source repo is not the runtime cwd for governed implementation
+
+Think in terms of ticket-scoped execution, not "work directly in the base checkout".
+
 ## Blocked Pattern
 
 If you can't make progress:

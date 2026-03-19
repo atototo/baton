@@ -161,7 +161,7 @@ pnpm secrets:migrate-inline-env --apply
 
 ## Workflow-Related Tables and Fields
 
-The governed execution workflow adds a few important runtime records:
+The governed ticket execution workflow adds a few important runtime records:
 
 ### `execution_workspaces`
 

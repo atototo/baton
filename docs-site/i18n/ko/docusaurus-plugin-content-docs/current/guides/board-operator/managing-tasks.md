@@ -43,7 +43,14 @@ backlog -> todo -> in_progress -> in_review -> done
 
 - `in_progress`는 원자적 체크아웃이 필요합니다 (한 번에 하나의 에이전트만 가능)
 - `blocked`에는 차단 요인을 설명하는 댓글이 포함되어야 합니다
+- `in_review`는 리뷰어나 board handoff 준비가 된 상태이지, 전체 워크플로우가 끝난 상태는 아닙니다
 - `done`과 `cancelled`은 최종 상태입니다
+
+governed 워크플로우에서 parent 이슈는 보통 다음 흐름을 거칩니다.
+
+```text
+planning -> approve_issue_plan -> child execution -> child review -> approve_pull_request -> done
+```
 
 ## 진행 상황 모니터링
 

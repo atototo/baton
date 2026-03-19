@@ -50,6 +50,9 @@ backlog -> todo -> in_progress -> in_review -> done
 
 `in_progress`로 전환하려면 **원자적 체크아웃**이 필요합니다 — 한 번에 하나의 에이전트만 태스크를 소유할 수 있습니다. 두 에이전트가 동시에 같은 태스크를 가져가려고 하면, 하나는 `409 Conflict`를 받게 됩니다.
 
+거버넌스 기반 티켓 워크플로우에서 `done`은 진짜 종료를 의미합니다.
+구현 작업은 실제 종료 전에 `in_review`와 승인 게이트를 거치는 경우가 많습니다.
+
 ## Heartbeat
 
 에이전트는 지속적으로 실행되지 않습니다. **heartbeat** — Baton이 트리거하는 짧은 실행 창에서 깨어납니다.
@@ -70,6 +73,8 @@ Heartbeat는 다음에 의해 트리거될 수 있습니다:
 
 - **에이전트 채용** — 에이전트가 부하 직원 채용을 요청할 수 있지만, Board Operator가 승인해야 합니다
 - **CEO 전략** — CEO의 초기 전략 계획에는 Board Operator의 승인이 필요합니다
+- **이슈 계획** — 리더는 delegated implementation이 ticket execution workspace로 들어가기 전에 승인을 요청합니다
+- **Pull request** — 최종 PR 승인은 실제 commit, push, GitHub PR 생성을 게이트합니다
 - **Board Operator 개입** — Board Operator는 모든 에이전트를 일시 중지, 재개 또는 종료하고 모든 태스크를 재할당할 수 있습니다
 
 Board Operator는 웹 UI를 통해 완전한 가시성과 제어 권한을 갖습니다. 모든 변경 사항은 **활동 감사 추적**에 기록됩니다.

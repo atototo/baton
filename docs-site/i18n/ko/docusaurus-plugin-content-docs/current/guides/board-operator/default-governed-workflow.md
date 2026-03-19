@@ -1,9 +1,17 @@
 ---
-title: 기본 거버넌스 워크플로우
-description: Baton이 기본으로 적용하는 계획 -> 워크트리 -> 리뷰 -> PR 흐름
+title: 거버넌스 기반 티켓 실행 흐름
+description: Baton이 기본으로 적용하는 거버넌스 기반 계획 -> 워크트리 -> 리뷰 -> PR 흐름
 ---
 
 이 가이드는 리더가 구현 작업을 위임할 때 Baton이 사용하는 기본 프로젝트 워크플로우를 설명합니다.
+이 흐름은 승인 게이트를 포함한 티켓 단위 실행 모델입니다.
+
+## 지금 Baton이 하는 일
+
+Baton은 계획과 구현을 분리합니다.
+리더는 fallback workspace에서 계획합니다.
+승인된 구현은 티켓 단위 execution workspace에서 실행됩니다.
+리뷰와 PR 승인은 권장 사항이 아니라 실제로 강제되는 워크플로우입니다.
 
 ## 기본 흐름
 
@@ -21,6 +29,47 @@ description: Baton이 기본으로 적용하는 계획 -> 워크트리 -> 리뷰
 9. 모든 child 리뷰가 끝나면 Baton이 parent를 `in_review`로 전환하고 **PR 승인**을 생성합니다.
 10. Board가 PR 요청을 승인하면 Baton이 commit, push, 실제 PR 생성까지 수행한 뒤 parent를 `done`으로 마감합니다.
 
+## 핵심 규칙
+
+- 계획은 리더 fallback workspace에서 수행됩니다
+- 승인된 구현은 티켓 execution workspace에서 수행됩니다
+- source repo는 설정된 base branch에 유지됩니다
+- 서로 다른 티켓은 서로 다른 worktree에서 병렬 실행할 수 있습니다
+- 코드 실행의 격리 단위는 티켓입니다
+
+## 상태 의미
+
+- `todo`: 시작 준비 완료
+- `in_progress`: 실제 작업 진행 중
+- `blocked`: 승인, 입력, 외부 의존성 등을 기다리는 상태
+- `in_review`: 구현은 리뷰어나 board에 넘길 만큼 완료됐지만 워크플로우는 아직 끝나지 않은 상태
+- `done`: PR 승인까지 포함한 거버넌스 기반 워크플로우가 실제로 완료된 상태
+
+## 도식
+
+### 상태 전이
+
+```text
+backlog -> todo -> in_progress -> in_review -> done
+                       |              ^
+                       v              |
+                     blocked ---------+
+
+- child의 "done"은 "in_review"로 rewrite 됩니다
+- parent는 PR approval pending 동안 "done"이 될 수 없습니다
+```
+
+### 병렬 티켓 예시
+
+```text
+source repo: azak (base branch: main)
+
+AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
+AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
+
+두 티켓은 병렬로 진행되지만, 각 티켓은 자기 branch와 runtime cwd를 따로 가집니다.
+```
+
 ## 워크스페이스 규칙
 
 - 최상위 계획 작업은 source repo에서 직접 실행하지 않습니다.
@@ -28,6 +77,7 @@ description: Baton이 기본으로 적용하는 계획 -> 워크트리 -> 리뷰
 - Baton은 티켓마다 execution workspace 하나를 만들고 source repo는 설정된 base branch에 유지합니다.
 - 서로 다른 티켓은 서로 다른 worktree에서 병렬 실행할 수 있습니다.
 - 코드 실행의 격리 단위는 티켓입니다.
+- 연결된 execution workspace가 없거나 깨지면 경고와 함께 임시 fallback 이 일어날 수 있습니다. 이것은 정상 경로가 아니라 거버넌스 기반 흐름의 degraded path 입니다.
 
 ## 기본 리뷰어 동작
 
@@ -84,6 +134,22 @@ child 리뷰가 끝난 뒤 사용합니다.
 
 - pending 동안 parent를 `in_review`에 유지
 - 승인 시 실제 commit, push, pull request 생성을 수행
+
+## 실무 체크 포인트
+
+계획 승인 전에는 다음을 확인합니다.
+
+- ticket key
+- branch name
+- base branch
+- project workspace
+- repo path
+
+PR 승인 전에는 다음을 확인합니다.
+
+- child 리뷰 완료 여부
+- PR 브랜치가 parent 티켓과 일치하는지
+- 생성된 PR 본문이 실제 변경 내용을 제대로 요약하는지
 
 ## 실무 체크 포인트
 

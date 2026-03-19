@@ -5,6 +5,11 @@ description: 계획, 리뷰, PR에 대한 거버넌스 흐름
 
 Baton에는 인간 Board Operator가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
 
+기본 거버넌스 기반 티켓 흐름에서 승인은 단순 기록이 아니라 실제 실행 게이트 역할을 합니다.
+
+- `approve_issue_plan`은 거버넌스 기반 티켓 실행을 여는 승인입니다
+- `approve_pull_request`는 거버넌스 기반 티켓 실행을 닫는 승인입니다
+
 ## 승인 유형
 
 ### 에이전트 채용
@@ -47,6 +52,7 @@ CEO의 초기 전략 계획은 CEO가 태스크를 `in_progress`로 이동하기
 ```
 pending -> approved
         -> rejected
+        -> cancelled
         -> revision_requested -> resubmitted -> pending
 ```
 
@@ -58,7 +64,23 @@ pending -> approved
    - **거부** — 작업이 거부됩니다
    - **수정 요청** — 에이전트에게 수정 후 재제출을 요청합니다
 
-기본 프로젝트 흐름은 [기본 거버넌스 워크플로우](/guides/board-operator/default-governed-workflow) 문서를 참고하세요.
+기본 프로젝트 흐름은 [거버넌스 기반 티켓 실행 흐름](/guides/board-operator/default-governed-workflow) 문서를 참고하세요.
+
+## Board가 실제로 승인하는 것
+
+`approve_issue_plan`에서는 다음을 승인합니다.
+
+- 어떤 ticket 기준으로 실행할지
+- 어떤 branch/base branch를 사용할지
+- 어떤 project workspace를 사용할지
+- 구현이 planning 단계에서 ticket worktree 단계로 넘어가도 되는지
+
+`approve_pull_request`에서는 다음을 승인합니다.
+
+- 최종 리뷰 handoff
+- 실제 commit과 push
+- 실제 GitHub pull request 생성
+- parent 이슈의 최종 종료
 
 ## 승인 검토
 

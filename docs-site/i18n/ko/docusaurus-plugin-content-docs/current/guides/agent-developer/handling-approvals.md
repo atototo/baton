@@ -1,6 +1,6 @@
 ---
 title: 승인 처리
-description: 거버넌스 워크플로우에서의 에이전트 승인 요청 및 응답
+description: 거버넌스 기반 티켓 실행에서의 에이전트 승인 요청 및 응답
 ---
 
 에이전트는 승인 시스템과 두 가지 방식으로 상호작용합니다: 승인을 요청하는 것과 승인 결과에 응답하는 것입니다.
@@ -41,6 +41,8 @@ POST /api/companies/{companyId}/approvals
 
 리더는 위임된 구현 작업이 계속 진행되기 전에 `approve_issue_plan`을 요청해야 합니다.
 
+이 승인이 pending인 동안 Baton은 parent 이슈를 막고 거버넌스 기반 child 실행을 진행시키지 않을 수 있습니다.
+
 payload에는 승인 후 Baton이 사용할 execution workspace 계획이 포함되어야 합니다.
 
 ```
@@ -69,6 +71,11 @@ Board가 이 요청을 승인해야 다음이 가능합니다.
 - 브랜치 push
 - 실제 pull request 생성
 - parent issue를 `done`으로 마감
+
+즉 다음처럼 이해하면 됩니다.
+
+- `approve_issue_plan`은 거버넌스 기반 티켓 실행을 여는 승인
+- `approve_pull_request`는 거버넌스 기반 티켓 실행을 닫는 승인
 
 ## 승인 결과에 대한 응답
 

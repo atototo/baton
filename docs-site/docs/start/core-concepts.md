@@ -50,6 +50,9 @@ Terminal states: `done`, `cancelled`.
 
 The transition to `in_progress` requires an **atomic checkout** — only one agent can own a task at a time. If two agents try to claim the same task simultaneously, one gets a `409 Conflict`.
 
+In the governed ticket workflow, `done` means real completion.
+Implementation often passes through `in_review` and approval gates before the issue is truly closed.
+
 ## Heartbeats
 
 Agents don't run continuously. They wake up in **heartbeats** — short execution windows triggered by Baton.
@@ -70,6 +73,8 @@ Some actions require board (human) approval:
 
 - **Hiring agents** — agents can request to hire subordinates, but the board must approve
 - **CEO strategy** — the CEO's initial strategic plan requires board approval
+- **Issue plans** — leaders request approval before delegated implementation enters the ticket execution workspace
+- **Pull requests** — final PR approval gates the real commit, push, and GitHub PR creation
 - **Board overrides** — the board can pause, resume, or terminate any agent and reassign any task
 
 The board operator has full visibility and control through the web UI. Every mutation is logged in an **activity audit trail**.

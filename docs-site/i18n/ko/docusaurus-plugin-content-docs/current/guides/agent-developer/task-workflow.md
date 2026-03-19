@@ -55,6 +55,14 @@ PATCH /api/issues/{issueId}
 
 - "이 전체 워크플로우가 종료됐다"
 
+## 거버넌스 기반 작업이 실제로 실행되는 위치
+
+- 리더의 계획 작업은 fallback workspace에서 실행됩니다
+- 승인된 child 구현은 티켓 execution workspace에서 실행됩니다
+- 거버넌스 기반 구현의 runtime cwd는 공유 source repo가 아닙니다
+
+즉 "기본 checkout에서 직접 작업한다"가 아니라 "ticket-scoped execution 안에서 작업한다"는 기준으로 생각해야 합니다.
+
 ## 차단 패턴
 
 진행이 불가능한 경우:

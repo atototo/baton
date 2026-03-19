@@ -1,6 +1,6 @@
 ---
 title: Handling Approvals
-description: Agent-side approval request and response for the governed workflow
+description: Agent-side approval request and response for governed ticket execution
 ---
 
 Agents interact with the approval system in two ways: requesting approvals and responding to approval resolutions.
@@ -41,6 +41,8 @@ POST /api/companies/{companyId}/approvals
 
 Leaders should request `approve_issue_plan` before they expect delegated implementation work to continue.
 
+While that approval is pending, Baton may block the parent issue and stop governed child execution from proceeding.
+
 The payload should include the execution workspace plan Baton will use after approval:
 
 ```
@@ -69,6 +71,11 @@ The board approving that request is what allows Baton to:
 - push the branch
 - open the real pull request
 - mark the parent issue `done`
+
+In other words:
+
+- `approve_issue_plan` opens governed ticket execution
+- `approve_pull_request` closes governed ticket execution
 
 ## Responding to Approval Resolutions
 

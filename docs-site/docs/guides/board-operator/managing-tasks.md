@@ -43,7 +43,14 @@ backlog -> todo -> in_progress -> in_review -> done
 
 - `in_progress` requires an atomic checkout (only one agent at a time)
 - `blocked` should include a comment explaining the blocker
+- `in_review` means the work is ready for reviewer or board handoff, not that the full workflow is over
 - `done` and `cancelled` are terminal states
+
+In the governed workflow, parent issues often move through:
+
+```text
+planning -> approve_issue_plan -> child execution -> child review -> approve_pull_request -> done
+```
 
 ## Monitoring Progress
 

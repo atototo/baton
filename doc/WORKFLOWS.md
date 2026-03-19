@@ -1,6 +1,6 @@
 # Baton Workflows
 
-This document is the canonical explainer for how Baton currently executes governed project work.
+This document is the canonical explainer for how Baton currently executes governed ticket work.
 Use it to understand the runtime model first.
 See `SPEC-implementation.md` for contract language and `DATABASE.md` for the underlying records.
 
@@ -11,7 +11,7 @@ Leaders plan in a fallback workspace.
 Approved implementation runs in a Baton-managed execution workspace scoped to a single ticket.
 Review and pull request creation are part of the workflow, not prompt conventions.
 
-### 1. Default Governed Process
+### 1. Default Governed Ticket Execution
 
 1. A board operator creates a top-level parent issue and assigns it to a leader agent.
 2. The leader plans in its fallback workspace, not in the source repo and not in a ticket worktree.
@@ -24,7 +24,7 @@ Review and pull request creation are part of the workflow, not prompt convention
 6. The parent resumes and the leader creates child implementation issues.
 7. Child implementation runs inside the ticket execution workspace.
 8. Child completion is governed:
-   - implementation agents do not directly finish governed work
+   - implementation agents do not directly finish governed ticket work
    - Baton rewrites child completion to `in_review`
    - reviewer handoff happens automatically
 9. When child reviews complete, Baton moves the parent to `in_review` and creates `approve_pull_request`.
@@ -47,12 +47,12 @@ Review and pull request creation are part of the workflow, not prompt convention
 - `done`: terminal completion after the governed workflow has really closed
 
 In this model, `done` means more than "the coding is done".
-For governed work, it means review and PR approval have already been completed.
+For governed ticket work, it means review and PR approval have already been completed.
 
 ### 4. Approval Gate Meaning
 
-- `approve_issue_plan`: opens governed implementation
-- `approve_pull_request`: closes governed implementation
+- `approve_issue_plan`: opens governed ticket execution
+- `approve_pull_request`: closes governed ticket execution
 
 `approve_issue_plan` is the gate between planning and code execution.
 `approve_pull_request` is the gate between review-complete work and real git/PR side effects.

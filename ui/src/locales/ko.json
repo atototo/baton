@@ -1094,7 +1094,7 @@
     "readyToLaunch": "실행 준비 완료",
     "readyToLaunchDesc": "모든 설정이 완료되었습니다. 배정된 작업이 에이전트를 깨웠으니 바로 이슈를 확인하세요.",
     "statusFlowTitle": "이슈 상태 흐름",
-    "statusFlowSummary": "governed 기본 흐름은 backlog -> todo -> in_progress -> in_review -> done 입니다. 승인, 입력 대기, 외부 의존성으로 멈췄을 때는 blocked를 사용하세요.",
+    "statusFlowSummary": "거버넌스 기반 기본 흐름은 backlog -> todo -> in_progress -> in_review -> done 입니다. 승인, 입력 대기, 외부 의존성으로 멈췄을 때는 blocked를 사용하세요.",
     "batonMap": {
       "company": {
         "title": "Company",
@@ -1128,11 +1128,11 @@
       },
       "inReview": {
         "label": "In Review",
-        "description": "구현은 리뷰어나 board에 넘길 만큼 완료됐지만, governed 워크플로우 자체는 아직 끝나지 않은 상태입니다."
+        "description": "구현은 리뷰어나 board에 넘길 만큼 완료됐지만, 거버넌스 기반 워크플로우 자체는 아직 끝나지 않은 상태입니다."
       },
       "done": {
         "label": "Done",
-        "description": "리뷰와 필요한 PR 승인까지 포함해 governed 워크플로우가 실제로 완료된 상태입니다."
+        "description": "리뷰와 필요한 PR 승인까지 포함해 거버넌스 기반 워크플로우가 실제로 완료된 상태입니다."
       },
       "blocked": {
         "label": "Blocked",

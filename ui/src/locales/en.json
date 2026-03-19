@@ -1095,7 +1095,7 @@
     "readyToLaunch": "Ready to launch",
     "readyToLaunchDesc": "Everything is set up. Your assigned task already woke the agent, so you can jump straight to the issue.",
     "statusFlowTitle": "Issue status flow",
-    "statusFlowSummary": "The governed path is backlog -> todo -> in_progress -> in_review -> done. Use blocked when approval, input, or another dependency stops progress.",
+    "statusFlowSummary": "The governed workflow is backlog -> todo -> in_progress -> in_review -> done. Use blocked when approval, input, or another dependency stops progress.",
     "batonMap": {
       "company": {
         "title": "Company",
