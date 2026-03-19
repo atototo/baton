@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@atototo/db";
 import { approvalComments, approvals } from "@atototo/db";
 import { notFound, unprocessable } from "../errors.js";
@@ -38,6 +38,54 @@ export function approvalService(db: Db) {
         .values({ ...data, companyId })
         .returning()
         .then((rows) => rows[0]),
+
+    findActionableForIssue: async (args: {
+      companyId: string;
+      type: string;
+      issueId: string;
+      issueIdentifier?: string | null;
+      statuses?: string[];
+    }) => {
+      const { companyId, type, issueId, issueIdentifier, statuses = ["pending", "revision_requested"] } = args;
+      const candidates = await db
+        .select()
+        .from(approvals)
+        .where(
+          and(
+            eq(approvals.companyId, companyId),
+            eq(approvals.type, type),
+            inArray(approvals.status, statuses),
+          ),
+        )
+        .orderBy(desc(approvals.createdAt));
+
+      return (
+        candidates.find((approval) => {
+          const payloadIssueId = typeof approval.payload.issueId === "string" ? approval.payload.issueId : null;
+          const payloadIssueIdentifier =
+            typeof approval.payload.issueIdentifier === "string" ? approval.payload.issueIdentifier : null;
+          const payloadIssueIds = Array.isArray(approval.payload.issueIds)
+            ? approval.payload.issueIds.filter((value): value is string => typeof value === "string")
+            : [];
+          return (
+            payloadIssueId === issueId ||
+            payloadIssueIds.includes(issueId) ||
+            (!!issueIdentifier && payloadIssueIdentifier === issueIdentifier)
+          );
+        }) ?? null
+      );
+    },
+
+    updatePayload: async (id: string, payload: Record<string, unknown>) =>
+      db
+        .update(approvals)
+        .set({
+          payload,
+          updatedAt: new Date(),
+        })
+        .where(eq(approvals.id, id))
+        .returning()
+        .then((rows) => rows[0] ?? null),
 
     approve: async (id: string, decidedByUserId: string, decisionNote?: string | null) => {
       const existing = await getExistingApproval(id);

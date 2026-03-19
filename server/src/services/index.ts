@@ -10,10 +10,22 @@ export { approvalService } from "./approvals.js";
 export { secretService } from "./secrets.js";
 export { costService } from "./costs.js";
 export { heartbeatService } from "./heartbeat.js";
+export {
+  buildExecutionWorkspacePlanForIssue,
+  executionWorkspaceService,
+  extractExplicitBranch,
+  extractJiraTicketKey,
+  parseExecutionWorkspacePlan,
+  normalizeExecutionTicketKey,
+  deriveExecutionBranch,
+  REPO_ONLY_CWD_SENTINEL,
+  type ExecutionWorkspacePlan,
+} from "./execution-workspaces.js";
 export { dashboardService } from "./dashboard.js";
 export { sidebarBadgeService } from "./sidebar-badges.js";
 export { accessService } from "./access.js";
 export { companyPortabilityService } from "./company-portability.js";
+export { pullRequestService } from "./pull-requests.js";
 export { logActivity, type LogActivityInput } from "./activity-log.js";
 export { publishLiveEvent, subscribeCompanyLiveEvents } from "./live-events.js";
 export { createStorageServiceFromConfig, getStorageService } from "../storage/index.js";

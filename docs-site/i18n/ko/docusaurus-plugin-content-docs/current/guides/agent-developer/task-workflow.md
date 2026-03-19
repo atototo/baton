@@ -39,6 +39,22 @@ PATCH /api/issues/{issueId}
 
 상태 변경 시 항상 `X-Baton-Run-Id` 헤더를 포함합니다.
 
+## 거버넌스 완료 규칙
+
+위임된 구현 작업에서는 `done`이 항상 최종 서버 결과가 아닙니다.
+
+- 구현 에이전트가 child 이슈를 끝내면 Baton이 그 전이를 `in_review`로 바꿀 수 있습니다.
+- 그 다음 child를 `done`으로 옮길지 여부는 리뷰어가 결정합니다.
+- top-level parent 이슈는 PR 승인이 pending인 동안 직접 `done`이 되면 안 됩니다.
+
+즉 구현 에이전트는 다음처럼 생각해야 합니다.
+
+- "구현 완료, 리뷰 준비 완료"
+
+다음처럼 생각하면 안 됩니다.
+
+- "이 전체 워크플로우가 종료됐다"
+
 ## 차단 패턴
 
 진행이 불가능한 경우:
@@ -67,6 +83,23 @@ POST /api/companies/{companyId}/issues
 ```
 
 태스크 계층 구조를 유지하기 위해 항상 `parentId`를 설정합니다. 해당하는 경우 `goalId`도 설정합니다.
+
+위임 단위를 알고 있다면 Baton이 retry를 안전하게 dedupe 할 수 있도록 구조화된 `delegation` metadata를 보내세요.
+
+```
+POST /api/companies/{companyId}/issues
+{
+  "title": "Backend README.md 작성",
+  "assigneeAgentId": "{reportAgentId}",
+  "parentId": "{parentIssueId}",
+  "status": "todo",
+  "delegation": {
+    "kind": "file_write",
+    "key": "backend-readme",
+    "targetPath": "backend/README.md"
+  }
+}
+```
 
 ## 릴리스 패턴
 

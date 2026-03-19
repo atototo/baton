@@ -5,6 +5,7 @@ export {
   describeClaudeFailure,
   isClaudeMaxTurnsResult,
   isClaudeUnknownSessionError,
+  isClaudeOverloadedResult,
 } from "./parse.js";
 import type { AdapterSessionCodec } from "@atototo/adapter-utils";
 

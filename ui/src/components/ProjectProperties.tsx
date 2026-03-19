@@ -10,12 +10,16 @@ import { agentsApi } from "../api/agents";
 import { goalsApi } from "../api/goals";
 import { projectsApi } from "../api/projects";
 import { useCompany } from "../context/CompanyContext";
+import { useToast } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarDays, ExternalLink, FolderOpen, Github, GitBranch, Plus, Save, Trash2, User, X } from "lucide-react";
@@ -25,7 +29,8 @@ import { HintIcon, useHelpText } from "./agent-config-primitives";
 
 interface ProjectPropertiesProps {
   project: Project;
-  onUpdate?: (data: Record<string, unknown>) => void;
+  onUpdate?: (data: Record<string, unknown>) => void | Promise<unknown>;
+  isSaving?: boolean;
 }
 
 const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
@@ -108,10 +113,12 @@ function WorkspaceHelpContent() {
 export function ProjectProperties({
   project,
   onUpdate,
+  isSaving = false,
 }: ProjectPropertiesProps) {
   const { t } = useTranslation();
   const help = useHelpText();
   const { selectedCompanyId } = useCompany();
+  const { pushToast } = useToast();
   const queryClient = useQueryClient();
 
   /* ── Local draft state (saved only on explicit Save click) ── */
@@ -176,7 +183,7 @@ export function ProjectProperties({
     ) {
       payload.goalIds = draftGoalIds;
     }
-    onUpdate(payload);
+    void onUpdate(payload);
   };
 
   const handleDiscard = () => {
@@ -193,7 +200,10 @@ export function ProjectProperties({
   const [workspaceMode, setWorkspaceMode] = useState<"local" | "repo" | null>(null);
   const [workspaceCwd, setWorkspaceCwd] = useState("");
   const [workspaceRepoUrl, setWorkspaceRepoUrl] = useState("");
+  const [workspaceBaseBranch, setWorkspaceBaseBranch] = useState("main");
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [editingBaseBranchWorkspaceId, setEditingBaseBranchWorkspaceId] = useState<string | null>(null);
+  const [editingBaseBranchValue, setEditingBaseBranchValue] = useState("main");
 
   /* ── Data queries ── */
   const { data: allGoals } = useQuery({
@@ -240,6 +250,27 @@ export function ProjectProperties({
   const workspaces = project.workspaces ?? [];
 
   /* ── Workspace mutations (these save immediately) ── */
+  const updateProjectCaches = (
+    updater: (current: Project) => Project,
+  ) => {
+    queryClient.setQueriesData<Project>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === "projects" &&
+          query.queryKey[1] === "detail",
+      },
+      (current) => (current && current.id === project.id ? updater(current) : current),
+    );
+    if (selectedCompanyId) {
+      queryClient.setQueryData<Project[]>(queryKeys.projects.list(selectedCompanyId), (current) =>
+        current
+          ? current.map((item) => (item.id === project.id ? updater(item) : item))
+          : current,
+      );
+    }
+  };
+
   const invalidateProject = () => {
     queryClient.invalidateQueries({
       queryKey: queryKeys.projects.detail(project.id),
@@ -254,19 +285,50 @@ export function ProjectProperties({
   const createWorkspace = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       projectsApi.createWorkspace(project.id, data),
-    onSuccess: () => {
+    onSuccess: (workspace) => {
       setWorkspaceCwd("");
       setWorkspaceRepoUrl("");
+      setWorkspaceBaseBranch("main");
       setWorkspaceMode(null);
       setWorkspaceError(null);
+      updateProjectCaches((current) => ({
+        ...current,
+        workspaces: [...(current.workspaces ?? []), workspace],
+      }));
       invalidateProject();
+      pushToast({
+        tone: "success",
+        title: t("projectProperties.workspaceSaved", "워크스페이스가 저장되었습니다."),
+      });
+    },
+    onError: () => {
+      pushToast({
+        tone: "error",
+        title: t("projectProperties.workspaceSaveFailed", "워크스페이스 저장에 실패했습니다."),
+      });
     },
   });
 
   const removeWorkspace = useMutation({
     mutationFn: (workspaceId: string) =>
       projectsApi.removeWorkspace(project.id, workspaceId),
-    onSuccess: invalidateProject,
+    onSuccess: (deletedWorkspace) => {
+      updateProjectCaches((current) => ({
+        ...current,
+        workspaces: (current.workspaces ?? []).filter((item) => item.id !== deletedWorkspace.id),
+      }));
+      invalidateProject();
+      pushToast({
+        tone: "success",
+        title: t("projectProperties.workspaceDeleted", "워크스페이스가 삭제되었습니다."),
+      });
+    },
+    onError: () => {
+      pushToast({
+        tone: "error",
+        title: t("projectProperties.workspaceDeleteFailed", "워크스페이스 삭제에 실패했습니다."),
+      });
+    },
   });
   const updateWorkspace = useMutation({
     mutationFn: ({
@@ -276,7 +338,25 @@ export function ProjectProperties({
       workspaceId: string;
       data: Record<string, unknown>;
     }) => projectsApi.updateWorkspace(project.id, workspaceId, data),
-    onSuccess: invalidateProject,
+    onSuccess: (workspace) => {
+      updateProjectCaches((current) => ({
+        ...current,
+        workspaces: (current.workspaces ?? []).map((item) =>
+          item.id === workspace.id ? workspace : item,
+        ),
+      }));
+      invalidateProject();
+      pushToast({
+        tone: "success",
+        title: t("projectProperties.workspaceUpdated", "워크스페이스가 업데이트되었습니다."),
+      });
+    },
+    onError: () => {
+      pushToast({
+        tone: "error",
+        title: t("projectProperties.workspaceUpdateFailed", "워크스페이스 업데이트에 실패했습니다."),
+      });
+    },
   });
 
   /* ── Goal helpers (now modify draft, not server) ── */
@@ -347,6 +427,7 @@ export function ProjectProperties({
     createWorkspace.mutate({
       name: deriveWorkspaceNameFromPath(cwd),
       cwd,
+      defaultBaseBranch: workspaceBaseBranch.trim() || "main",
     });
   };
 
@@ -361,6 +442,24 @@ export function ProjectProperties({
       name: deriveWorkspaceNameFromRepo(repoUrl),
       cwd: REPO_ONLY_CWD_SENTINEL,
       repoUrl,
+      defaultBaseBranch: workspaceBaseBranch.trim() || "main",
+    });
+  };
+
+  const startWorkspaceBaseBranchEdit = (workspace: Project["workspaces"][number]) => {
+    setEditingBaseBranchWorkspaceId(workspace.id);
+    setEditingBaseBranchValue(workspace.defaultBaseBranch ?? "main");
+  };
+
+  const submitWorkspaceBaseBranch = (workspace: Project["workspaces"][number]) => {
+    updateWorkspace.mutate({
+      workspaceId: workspace.id,
+      data: { defaultBaseBranch: editingBaseBranchValue.trim() || null },
+    }, {
+      onSuccess: () => {
+        setEditingBaseBranchWorkspaceId(null);
+        setEditingBaseBranchValue("main");
+      },
     });
   };
 
@@ -411,16 +510,16 @@ export function ProjectProperties({
       {/* ── Save / Discard bar ── */}
       {isDirty && onUpdate && (
         <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5">
-          <Save className="h-3.5 w-3.5 text-primary" />
-          <span className="flex-1 text-sm text-primary">
-            {t("projectProperties.unsavedChanges", "저장하지 않은 변경사항이 있습니다.")}
-          </span>
+            <Save className="h-3.5 w-3.5 text-primary" />
+            <span className="flex-1 text-sm text-primary">
+            {t("projectProperties.basicInfoUnsavedChanges", "기본 정보에 저장하지 않은 변경사항이 있습니다.")}
+            </span>
           <Button variant="ghost" size="sm" className="h-8 px-3" onClick={handleDiscard}>
             {t("common.discard", "취소")}
           </Button>
-          <Button size="sm" className="h-8 px-4" onClick={handleSave}>
+          <Button size="sm" className="h-8 px-4" onClick={handleSave} disabled={isSaving}>
             <Save className="h-3.5 w-3.5 mr-1.5" />
-            {t("common.save", "저장")}
+            {isSaving ? t("common.saving", "저장 중…") : t("common.save", "저장")}
           </Button>
         </div>
       )}
@@ -431,6 +530,12 @@ export function ProjectProperties({
           <h3 className="text-sm font-semibold text-foreground">
             {t("projectProperties.basicInfo", "기본 정보")}
           </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t(
+              "projectProperties.basicInfoSaveMode",
+              "이 섹션의 변경사항은 상단 저장 버튼을 눌러 반영합니다.",
+            )}
+          </p>
         </div>
         <div className="divide-y divide-border">
           {/* Status */}
@@ -609,18 +714,26 @@ export function ProjectProperties({
       {/* ── Section 2: Workspaces ── */}
       <section className="rounded-lg border border-border">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">
-              {t("projectProperties.workspaces")}
-            </h3>
-            <HintIcon
-              hint={{
-                text: help.workspaceTooltip,
-                popoverContent: <WorkspaceHelpContent />,
-                ariaLabel: help.workspaceLabel,
-                popoverClassName: "border-border bg-popover",
-              }}
-            />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("projectProperties.workspaces")}
+              </h3>
+              <HintIcon
+                hint={{
+                  text: help.workspaceTooltip,
+                  popoverContent: <WorkspaceHelpContent />,
+                  ariaLabel: help.workspaceLabel,
+                  popoverClassName: "border-border bg-popover",
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "projectProperties.workspaceSaveMode",
+                "이 섹션의 변경사항은 저장 즉시 반영됩니다.",
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-1.5">
             <Button
@@ -682,15 +795,75 @@ export function ProjectProperties({
                         <span className="min-w-0 truncate font-mono text-xs">
                           {workspace.cwd}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="shrink-0"
-                          onClick={() => clearLocalWorkspace(workspace)}
-                          aria-label={t("projectProperties.deleteLocalFolder")}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Popover
+                            open={editingBaseBranchWorkspaceId === workspace.id}
+                            onOpenChange={(open) => {
+                              if (open) {
+                                startWorkspaceBaseBranchEdit(workspace);
+                              } else if (editingBaseBranchWorkspaceId === workspace.id) {
+                                setEditingBaseBranchWorkspaceId(null);
+                                setEditingBaseBranchValue("main");
+                              }
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                {workspace.defaultBaseBranch ?? "main"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-64 space-y-2 p-3">
+                              <PopoverHeader>
+                                <PopoverTitle>{t("projectProperties.defaultBaseBranch", "기본 베이스 브랜치")}</PopoverTitle>
+                                <PopoverDescription className="text-xs">
+                                  {t(
+                                    "projectProperties.defaultBaseBranchHelp",
+                                    "워크트리 브랜치 생성 시 이 브랜치를 기준으로 사용합니다.",
+                                  )}
+                                </PopoverDescription>
+                              </PopoverHeader>
+                              <input
+                                className="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+                                value={editingBaseBranchValue}
+                                onChange={(e) => setEditingBaseBranchValue(e.target.value)}
+                                placeholder="main"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="h-7 px-3"
+                                  onClick={() => {
+                                    setEditingBaseBranchWorkspaceId(null);
+                                    setEditingBaseBranchValue("main");
+                                  }}
+                                >
+                                  {t("common.discard", "취소")}
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  className="h-7 px-3"
+                                  disabled={updateWorkspace.isPending}
+                                  onClick={() => submitWorkspaceBaseBranch(workspace)}
+                                >
+                                  {t("common.save", "저장")}
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="shrink-0"
+                            onClick={() => clearLocalWorkspace(workspace)}
+                            aria-label={t("projectProperties.deleteLocalFolder")}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -721,15 +894,75 @@ export function ProjectProperties({
                           <span className="truncate">{formatGitHubRepo(workspace.repoUrl!)}</span>
                           <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                         </a>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="shrink-0"
-                          onClick={() => clearRepoWorkspace(workspace)}
-                          aria-label={t("projectProperties.deleteWorkspaceRepo")}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Popover
+                            open={editingBaseBranchWorkspaceId === workspace.id}
+                            onOpenChange={(open) => {
+                              if (open) {
+                                startWorkspaceBaseBranchEdit(workspace);
+                              } else if (editingBaseBranchWorkspaceId === workspace.id) {
+                                setEditingBaseBranchWorkspaceId(null);
+                                setEditingBaseBranchValue("main");
+                              }
+                            }}
+                          >
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                {workspace.defaultBaseBranch ?? "main"}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-64 space-y-2 p-3">
+                              <PopoverHeader>
+                                <PopoverTitle>{t("projectProperties.defaultBaseBranch", "기본 베이스 브랜치")}</PopoverTitle>
+                                <PopoverDescription className="text-xs">
+                                  {t(
+                                    "projectProperties.defaultBaseBranchHelp",
+                                    "워크트리 브랜치 생성 시 이 브랜치를 기준으로 사용합니다.",
+                                  )}
+                                </PopoverDescription>
+                              </PopoverHeader>
+                              <input
+                                className="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+                                value={editingBaseBranchValue}
+                                onChange={(e) => setEditingBaseBranchValue(e.target.value)}
+                                placeholder="main"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="h-7 px-3"
+                                  onClick={() => {
+                                    setEditingBaseBranchWorkspaceId(null);
+                                    setEditingBaseBranchValue("main");
+                                  }}
+                                >
+                                  {t("common.discard", "취소")}
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  className="h-7 px-3"
+                                  disabled={updateWorkspace.isPending}
+                                  onClick={() => submitWorkspaceBaseBranch(workspace)}
+                                >
+                                  {t("common.save", "저장")}
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="shrink-0"
+                            onClick={() => clearRepoWorkspace(workspace)}
+                            aria-label={t("projectProperties.deleteWorkspaceRepo")}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -754,6 +987,12 @@ export function ProjectProperties({
                 />
                 <ChoosePathButton />
               </div>
+              <input
+                className="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+                value={workspaceBaseBranch}
+                onChange={(e) => setWorkspaceBaseBranch(e.target.value)}
+                placeholder={t("projectProperties.defaultBaseBranchPlaceholder", "main")}
+              />
               <div className="flex items-center gap-2">
                 <Button
                   size="xs"
@@ -767,7 +1006,12 @@ export function ProjectProperties({
                   variant="ghost"
                   size="xs"
                   className="h-7 px-3"
-                  onClick={() => { setWorkspaceMode(null); setWorkspaceCwd(""); setWorkspaceError(null); }}
+                  onClick={() => {
+                    setWorkspaceMode(null);
+                    setWorkspaceCwd("");
+                    setWorkspaceBaseBranch("main");
+                    setWorkspaceError(null);
+                  }}
                 >
                   {t("common.discard", "취소")}
                 </Button>
@@ -786,6 +1030,12 @@ export function ProjectProperties({
                 onChange={(e) => setWorkspaceRepoUrl(e.target.value)}
                 placeholder="https://github.com/org/repo"
               />
+              <input
+                className="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
+                value={workspaceBaseBranch}
+                onChange={(e) => setWorkspaceBaseBranch(e.target.value)}
+                placeholder={t("projectProperties.defaultBaseBranchPlaceholder", "main")}
+              />
               <div className="flex items-center gap-2">
                 <Button
                   size="xs"
@@ -799,7 +1049,7 @@ export function ProjectProperties({
                   variant="ghost"
                   size="xs"
                   className="h-7 px-3"
-                  onClick={() => { setWorkspaceMode(null); setWorkspaceRepoUrl(""); setWorkspaceError(null); }}
+                  onClick={() => { setWorkspaceMode(null); setWorkspaceRepoUrl(""); setWorkspaceBaseBranch("main"); setWorkspaceError(null); }}
                 >
                   {t("common.discard", "취소")}
                 </Button>

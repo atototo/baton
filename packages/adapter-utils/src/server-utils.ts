@@ -19,6 +19,9 @@ export const runningProcesses = new Map<string, RunningProcess>();
 export const MAX_CAPTURE_BYTES = 4 * 1024 * 1024;
 export const MAX_EXCERPT_BYTES = 32 * 1024;
 const SENSITIVE_ENV_KEY = /(key|token|secret|password|passwd|authorization|cookie)/i;
+const TRANSIENT_SPAWN_ERRNOS = new Set(["EBADF", "EMFILE", "ENFILE"]);
+const TRANSIENT_SPAWN_MAX_RETRIES = 2;
+const TRANSIENT_SPAWN_RETRY_DELAY_MS = 150;
 
 export function parseObject(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -213,78 +216,103 @@ export async function runChildProcess(
 
   return new Promise<RunProcessResult>((resolve, reject) => {
     const mergedEnv = ensurePathInEnv({ ...process.env, ...opts.env });
-    const child = spawn(command, args, {
-      cwd: opts.cwd,
-      env: mergedEnv,
-      shell: false,
-      stdio: [opts.stdin != null ? "pipe" : "ignore", "pipe", "pipe"],
-    });
+    const startAttempt = (attempt: number) => {
+      const child = spawn(command, args, {
+        cwd: opts.cwd,
+        env: mergedEnv,
+        shell: false,
+        stdio: [opts.stdin != null ? "pipe" : "ignore", "pipe", "pipe"],
+      });
 
-    if (opts.stdin != null && child.stdin) {
-      child.stdin.write(opts.stdin);
-      child.stdin.end();
-    }
+      if (opts.stdin != null && child.stdin) {
+        child.stdin.write(opts.stdin);
+        child.stdin.end();
+      }
 
-    runningProcesses.set(runId, { child, graceSec: opts.graceSec });
+      runningProcesses.set(runId, { child, graceSec: opts.graceSec });
 
-    let timedOut = false;
-    let stdout = "";
-    let stderr = "";
-    let logChain: Promise<void> = Promise.resolve();
+      let timedOut = false;
+      let stdout = "";
+      let stderr = "";
+      let logChain: Promise<void> = Promise.resolve();
+      let settled = false;
 
-    const timeout =
-      opts.timeoutSec > 0
-        ? setTimeout(() => {
-            timedOut = true;
-            child.kill("SIGTERM");
-            setTimeout(() => {
-              if (!child.killed) {
-                child.kill("SIGKILL");
-              }
-            }, Math.max(1, opts.graceSec) * 1000);
-          }, opts.timeoutSec * 1000)
-        : null;
+      const timeout =
+        opts.timeoutSec > 0
+          ? setTimeout(() => {
+              timedOut = true;
+              child.kill("SIGTERM");
+              setTimeout(() => {
+                if (!child.killed) {
+                  child.kill("SIGKILL");
+                }
+              }, Math.max(1, opts.graceSec) * 1000);
+            }, opts.timeoutSec * 1000)
+          : null;
 
-    child.stdout?.on("data", (chunk) => {
-      const text = String(chunk);
-      stdout = appendWithCap(stdout, text);
-      logChain = logChain
-        .then(() => opts.onLog("stdout", text))
-        .catch((err) => onLogError(err, runId, "failed to append stdout log chunk"));
-    });
+      child.stdout?.on("data", (chunk) => {
+        const text = String(chunk);
+        stdout = appendWithCap(stdout, text);
+        logChain = logChain
+          .then(() => opts.onLog("stdout", text))
+          .catch((err) => onLogError(err, runId, "failed to append stdout log chunk"));
+      });
 
-    child.stderr?.on("data", (chunk) => {
-      const text = String(chunk);
-      stderr = appendWithCap(stderr, text);
-      logChain = logChain
-        .then(() => opts.onLog("stderr", text))
-        .catch((err) => onLogError(err, runId, "failed to append stderr log chunk"));
-    });
+      child.stderr?.on("data", (chunk) => {
+        const text = String(chunk);
+        stderr = appendWithCap(stderr, text);
+        logChain = logChain
+          .then(() => opts.onLog("stderr", text))
+          .catch((err) => onLogError(err, runId, "failed to append stderr log chunk"));
+      });
 
-    child.on("error", (err) => {
-      if (timeout) clearTimeout(timeout);
-      runningProcesses.delete(runId);
-      const errno = (err as NodeJS.ErrnoException).code;
-      const pathValue = mergedEnv.PATH ?? mergedEnv.Path ?? "";
-      const msg =
-        errno === "ENOENT"
-          ? `Failed to start command "${command}" in "${opts.cwd}". Verify adapter command, working directory, and PATH (${pathValue}).`
-          : `Failed to start command "${command}" in "${opts.cwd}": ${err.message}`;
-      reject(new Error(msg));
-    });
+      child.on("error", (err) => {
+        if (settled) return;
+        if (timeout) clearTimeout(timeout);
+        runningProcesses.delete(runId);
+        const errno = (err as NodeJS.ErrnoException).code;
+        if (
+          errno &&
+          TRANSIENT_SPAWN_ERRNOS.has(errno) &&
+          attempt < TRANSIENT_SPAWN_MAX_RETRIES
+        ) {
+          logChain = logChain
+            .then(() =>
+              opts.onLog(
+                "stderr",
+                `[baton] Failed to spawn "${command}" due to transient ${errno}; retrying (${attempt + 1}/${TRANSIENT_SPAWN_MAX_RETRIES})...\n`,
+              ),
+            )
+            .catch((logErr) => onLogError(logErr, runId, "failed to append transient spawn retry log chunk"));
+          setTimeout(() => startAttempt(attempt + 1), TRANSIENT_SPAWN_RETRY_DELAY_MS);
+          return;
+        }
+        settled = true;
+        const pathValue = mergedEnv.PATH ?? mergedEnv.Path ?? "";
+        const msg =
+          errno === "ENOENT"
+            ? `Failed to start command "${command}" in "${opts.cwd}". Verify adapter command, working directory, and PATH (${pathValue}).`
+            : `Failed to start command "${command}" in "${opts.cwd}": ${err.message}`;
+        reject(new Error(msg));
+      });
 
-    child.on("close", (code, signal) => {
-      if (timeout) clearTimeout(timeout);
-      runningProcesses.delete(runId);
-      void logChain.finally(() => {
-        resolve({
-          exitCode: code,
-          signal,
-          timedOut,
-          stdout,
-          stderr,
+      child.on("close", (code, signal) => {
+        if (settled) return;
+        settled = true;
+        if (timeout) clearTimeout(timeout);
+        runningProcesses.delete(runId);
+        void logChain.finally(() => {
+          resolve({
+            exitCode: code,
+            signal,
+            timedOut,
+            stdout,
+            stderr,
+          });
         });
       });
-    });
+    };
+
+    startAttempt(0);
   });
 }

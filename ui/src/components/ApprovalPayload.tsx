@@ -89,6 +89,10 @@ export function CeoStrategyPayload({ payload }: { payload: Record<string, unknow
 
 export function GenericApprovalPayload({ payload }: { payload: Record<string, unknown> }) {
   const { t } = useTranslation();
+  const workspace =
+    typeof payload.workspace === "object" && payload.workspace !== null
+      ? (payload.workspace as Record<string, unknown>)
+      : null;
   const summary =
     payload.summary ??
     payload.title ??
@@ -104,6 +108,15 @@ export function GenericApprovalPayload({ payload }: { payload: Record<string, un
       <PayloadField label={t("approval.baseBranch")} value={payload.baseBranch} />
       <PayloadField label={t("approval.headBranch")} value={payload.headBranch} />
       <PayloadField label={t("approval.repository")} value={payload.repository} />
+      {workspace && (
+        <>
+          <PayloadField label="Ticket" value={workspace.ticketKey} />
+          <PayloadField label={t("approval.branch")} value={workspace.branch} />
+          <PayloadField label={t("approval.baseBranch")} value={workspace.baseBranch} />
+          <PayloadField label="Workspace" value={workspace.projectWorkspaceName} />
+          <PayloadField label="Repo Path" value={workspace.sourceRepoCwd} />
+        </>
+      )}
       {!!summary && (
         <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap font-mono text-xs max-h-48 overflow-y-auto">
           {String(summary)}

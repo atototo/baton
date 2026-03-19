@@ -6,6 +6,7 @@ const projectWorkspaceFields = {
   cwd: z.string().min(1).optional().nullable(),
   repoUrl: z.string().url().optional().nullable(),
   repoRef: z.string().optional().nullable(),
+  defaultBaseBranch: z.string().min(1).optional().nullable(),
   metadata: z.record(z.unknown()).optional().nullable(),
 };
 

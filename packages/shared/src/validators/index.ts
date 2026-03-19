@@ -58,6 +58,7 @@ export {
 export {
   createIssueSchema,
   createIssueLabelSchema,
+  issueDelegationSchema,
   updateIssueSchema,
   checkoutIssueSchema,
   addIssueCommentSchema,
@@ -65,6 +66,7 @@ export {
   createIssueAttachmentMetadataSchema,
   type CreateIssue,
   type CreateIssueLabel,
+  type IssueDelegation,
   type UpdateIssue,
   type CheckoutIssue,
   type AddIssueComment,

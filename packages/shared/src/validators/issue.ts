@@ -8,6 +8,17 @@ export const issueAssigneeAdapterOverridesSchema = z
   })
   .strict();
 
+export const issueDelegationSchema = z
+  .object({
+    kind: z.string().trim().min(1),
+    key: z.string().trim().min(1),
+    targetPath: z.string().trim().min(1).optional().nullable(),
+    scope: z.string().trim().min(1).optional().nullable(),
+  })
+  .strict();
+
+export type IssueDelegation = z.infer<typeof issueDelegationSchema>;
+
 export const createIssueSchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
   goalId: z.string().uuid().optional().nullable(),
@@ -20,6 +31,7 @@ export const createIssueSchema = z.object({
   assigneeUserId: z.string().optional().nullable(),
   requestDepth: z.number().int().nonnegative().optional().default(0),
   billingCode: z.string().optional().nullable(),
+  delegation: issueDelegationSchema.optional().nullable(),
   assigneeAdapterOverrides: issueAssigneeAdapterOverridesSchema.optional().nullable(),
   labelIds: z.array(z.string().uuid()).optional(),
 });

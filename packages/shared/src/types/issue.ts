@@ -49,6 +49,21 @@ export interface IssueAssigneeAdapterOverrides {
   useProjectWorkspace?: boolean;
 }
 
+export interface IssueDelegation {
+  kind: string;
+  key: string;
+  targetPath?: string | null;
+  scope?: string | null;
+}
+
+export interface IssueExecutionWorkspace {
+  id: string;
+  cwd: string;
+  branch: string | null;
+  baseBranch: string | null;
+  ticketKey: string | null;
+}
+
 export interface Issue {
   id: string;
   companyId: string;
@@ -62,6 +77,7 @@ export interface Issue {
   priority: IssuePriority;
   assigneeAgentId: string | null;
   assigneeUserId: string | null;
+  executionWorkspaceId: string | null;
   checkoutRunId: string | null;
   executionRunId: string | null;
   executionAgentNameKey: string | null;
@@ -72,7 +88,9 @@ export interface Issue {
   identifier: string | null;
   requestDepth: number;
   billingCode: string | null;
+  delegation: IssueDelegation | null;
   assigneeAdapterOverrides: IssueAssigneeAdapterOverrides | null;
+  executionWorkspace?: IssueExecutionWorkspace | null;
   startedAt: Date | null;
   completedAt: Date | null;
   cancelledAt: Date | null;

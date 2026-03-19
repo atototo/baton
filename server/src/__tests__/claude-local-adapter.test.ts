@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isClaudeMaxTurnsResult } from "@atototo/adapter-claude-local/server";
+import { isClaudeMaxTurnsResult, isClaudeOverloadedResult } from "@atototo/adapter-claude-local/server";
 
 describe("claude_local max-turn detection", () => {
   it("detects max-turn exhaustion by subtype", () => {
@@ -24,6 +24,31 @@ describe("claude_local max-turn detection", () => {
       isClaudeMaxTurnsResult({
         subtype: "success",
         stop_reason: "end_turn",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("claude_local overload detection", () => {
+  it("detects overloaded_error results", () => {
+    expect(
+      isClaudeOverloadedResult({
+        parsed: {
+          subtype: "success",
+          result:
+            'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for non-overload failures", () => {
+    expect(
+      isClaudeOverloadedResult({
+        parsed: {
+          subtype: "success",
+          result: "Please run `claude login` to continue.",
+        },
       }),
     ).toBe(false);
   });

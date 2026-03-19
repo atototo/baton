@@ -176,6 +176,20 @@
       "when": 1772799720031,
       "tag": "0024_mute_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1772862000000,
+      "tag": "0025_git_worktree_parallel_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773875280506,
+      "tag": "0026_bored_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

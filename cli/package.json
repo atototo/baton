@@ -1,6 +1,6 @@
 {
   "name": "baton",
-  "version": "0.2.7",
+  "version": "0.4.0",
   "description": "Baton CLI — orchestrate AI agent teams to run a business",
   "type": "module",
   "bin": {

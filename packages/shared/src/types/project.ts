@@ -14,6 +14,7 @@ export interface ProjectWorkspace {
   repoUrl: string | null;
   repoRef: string | null;
   metadata: Record<string, unknown> | null;
+  defaultBaseBranch: string | null;
   isPrimary: boolean;
   createdAt: Date;
   updatedAt: Date;

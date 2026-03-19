@@ -14,6 +14,8 @@ export type { Project, ProjectGoalRef, ProjectWorkspace } from "./project.js";
 export type {
   Issue,
   IssueAssigneeAdapterOverrides,
+  IssueDelegation,
+  IssueExecutionWorkspace,
   IssueComment,
   IssueAncestor,
   IssueAncestorProject,

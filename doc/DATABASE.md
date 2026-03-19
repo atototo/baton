@@ -158,3 +158,55 @@ Inline secret migration command:
 ```sh
 pnpm secrets:migrate-inline-env --apply
 ```
+
+## Workflow-Related Tables and Fields
+
+The governed execution workflow adds a few important runtime records:
+
+### `execution_workspaces`
+
+Execution workspaces are Baton-managed ticket worktrees. They store:
+
+- `ticketKey`
+- `branch`
+- `baseBranch`
+- `sourceRepoCwd`
+- `executionCwd`
+- `projectWorkspaceId`
+- lifecycle timestamps such as `provisionedAt` and `cleanedAt`
+
+One ticket maps to one active execution workspace per project workspace.
+
+### `issues.execution_workspace_id`
+
+Child implementation and review issues inherit the parent ticket execution workspace through `executionWorkspaceId`.
+
+This lets Baton:
+
+- keep top-level planning out of source repos
+- keep implementation inside Baton-managed worktrees
+- preserve ticket isolation during parallel runs
+
+### `issues.delegation`
+
+Delegation metadata is used to make child creation idempotent during retries and resumes.
+
+Current shape:
+
+```json
+{
+  "kind": "file_write",
+  "key": "backend-readme",
+  "targetPath": "backend/README.md",
+  "scope": "backend docs"
+}
+```
+
+When delegation metadata is present, Baton dedupes active child issues by:
+
+- `parentId`
+- assignee
+- `delegation.kind`
+- `delegation.key`
+
+Terminal issues do not block future work with the same key.

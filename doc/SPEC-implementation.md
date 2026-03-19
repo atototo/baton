@@ -198,10 +198,15 @@ Invariant: at least one root `company` level goal per company.
 - `status` enum: `backlog | todo | in_progress | in_review | done | blocked | cancelled`
 - `priority` enum: `critical | high | medium | low`
 - `assignee_agent_id` uuid fk `agents.id` null
+- `assignee_user_id` text null
+- `execution_workspace_id` uuid fk `execution_workspaces.id` null
+- `checkout_run_id` uuid fk `heartbeat_runs.id` null
+- `execution_run_id` uuid fk `heartbeat_runs.id` null
 - `created_by_agent_id` uuid fk `agents.id` null
 - `created_by_user_id` uuid fk `users.id` null
 - `request_depth` int not null default 0
 - `billing_code` text null
+- `delegation` jsonb null
 - `started_at` timestamptz null
 - `completed_at` timestamptz null
 - `cancelled_at` timestamptz null
@@ -211,6 +216,7 @@ Invariants:
 - single assignee only
 - task must trace to company goal chain via `goal_id`, `parent_id`, or project-goal linkage
 - `in_progress` requires assignee
+- top-level planning work and ticket execution work may resolve to different workspaces
 - terminal states: `done | cancelled`
 
 ## 7.7 `issue_comments`
@@ -257,7 +263,7 @@ Invariant: each event must attach to agent and company; rollups are aggregation,
 
 - `id` uuid pk
 - `company_id` uuid fk not null
-- `type` enum: `hire_agent | approve_ceo_strategy`
+- `type` enum: `hire_agent | approve_ceo_strategy | approve_issue_plan | approve_pull_request`
 - `requested_by_agent_id` uuid fk `agents.id` null
 - `requested_by_user_id` uuid fk `users.id` null
 - `status` enum: `pending | approved | rejected | cancelled`
@@ -277,6 +283,24 @@ Invariant: each event must attach to agent and company; rollups are aggregation,
 - `entity_id` uuid/text not null
 - `details` jsonb null
 - `created_at` timestamptz not null default now()
+
+## 7.11a `execution_workspaces`
+
+- `id` uuid pk
+- `company_id` uuid fk not null
+- `owner_issue_id` uuid null
+- `project_id` uuid fk `projects.id` null
+- `project_workspace_id` uuid fk project workspace null
+- `source_repo_cwd` text not null
+- `execution_cwd` text not null
+- `ticket_key` text not null
+- `branch` text not null
+- `base_branch` text not null
+- `status` text not null
+- `provisioned_at` timestamptz null
+- `cleaned_at` timestamptz null
+
+Invariant: one active execution workspace per `company + project workspace + ticket`.
 
 ## 7.12 `company_secrets` + `company_secret_versions`
 
@@ -362,6 +386,14 @@ Side effects:
 - entering `in_progress` sets `started_at` if null
 - entering `done` sets `completed_at`
 - entering `cancelled` sets `cancelled_at`
+
+Governed workflow rules:
+
+- child implementation agent `done` attempts are rewritten to `in_review`
+- child implementation agent direct `in_review` requests are also treated as reviewer handoff
+- child review completion may transition `in_review -> done`
+- top-level parent cannot transition to `done` while a linked `approve_pull_request` is still pending
+- top-level parent review handoff creates `approve_pull_request` and assigns review to the board user
 
 ## 8.3 Approval Status
 
@@ -580,7 +612,7 @@ Per-agent schedule fields in `adapter_config`:
 
 - `enabled` boolean
 - `intervalSec` integer (minimum 30)
-- `maxConcurrentRuns` fixed at `1` for V1
+- `maxConcurrentRuns` integer, default `1`
 
 Scheduler must skip invocation when:
 
@@ -615,6 +647,21 @@ Board can at any time:
 - reassign or cancel any task
 - edit budgets and limits
 - approve/reject/cancel pending approvals
+
+## 12.4 Default Governed Project Workflow
+
+The default project execution workflow is:
+
+1. Leader plans in a fallback workspace.
+2. Leader requests `approve_issue_plan`.
+3. Board approval provisions one ticket execution workspace using `feature/<TICKET>`.
+4. Parent resumes and creates child implementation issues.
+5. Child work executes in the ticket worktree.
+6. Child implementation completion hands off to review (`in_review`) instead of directly closing the work.
+7. Reviewer completes child reviews.
+8. When child reviews are complete, Baton creates `approve_pull_request` for the parent.
+9. Board PR approval creates the real commit/push/PR side effect.
+10. Parent transitions to `done` only after PR approval succeeds.
 
 ## 13. Cost and Budget System
 

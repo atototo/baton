@@ -177,3 +177,26 @@ export function isClaudeUnknownSessionError(parsed: Record<string, unknown>): bo
     /no conversation found with session id|unknown session|session .* not found/i.test(msg),
   );
 }
+
+export function isClaudeOverloadedResult(input: {
+  parsed: Record<string, unknown> | null;
+  stdout?: string;
+  stderr?: string;
+}): boolean {
+  const parsed = input.parsed ?? null;
+  const resultText = asString(parsed?.result, "").trim();
+  const allMessages = [
+    resultText,
+    ...extractClaudeErrorMessages(parsed ?? {}),
+    input.stdout ?? "",
+    input.stderr ?? "",
+  ]
+    .join("\n")
+    .split(/\r?\n/)
+    .map((msg) => msg.trim())
+    .filter(Boolean);
+
+  return allMessages.some((msg) =>
+    /overloaded_error|api error:\s*529|status(?:\s*code)?\s*529|(?:provider|service|api)?\s*overloaded\b/i.test(msg),
+  );
+}
