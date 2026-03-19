@@ -49,26 +49,38 @@ Review and PR approval are part of the enforced workflow, not optional conventio
 
 ### Issue State Transition
 
-```text
-backlog -> todo -> in_progress -> in_review -> done
-                       |              ^
-                       v              |
-                     blocked ---------+
-
-- child "done" is rewritten to "in_review"
-- parent cannot reach "done" while PR approval is pending
+```mermaid
+flowchart LR
+  backlog["backlog"] --> todo["todo"]
+  todo --> in_progress["in_progress"]
+  in_progress --> in_review["in_review"]
+  in_review --> done["done"]
+  in_progress --> blocked["blocked"]
+  blocked --> todo
+  blocked --> in_progress
 ```
+
+For governed ticket execution:
+
+- child `done` is rewritten to `in_review`
+- parent cannot reach `done` while PR approval is pending
 
 ### Parallel Tickets Example
 
-```text
-source repo: azak (base branch: main)
-
-AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
-AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
+```mermaid
+flowchart TD
+  repo["Source repo: azak<br/>base branch: main"]
+  repo --> t10["AZAK-010 execution workspace<br/>feature/AZAK-010"]
+  repo --> t11["AZAK-011 execution workspace<br/>feature/AZAK-011"]
+  t10 --> t10c["Child work"]
+  t10c --> t10r["Review"]
+  t10r --> t10p["PR approval"]
+  t11 --> t11c["Child work"]
+  t11c --> t11r["Review"]
+  t11r --> t11p["PR approval"]
+```
 
 The tickets run in parallel, but each ticket keeps its own branch and runtime cwd.
-```
 
 ## Workspace Rules
 
@@ -143,13 +155,6 @@ Before approving a plan, check:
 - branch name
 - base branch
 - project workspace
-- repo path
-
-Before approving a PR, check:
-
-- child reviews are complete
-- the PR branch matches the parent ticket
-- the generated PR content summarizes the actual changes
 - repo path
 
 Before approving a PR, check:

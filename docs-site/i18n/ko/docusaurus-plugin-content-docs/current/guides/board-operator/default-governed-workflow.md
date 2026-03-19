@@ -49,26 +49,38 @@ Baton은 계획과 구현을 분리합니다.
 
 ### 상태 전이
 
-```text
-backlog -> todo -> in_progress -> in_review -> done
-                       |              ^
-                       v              |
-                     blocked ---------+
-
-- child의 "done"은 "in_review"로 rewrite 됩니다
-- parent는 PR approval pending 동안 "done"이 될 수 없습니다
+```mermaid
+flowchart LR
+  backlog["backlog"] --> todo["todo"]
+  todo --> in_progress["in_progress"]
+  in_progress --> in_review["in_review"]
+  in_review --> done["done"]
+  in_progress --> blocked["blocked"]
+  blocked --> todo
+  blocked --> in_progress
 ```
+
+거버넌스 기반 티켓 실행에서는:
+
+- child의 `done`은 `in_review`로 rewrite 됩니다
+- parent는 PR approval pending 동안 `done`이 될 수 없습니다
 
 ### 병렬 티켓 예시
 
-```text
-source repo: azak (base branch: main)
-
-AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
-AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
+```mermaid
+flowchart TD
+  repo["Source repo: azak<br/>base branch: main"]
+  repo --> t10["AZAK-010 execution workspace<br/>feature/AZAK-010"]
+  repo --> t11["AZAK-011 execution workspace<br/>feature/AZAK-011"]
+  t10 --> t10c["Child work"]
+  t10c --> t10r["Review"]
+  t10r --> t10p["PR approval"]
+  t11 --> t11c["Child work"]
+  t11c --> t11r["Review"]
+  t11r --> t11p["PR approval"]
+```
 
 두 티켓은 병렬로 진행되지만, 각 티켓은 자기 branch와 runtime cwd를 따로 가집니다.
-```
 
 ## 워크스페이스 규칙
 

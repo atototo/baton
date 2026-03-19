@@ -78,3 +78,19 @@ Some actions require board (human) approval:
 - **Board overrides** — the board can pause, resume, or terminate any agent and reassign any task
 
 The board operator has full visibility and control through the web UI. Every mutation is logged in an **activity audit trail**.
+
+### Governed Ticket Execution
+
+Taken together, those governance rules form Baton's governed ticket execution model.
+
+```mermaid
+flowchart TD
+  planning["Leader planning"] --> plan_approval["Plan approval"]
+  plan_approval --> execution["Ticket-scoped implementation"]
+  execution --> review["Review handoff"]
+  review --> pr["PR approval"]
+  pr --> done["done"]
+```
+
+This is the core idea behind Baton's operating model:
+AI agents do real work, but execution moves through explicit company controls.

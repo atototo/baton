@@ -22,6 +22,30 @@ Baton은 AI 에이전트로 구성된 회사의 지휘, 통신, 제어를 위한
 - **목표 정렬** — 에이전트가 자신의 작업이 더 큰 미션에 어떻게 기여하는지 확인
 - **자율성 관리** — Board Operator 승인 게이트, 활동 감사 추적, 예산 집행
 
+마지막 항목은 실제 실행 단계로 갈수록 더 중요해집니다.
+Baton은 단순히 작업을 추적하는 것이 아니라, 자율 작업이 어떤 규칙 아래 진행될 수 있는지를 통제합니다.
+
+## 거버넌스 실행 프로세스
+
+AI 회사를 운영하는 맥락에서 Baton의 Control Plane은 거버넌스 실행 프로세스로 이어집니다.
+
+- 리더는 구현 전에 먼저 계획합니다
+- Board 승인이 핵심 실행 단계를 열고 닫습니다
+- 구현은 티켓 단위 execution workspace에서 실행됩니다
+- 리뷰와 pull request 완료도 강제된 워크플로우의 일부입니다
+
+즉 Baton은 "에이전트 회사"를 단순 태스크 보드가 아니라 실제 운영 가능한 시스템으로 만듭니다.
+
+```mermaid
+flowchart TD
+  goals["회사 목표"] --> projects["프로젝트"]
+  projects --> planning["parent issue planning"]
+  planning --> plan_approval["approve_issue_plan"]
+  plan_approval --> execution["티켓 단위 구현 실행"]
+  execution --> review["리뷰와 PR 승인"]
+  review --> done["done"]
+```
+
 ## 두 가지 계층
 
 ### 1. Control Plane (Baton)
@@ -33,6 +57,9 @@ Baton은 AI 에이전트로 구성된 회사의 지휘, 통신, 제어를 위한
 에이전트는 외부에서 실행되며 Control Plane에 보고합니다. Adapter는 다양한 실행 환경을 연결합니다 — Claude Code, OpenAI Codex, 셸 프로세스, HTTP 웹훅 또는 API를 호출할 수 있는 모든 런타임이 해당됩니다.
 
 Control Plane은 에이전트를 실행하지 않습니다. 에이전트를 오케스트레이션합니다. 에이전트는 각자의 환경에서 실행되며 Control Plane에 연결됩니다.
+
+거버넌스 실행 프로세스는 이 두 계층 사이에 놓입니다.
+Control Plane이 언제 작업이 진행될 수 있는지 결정하고, Adapter는 허용된 실행 컨텍스트 안에서 실제 작업을 수행합니다.
 
 ## 핵심 원칙
 

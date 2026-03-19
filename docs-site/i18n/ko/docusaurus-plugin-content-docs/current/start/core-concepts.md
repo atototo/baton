@@ -78,3 +78,19 @@ Heartbeat는 다음에 의해 트리거될 수 있습니다:
 - **Board Operator 개입** — Board Operator는 모든 에이전트를 일시 중지, 재개 또는 종료하고 모든 태스크를 재할당할 수 있습니다
 
 Board Operator는 웹 UI를 통해 완전한 가시성과 제어 권한을 갖습니다. 모든 변경 사항은 **활동 감사 추적**에 기록됩니다.
+
+### 거버넌스 기반 티켓 실행
+
+이 규칙들이 합쳐져 Baton의 거버넌스 기반 티켓 실행 모델을 이룹니다.
+
+```mermaid
+flowchart TD
+  planning["리더 계획"] --> plan_approval["계획 승인"]
+  plan_approval --> execution["티켓 단위 구현 실행"]
+  execution --> review["리뷰 handoff"]
+  review --> pr["PR 승인"]
+  pr --> done["done"]
+```
+
+이것이 Baton 운영 모델의 핵심입니다.
+AI 에이전트가 실제 작업을 수행하되, 실행은 회사 차원의 명시적 통제 아래에서만 진행됩니다.

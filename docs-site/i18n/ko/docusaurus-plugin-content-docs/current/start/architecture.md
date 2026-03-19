@@ -79,6 +79,23 @@ Heartbeat가 실행되면:
 5. **결과 캡처** — Adapter가 stdout를 캡처하고, 사용량/비용 데이터를 파싱하고, 세션 상태를 추출합니다
 6. **실행 기록** — 서버가 실행 결과, 비용, 다음 heartbeat를 위한 세션 상태를 기록합니다
 
+## 거버넌스 실행 흐름
+
+거버넌스 기반 티켓 작업에서는 Baton이 단순 heartbeat 요청 흐름 위에 Control Plane 워크플로우를 추가합니다.
+
+```mermaid
+flowchart TD
+  board["board가 parent issue 생성"] --> leader["리더가 fallback workspace에서 계획"]
+  leader --> plan["approve_issue_plan"]
+  plan --> workspace["execution workspace 준비"]
+  workspace --> child["child 구현이 ticket worktree에서 실행"]
+  child --> review["child 리뷰 handoff"]
+  review --> pr["approve_pull_request"]
+  pr --> side_effects["실제 commit/push/PR 부수 효과"]
+```
+
+이 흐름이 Baton을 Control Plane으로서의 역할과 Adapter 기반 실행 서비스를 연결하는 아키텍처적 다리입니다.
+
 ## Adapter 모델
 
 Adapter는 Baton과 에이전트 런타임 사이의 브릿지입니다. 각 adapter는 세 가지 모듈로 구성된 패키지입니다:
@@ -94,5 +111,6 @@ Adapter는 Baton과 에이전트 런타임 사이의 브릿지입니다. 각 ada
 - **Control Plane이지 실행 플레인이 아닙니다** — Baton은 에이전트를 오케스트레이션하며, 직접 실행하지 않습니다
 - **회사 범위** — 모든 엔티티는 정확히 하나의 회사에 속하며, 엄격한 데이터 경계가 적용됩니다
 - **단일 담당자 태스크** — 원자적 체크아웃으로 동일한 태스크에 대한 동시 작업을 방지합니다
+- **거버넌스 실행** — 계획, 구현, 리뷰, PR 완료는 명시적인 승인과 상태 머신 통제 아래에서 진행됩니다
 - **Adapter 비종속적** — HTTP API를 호출할 수 있는 모든 런타임이 에이전트로 작동합니다
 - **기본 내장 모드** — 내장 PostgreSQL을 사용한 설정 없는 로컬 모드
