@@ -4,6 +4,14 @@ summary: The default plan -> worktree -> review -> PR flow Baton enforces
 ---
 
 This guide describes the default project workflow Baton uses when a leader delegates implementation work.
+For the full internal explainer, see `doc/WORKFLOWS.md` in the repo.
+
+## What Baton Does Now
+
+Baton separates planning from implementation.
+Leaders plan in a fallback workspace.
+Approved implementation runs in a ticket-scoped execution workspace.
+Review and PR approval are part of the enforced workflow, not optional conventions.
 
 ## Default Flow
 
@@ -21,6 +29,33 @@ This guide describes the default project workflow Baton uses when a leader deleg
 9. When all child reviews are done, Baton moves the parent to `in_review` and creates **PR Approval**.
 10. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
 
+## Core Rules
+
+- planning happens in the leader fallback workspace
+- approved implementation happens in the ticket execution workspace
+- the source repo stays on the configured base branch
+- different tickets can run in parallel in different worktrees
+- a single ticket is the isolation boundary for code execution
+
+## Status Meaning
+
+- `todo`: ready to start
+- `in_progress`: active work is running
+- `blocked`: waiting on approval, input, or another dependency
+- `in_review`: implementation is complete enough for reviewer or board handoff
+- `done`: the governed workflow has actually finished, including PR approval
+
+## Parallel Tickets Example
+
+```text
+source repo: azak (base branch: main)
+
+AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
+AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
+
+The tickets run in parallel, but each ticket keeps its own branch and runtime cwd.
+```
+
 ## Workspace Rules
 
 - Top-level planning does **not** run in the source repo.
@@ -28,6 +63,7 @@ This guide describes the default project workflow Baton uses when a leader deleg
 - Baton creates one execution workspace per ticket and keeps the source repo on the configured base branch.
 - Different tickets can run in parallel in different worktrees.
 - A single ticket is the isolation boundary for code execution.
+- If the linked execution workspace is unavailable, Baton may temporarily fall back with a warning. That is degraded behavior, not the normal governed path.
 
 ## Default Reviewer Behavior
 

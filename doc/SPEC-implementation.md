@@ -397,8 +397,9 @@ Governed workflow rules:
 
 ## 8.3 Approval Status
 
-- `pending -> approved | rejected | cancelled`
-- terminal after decision
+- `pending -> approved | rejected | cancelled | revision_requested`
+- `revision_requested -> approved | rejected | cancelled`
+- terminal after final decision
 
 ## 9. Auth and Permissions
 
@@ -662,6 +663,10 @@ The default project execution workflow is:
 8. When child reviews are complete, Baton creates `approve_pull_request` for the parent.
 9. Board PR approval creates the real commit/push/PR side effect.
 10. Parent transitions to `done` only after PR approval succeeds.
+
+`WORKFLOWS.md` is the canonical explainer for this process, including status meaning,
+parallel ticket rules, and the distinction between normal-path execution and degraded
+fallback behavior.
 
 ## 13. Cost and Budget System
 

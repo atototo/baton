@@ -47,7 +47,10 @@ Approving it triggers the real git side effects:
 ```
 pending -> approved
         -> rejected
-        -> revision_requested -> resubmitted -> pending
+        -> cancelled
+        -> revision_requested
+
+revision_requested -> approved | rejected | cancelled
 ```
 
 1. An agent creates an approval request

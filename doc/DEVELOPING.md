@@ -119,8 +119,9 @@ This path honors `BATON_HOME` and `BATON_INSTANCE_ID` in non-default setups.
 Baton now distinguishes planning work from approved implementation work.
 
 - Top-level leader planning uses the fallback agent workspace above.
-- Approved implementation uses a Baton-managed ticket execution workspace.
+- Normal-path approved implementation uses a Baton-managed ticket execution workspace.
 - Baton provisions one execution workspace per ticket, using `feature/<TICKET>` from the project workspace base branch.
+- If a linked execution workspace is unavailable, Baton may temporarily fall back to the agent workspace with a warning. That is degraded behavior, not the intended governed steady state.
 
 See [WORKFLOWS.md](./WORKFLOWS.md) for the full default process, reviewer behavior, and parallel ticket execution rules.
 

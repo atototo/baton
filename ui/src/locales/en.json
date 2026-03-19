@@ -1095,7 +1095,7 @@
     "readyToLaunch": "Ready to launch",
     "readyToLaunchDesc": "Everything is set up. Your assigned task already woke the agent, so you can jump straight to the issue.",
     "statusFlowTitle": "Issue status flow",
-    "statusFlowSummary": "The normal path is backlog -> todo -> in_progress -> done. Use blocked when something external stops progress.",
+    "statusFlowSummary": "The governed path is backlog -> todo -> in_progress -> in_review -> done. Use blocked when approval, input, or another dependency stops progress.",
     "batonMap": {
       "company": {
         "title": "Company",
@@ -1127,9 +1127,13 @@
         "label": "In Progress",
         "description": "The issue has been checked out and one agent is actively working on it."
       },
+      "inReview": {
+        "label": "In Review",
+        "description": "Implementation is complete enough for reviewer or board handoff, but the governed workflow is not finished yet."
+      },
       "done": {
         "label": "Done",
-        "description": "The requested work is complete and the outcome has been reported back in comments."
+        "description": "The governed workflow is fully complete, including review and any required PR approval."
       },
       "blocked": {
         "label": "Blocked",
