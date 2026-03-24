@@ -22,45 +22,31 @@ export function ClaudeLocalConfigFields({
   const help = useHelpText();
 
   return (
-    <Field label="Agent instructions file" hint={help.instructionsFilePath}>
-      <div className="flex items-center gap-2">
-        <DraftInput
-          value={
-            isCreate
-              ? values!.instructionsFilePath ?? ""
-              : eff(
-                  "adapterConfig",
-                  "instructionsFilePath",
-                  String(config.instructionsFilePath ?? "")
-                )
-          }
-          onCommit={(v) =>
-            isCreate
-              ? set!({ instructionsFilePath: v })
-              : mark("adapterConfig", "instructionsFilePath", v || undefined)
-          }
-          immediate
-          className={inputClass}
-          placeholder="/absolute/path/to/AGENTS.md"
-        />
-        <ChoosePathButton />
-      </div>
-    </Field>
-  );
-}
-
-export function ClaudeLocalAdvancedFields({
-  isCreate,
-  values,
-  set,
-  config,
-  eff,
-  mark,
-}: AdapterConfigFieldsProps) {
-  const help = useHelpText();
-
-  return (
     <>
+      <Field label="Agent instructions file" hint={help.instructionsFilePath}>
+        <div className="flex items-center gap-2">
+          <DraftInput
+            value={
+              isCreate
+                ? values!.instructionsFilePath ?? ""
+                : eff(
+                    "adapterConfig",
+                    "instructionsFilePath",
+                    String(config.instructionsFilePath ?? "")
+                  )
+            }
+            onCommit={(v) =>
+              isCreate
+                ? set!({ instructionsFilePath: v })
+                : mark("adapterConfig", "instructionsFilePath", v || undefined)
+            }
+            immediate
+            className={inputClass}
+            placeholder="/absolute/path/to/AGENTS.md"
+          />
+          <ChoosePathButton />
+        </div>
+      </Field>
       <ToggleField
         label="Enable Chrome"
         hint={help.chrome}
@@ -82,7 +68,7 @@ export function ClaudeLocalAdvancedFields({
             : eff(
                 "adapterConfig",
                 "dangerouslySkipPermissions",
-                config.dangerouslySkipPermissions !== false
+                config.dangerouslySkipPermissions === true
               )
         }
         onChange={(v) =>
@@ -115,3 +101,6 @@ export function ClaudeLocalAdvancedFields({
     </>
   );
 }
+
+/** @deprecated Use ClaudeLocalConfigFields — all fields are now unified there. */
+export const ClaudeLocalAdvancedFields = ClaudeLocalConfigFields;

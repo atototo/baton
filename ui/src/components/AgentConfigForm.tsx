@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AGENT_ADAPTER_TYPES } from "@atototo/shared";
+import { AGENT_ADAPTER_TYPES, AGENT_ROLES } from "@atototo/shared";
 import type {
   Agent,
   AdapterEnvironmentTestResult,
@@ -37,9 +37,9 @@ import {
   DraftNumberInput,
   useHelpText,
   adapterLabels,
+  roleLabels,
 } from "./agent-config-primitives";
 import { getUIAdapter } from "../adapters";
-import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import { InlineHelp } from "./InlineHelp";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ChoosePathButton } from "./PathInstructionsModal";
@@ -61,6 +61,8 @@ type AgentConfigFormProps = {
   hideInlineSave?: boolean;
   /** "cards" renders each section as heading + bordered card (for settings pages). Default: "inline" (border-b dividers). */
   sectionLayout?: "inline" | "cards";
+  /** Optional slot rendered as a section after the main config sections (e.g. permissions). */
+  afterSections?: React.ReactNode;
 } & (
   | {
       mode: "create";
@@ -532,6 +534,19 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 placeholder={t("agentConfig.agentName")}
               />
             </Field>
+            <Field label={t("agentConfig.role")} hint={help.role}>
+              <select
+                className={inputClass}
+                value={eff("identity", "role", props.agent.role)}
+                onChange={(e) => mark("identity", "role", e.target.value)}
+              >
+                {AGENT_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {roleLabels[r] ?? r}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label={t("agentConfig.title")} hint={help.title}>
               <DraftInput
                 value={eff("identity", "title", props.agent.title ?? "")}
@@ -726,6 +741,42 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
 
           {/* Adapter-specific fields */}
           <uiAdapter.ConfigFields {...adapterFieldProps} />
+
+          {/* Environment variables — shown in adapter section so API keys are easy to find */}
+          {isLocal && (
+            <Field label={t("agentConfig.environmentVariables")} hint={help.envVars}>
+              <EnvVarEditor
+                value={
+                  isCreate
+                    ? ((val!.envBindings ?? EMPTY_ENV) as Record<
+                        string,
+                        EnvBinding
+                      >)
+                    : eff(
+                        "adapterConfig",
+                        "env",
+                        (config.env ?? EMPTY_ENV) as Record<string, EnvBinding>
+                      )
+                }
+                secrets={availableSecrets}
+                onCreateSecret={async (name, value) => {
+                  const created = await createSecret.mutateAsync({
+                    name,
+                    value,
+                  });
+                  return created;
+                }}
+                onChange={(env) =>
+                  isCreate
+                    ? set!({ envBindings: env ?? {}, envVars: "" })
+                    : mark("adapterConfig", "env", env)
+                }
+              />
+              {adapterType && (
+                <EnvGuide adapterType={adapterType} />
+              )}
+            </Field>
+          )}
         </div>
       </div>
 
@@ -845,10 +896,6 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 }}
               />
             </Field>
-            {adapterType === "claude_local" && (
-              <ClaudeLocalAdvancedFields {...adapterFieldProps} />
-            )}
-
             <Field label={t("agentConfig.extraArgs")} hint={help.extraArgs}>
               <DraftInput
                 value={
@@ -872,36 +919,6 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 immediate
                 className={inputClass}
                 placeholder={t("agentConfig.extraArgsPlaceholder")}
-              />
-            </Field>
-
-            <Field label={t("agentConfig.environmentVariables")} hint={help.envVars}>
-              <EnvVarEditor
-                value={
-                  isCreate
-                    ? ((val!.envBindings ?? EMPTY_ENV) as Record<
-                        string,
-                        EnvBinding
-                      >)
-                    : eff(
-                        "adapterConfig",
-                        "env",
-                        (config.env ?? EMPTY_ENV) as Record<string, EnvBinding>
-                      )
-                }
-                secrets={availableSecrets}
-                onCreateSecret={async (name, value) => {
-                  const created = await createSecret.mutateAsync({
-                    name,
-                    value,
-                  });
-                  return created;
-                }}
-                onChange={(env) =>
-                  isCreate
-                    ? set!({ envBindings: env ?? {}, envVars: "" })
-                    : mark("adapterConfig", "env", env)
-                }
               />
             </Field>
 
@@ -1067,6 +1084,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           </div>
         </div>
       )}
+
+      {/* ---- Slot for extra sections (e.g. permissions) ---- */}
+      {props.afterSections}
     </div>
   );
 }
@@ -1156,8 +1176,9 @@ function AdapterTypeDropdown({
   onChange: (type: string) => void;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
           <span>{adapterLabels[value] ?? value}</span>
@@ -1180,7 +1201,10 @@ function AdapterTypeDropdown({
               item.value === value && !item.comingSoon && "bg-accent"
             )}
             onClick={() => {
-              if (!item.comingSoon) onChange(item.value);
+              if (!item.comingSoon) {
+                onChange(item.value);
+                setOpen(false);
+              }
             }}
           >
             <span>{item.label}</span>
@@ -1193,6 +1217,53 @@ function AdapterTypeDropdown({
         ))}
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Adapter-specific env-var guide rendered below the env editor. */
+function EnvGuide({ adapterType }: { adapterType: string }) {
+  const { t } = useTranslation();
+
+  const items: { key: string; desc: string }[] = (() => {
+    switch (adapterType) {
+      case "claude_local":
+        return [
+          { key: "ANTHROPIC_API_KEY", desc: t("agentConfig.envGuideDetail.apiKeyDesc") },
+          { key: "GITHUB_TOKEN", desc: t("agentConfig.envGuideDetail.githubTokenDesc") },
+          { key: "CLAUDE_CODE_USE_BEDROCK", desc: t("agentConfig.envGuideDetail.bedrockDesc") },
+        ];
+      case "codex_local":
+      case "opencode_local":
+        return [
+          { key: "OPENAI_API_KEY", desc: t("agentConfig.envGuideDetail.apiKeyDesc") },
+          { key: "GITHUB_TOKEN", desc: t("agentConfig.envGuideDetail.githubTokenDesc") },
+        ];
+      case "cursor":
+        return [
+          { key: "CURSOR_API_KEY", desc: t("agentConfig.envGuideDetail.apiKeyDesc") },
+          { key: "GITHUB_TOKEN", desc: t("agentConfig.envGuideDetail.githubTokenDesc") },
+        ];
+      default:
+        return [];
+    }
+  })();
+
+  return (
+    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+      <p>{t("agentConfig.envGuideDetail.heading")}</p>
+      {items.length > 0 && (
+        <ul className="ml-3 space-y-0.5">
+          {items.map(({ key, desc }) => (
+            <li key={key}>
+              <code className="rounded bg-muted px-1 py-0.5 text-[11px] font-medium text-foreground/80">
+                {key}
+              </code>{" "}
+              <span className="text-muted-foreground/70">— {desc}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

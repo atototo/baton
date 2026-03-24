@@ -435,6 +435,7 @@
     "identity": "Identity",
     "name": "Name",
     "agentName": "Agent name",
+    "role": "Role",
     "title": "Title",
     "titlePlaceholder": "e.g. VP of Engineering",
     "capabilities": "Capabilities",
@@ -474,7 +475,7 @@
     "thinkingEffort": "Thinking effort",
     "auto": "Auto",
     "command": "Command",
-    "permissionsAndConfiguration": "Permissions & Configuration",
+    "permissionsAndConfiguration": "Advanced Adapter Settings",
     "timeoutSec": "Timeout (sec)",
     "interruptGracePeriodSec": "Interrupt grace period (sec)",
     "cooldownSec": "Cooldown (sec)",
@@ -491,6 +492,12 @@
       "selectCompanyTestEnvironment": "Select a company to test adapter environment",
       "environmentTestFailed": "Environment test failed",
       "failedToCreateSecret": "Failed to create secret"
+    },
+    "envGuideDetail": {
+      "heading": "Any variable the CLI process accepts can be set here. Common examples:",
+      "apiKeyDesc": "API billing (omit to use subscription login)",
+      "githubTokenDesc": "PR creation & git push workflows",
+      "bedrockDesc": "Use AWS Bedrock instead of Anthropic API"
     }
   },
   "issueProperties": {
@@ -636,7 +643,7 @@
     "copied": "Copied!",
     "dismiss": "Dismiss",
     "createApiKey": "Create API Key",
-    "createApiKeyDesc": "API keys allow this agent to authenticate calls to the Baton server.",
+    "createApiKeyDesc": "Local adapters (Claude, Codex, Cursor) don't need manual API keys — Baton auto-injects a short-lived token on each run. Create a key here only for external agents that connect via HTTP webhook or custom integrations.",
     "keyNamePlaceholder": "Key name (e.g. production)",
     "create": "Create",
     "loadingKeys": "Loading keys...",
@@ -951,7 +958,7 @@
     "localCommand": "Override the exact local CLI path Baton should invoke, such as /usr/local/bin/claude or codex.",
     "args": "Command-line arguments, entered as a comma-separated list.",
     "extraArgs": "Additional CLI arguments for local adapters, entered as a comma-separated list.",
-    "envVars": "Environment variables injected into the adapter process. Use plain values or secret references.",
+    "envVars": "Variables merged into the CLI process env. Any variable the CLI accepts can be set here (API keys, tokens, feature flags, etc.).",
     "webhookUrl": "Endpoint that receives POST requests when Baton wakes this agent.",
     "heartbeatInterval": "Runs this agent automatically on a timer instead of only when manually triggered or assigned work.",
     "intervalSec": "Seconds between automatic heartbeat runs.",
