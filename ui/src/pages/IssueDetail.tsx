@@ -663,9 +663,17 @@ export function IssueDetail() {
         />
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium text-muted-foreground">{t("issueDetail.attachments")}</h3>
+      <details className="group space-y-3">
+        <summary className="flex items-center justify-between gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <div className="flex items-center gap-1.5">
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-90" />
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {t("issueDetail.attachments")}
+              {attachments && attachments.length > 0 && (
+                <span className="ml-1.5 text-xs font-normal">({attachments.length})</span>
+              )}
+            </h3>
+          </div>
           <div className="flex items-center gap-2">
             <input
               ref={fileInputRef}
@@ -677,23 +685,23 @@ export function IssueDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => { e.preventDefault(); fileInputRef.current?.click(); }}
               disabled={uploadAttachment.isPending}
             >
               <WandSparkles className="h-3.5 w-3.5 mr-1.5" />
               {uploadAttachment.isPending ? t("issueDetail.uploading") : t("issueDetail.uploadImage")}
             </Button>
           </div>
-        </div>
+        </summary>
 
         {attachmentError && (
           <p className="text-xs text-destructive">{attachmentError}</p>
         )}
 
         {(!attachments || attachments.length === 0) ? (
-          <p className="text-xs text-muted-foreground">{t("issueDetail.noAttachments")}</p>
+          <p className="text-xs text-muted-foreground pl-5">{t("issueDetail.noAttachments")}</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 pt-1">
             {attachments.map((attachment) => (
               <div key={attachment.id} className="border border-border rounded-md p-2">
                 <div className="flex items-center justify-between gap-2">
@@ -733,7 +741,7 @@ export function IssueDetail() {
             ))}
           </div>
         )}
-      </div>
+      </details>
 
       <Separator />
 
@@ -937,8 +945,10 @@ export function IssueDetail() {
       {/* End main content */}
 
       {/* Properties sidebar — mockup style (280px, border-left) */}
-      <aside className="hidden lg:block w-[280px] shrink-0 border-l border-border overflow-y-auto pl-6">
-        <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} />
+      <aside className="hidden lg:block w-[280px] shrink-0 border-l border-border pl-6">
+        <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <IssueProperties issue={issue} onUpdate={(data) => updateIssue.mutate(data)} />
+        </div>
       </aside>
     </div>
   );

@@ -387,10 +387,8 @@ export function approvalRoutes(db: Db) {
       existingApproval.type === "approve_issue_plan"
         ? parseExecutionWorkspacePlan(existingApproval.payload)
         : null;
-    if (existingApproval.type === "approve_issue_plan" && !workspacePlan) {
-      res.status(422).json({ error: "Issue plan approval payload is missing execution workspace details" });
-      return;
-    }
+    // workspace is optional for issue plans — analysis/research plans
+    // may only create child issues without provisioning a branch.
 
     const provisionedWorkspace =
       existingApproval.type === "approve_issue_plan" && workspacePlan
@@ -604,6 +602,10 @@ export function approvalRoutes(db: Db) {
         },
       });
 
+    }
+
+    // Resume blocked issues after plan approval — applies regardless of workspace
+    if (approval.type === "approve_issue_plan") {
       for (const linkedIssue of linkedIssues) {
         const shouldResumeBlockedParent =
           linkedIssue.status === "blocked" &&
@@ -626,6 +628,52 @@ export function approvalRoutes(db: Db) {
             approvalType: approval.type,
             previousStatus: linkedIssue.status,
             nextStatus: resumedIssue.status,
+          },
+        });
+      }
+    }
+
+    // Complete linked issues when approve_completion is approved (no PR needed)
+    if (approval.type === "approve_completion") {
+      for (const linkedIssue of linkedIssues) {
+        if (linkedIssue.status === "done" || linkedIssue.status === "cancelled") continue;
+
+        const completedIssue = await issuesSvc.update(linkedIssue.id, { status: "done" });
+        if (!completedIssue) continue;
+
+        await logActivity(db, {
+          companyId: approval.companyId,
+          actorType: "user",
+          actorId: req.actor.userId ?? "board",
+          action: "issue.completed_after_completion_approval",
+          entityType: "issue",
+          entityId: linkedIssue.id,
+          details: {
+            approvalId: approval.id,
+            approvalType: approval.type,
+            previousStatus: linkedIssue.status,
+            nextStatus: completedIssue.status,
+          },
+        });
+
+        const comment = await issuesSvc.addComment(
+          linkedIssue.id,
+          `## 완료 승인\n\n보드에서 완료 승인되었습니다. PR 없이 이슈를 종료합니다.`,
+          { userId: req.actor.userId ?? "board" },
+        );
+
+        await logActivity(db, {
+          companyId: approval.companyId,
+          actorType: "user",
+          actorId: req.actor.userId ?? "board",
+          action: "issue.comment_added",
+          entityType: "issue",
+          entityId: linkedIssue.id,
+          details: {
+            commentId: comment.id,
+            bodySnippet: comment.body.slice(0, 120),
+            identifier: linkedIssue.identifier,
+            issueTitle: linkedIssue.title,
           },
         });
       }
@@ -656,6 +704,8 @@ export function approvalRoutes(db: Db) {
             approvalStatus: approval.status,
             issueId: primaryIssueId,
             issueIds: linkedIssueIds,
+            hasExecutionWorkspace: provisionedWorkspace != null,
+            executionWorkspaceId: provisionedWorkspace?.id ?? null,
           },
           requestedByActorType: "user",
           requestedByActorId: req.actor.userId ?? "board",
@@ -726,6 +776,35 @@ export function approvalRoutes(db: Db) {
       details: { type: approval.type },
     });
 
+    // Post rejection reason as comment on linked issues and wake agent
+    const linkedIssues = await issueApprovalsSvc.listIssuesForApproval(id);
+    const note = req.body.decisionNote || "승인이 거절되었습니다.";
+    for (const linked of linkedIssues) {
+      await issuesSvc.addComment(
+        linked.id,
+        `**거절** (${approval.type})\n\n${note}`,
+        { userId: req.actor.userId ?? "board" },
+      );
+
+      // Unblock issue so agent can reassess
+      const issue = await issuesSvc.getById(linked.id);
+      if (issue && issue.status === "blocked") {
+        await issuesSvc.update(linked.id, { status: "in_progress" });
+      }
+    }
+
+    if (approval.requestedByAgentId) {
+      await heartbeat.wakeup(approval.requestedByAgentId, {
+        source: "automation",
+        reason: "approval_rejected",
+        payload: {
+          approvalId: approval.id,
+          approvalType: approval.type,
+          decisionNote: note,
+        },
+      });
+    }
+
     res.json(redactApprovalPayload(approval));
   });
 
@@ -750,6 +829,36 @@ export function approvalRoutes(db: Db) {
         entityId: approval.id,
         details: { type: approval.type },
       });
+
+      // Post revision feedback as comment on linked issue and wake the requesting agent
+      const linkedIssues = await issueApprovalsSvc.listIssuesForApproval(id);
+      const note = req.body.decisionNote || "수정이 필요합니다.";
+      for (const linked of linkedIssues) {
+        await issuesSvc.addComment(
+          linked.id,
+          `**수정 요청** (${approval.type})\n\n${note}`,
+          { userId: req.actor.userId ?? "board" },
+        );
+
+        // Resume blocked issue so the agent can rework it
+        const issue = await issuesSvc.getById(linked.id);
+        if (issue && issue.status === "blocked") {
+          await issuesSvc.update(linked.id, { status: "in_progress" });
+        }
+      }
+
+      // Wake requesting agent so it can act on the revision feedback
+      if (approval.requestedByAgentId) {
+        await heartbeat.wakeup(approval.requestedByAgentId, {
+          source: "automation",
+          reason: "approval_revision_requested",
+          payload: {
+            approvalId: approval.id,
+            approvalType: approval.type,
+            decisionNote: note,
+          },
+        });
+      }
 
       res.json(redactApprovalPayload(approval));
     },

@@ -748,6 +748,36 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             }}
             onSelect={checkMentionTextarea}
             onBlur={() => { onBlur?.(); }}
+            onPaste={(e) => {
+              if (!imageUploadHandler) return;
+              const items = e.clipboardData?.items;
+              if (!items) return;
+              for (const item of items) {
+                if (item.type.startsWith("image/")) {
+                  e.preventDefault();
+                  const file = item.getAsFile();
+                  if (!file) return;
+                  const placeholder = `![uploading...]()\n`;
+                  const ta = textareaRef.current;
+                  const start = ta?.selectionStart ?? value.length;
+                  const before = value.slice(0, start);
+                  const after = value.slice(ta?.selectionEnd ?? start);
+                  const withPlaceholder = before + placeholder + after;
+                  latestValueRef.current = withPlaceholder;
+                  onChange(withPlaceholder);
+                  imageUploadHandler(file).then((url) => {
+                    const next = latestValueRef.current.replace(placeholder, `![image](${url})\n`);
+                    latestValueRef.current = next;
+                    onChange(next);
+                  }).catch(() => {
+                    const next = latestValueRef.current.replace(placeholder, "");
+                    latestValueRef.current = next;
+                    onChange(next);
+                  });
+                  return;
+                }
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -755,7 +785,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               }
             }}
             className={cn(
-              "w-full resize-none bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px]",
+              "w-full resize-y bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px] max-h-[50vh]",
               contentClassName,
             )}
             rows={3}

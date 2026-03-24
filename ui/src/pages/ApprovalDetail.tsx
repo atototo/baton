@@ -97,19 +97,26 @@ export function ApprovalDetail() {
     onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToApprove")),
   });
 
+  const [decisionNote, setDecisionNote] = useState("");
+  const [showNoteFor, setShowNoteFor] = useState<"reject" | "revision" | null>(null);
+
   const rejectMutation = useMutation({
-    mutationFn: () => approvalsApi.reject(approvalId!),
+    mutationFn: () => approvalsApi.reject(approvalId!, decisionNote || undefined),
     onSuccess: () => {
       setError(null);
+      setDecisionNote("");
+      setShowNoteFor(null);
       refresh();
     },
     onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToReject")),
   });
 
   const revisionMutation = useMutation({
-    mutationFn: () => approvalsApi.requestRevision(approvalId!),
+    mutationFn: () => approvalsApi.requestRevision(approvalId!, decisionNote || undefined),
     onSuccess: () => {
       setError(null);
+      setDecisionNote("");
+      setShowNoteFor(null);
       refresh();
     },
     onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToRequestRevision")),
@@ -262,36 +269,80 @@ export function ApprovalDetail() {
             </p>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          {isActionable && (
-            <>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {isActionable && (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-green-700 hover:bg-green-600 text-white"
+                  onClick={() => approveMutation.mutate()}
+                  disabled={approveMutation.isPending}
+                >
+                  {t("approval.approve")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (showNoteFor === "reject") {
+                      rejectMutation.mutate();
+                    } else {
+                      setShowNoteFor("reject");
+                      setDecisionNote("");
+                    }
+                  }}
+                  disabled={rejectMutation.isPending}
+                >
+                  {t("approval.reject")}
+                </Button>
+              </>
+            )}
+            {approval.status === "pending" && (
               <Button
                 size="sm"
-                className="bg-green-700 hover:bg-green-600 text-white"
-                onClick={() => approveMutation.mutate()}
-                disabled={approveMutation.isPending}
+                variant="outline"
+                onClick={() => {
+                  if (showNoteFor === "revision") {
+                    revisionMutation.mutate();
+                  } else {
+                    setShowNoteFor("revision");
+                    setDecisionNote("");
+                  }
+                }}
+                disabled={revisionMutation.isPending}
               >
-                {t("approval.approve")}
+                {t("approval.requestRevision")}
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => rejectMutation.mutate()}
-                disabled={rejectMutation.isPending}
-              >
-                {t("approval.reject")}
-              </Button>
-            </>
-          )}
-          {approval.status === "pending" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => revisionMutation.mutate()}
-              disabled={revisionMutation.isPending}
-            >
-              {t("approval.requestRevision")}
-            </Button>
+            )}
+          </div>
+          {showNoteFor && (
+            <div className="flex gap-2 items-start">
+              <textarea
+                className="flex-1 min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder={showNoteFor === "reject" ? "거절 사유를 입력하세요..." : "수정 요청 사유를 입력하세요..."}
+                value={decisionNote}
+                onChange={(e) => setDecisionNote(e.target.value)}
+                autoFocus
+              />
+              <div className="flex flex-col gap-1">
+                <Button
+                  size="sm"
+                  variant={showNoteFor === "reject" ? "destructive" : "outline"}
+                  onClick={() => showNoteFor === "reject" ? rejectMutation.mutate() : revisionMutation.mutate()}
+                  disabled={rejectMutation.isPending || revisionMutation.isPending}
+                >
+                  {showNoteFor === "reject" ? t("approval.reject") : t("approval.requestRevision")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { setShowNoteFor(null); setDecisionNote(""); }}
+                >
+                  취소
+                </Button>
+              </div>
+            </div>
           )}
           {approval.status === "revision_requested" && (
             <Button

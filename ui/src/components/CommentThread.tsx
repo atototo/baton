@@ -211,7 +211,7 @@ const TimelineList = memo(function TimelineList({
                   {formatDateTime(comment.createdAt)}
                 </a>
               </div>
-              <div className="rounded-[6px] border border-border bg-muted/30 px-3.5 py-2.5">
+              <div className="rounded-[6px] border border-border bg-muted/30 px-3.5 py-2.5 overflow-hidden min-w-0">
                 <MarkdownBody className="text-[13px] leading-[1.6]">{comment.body}</MarkdownBody>
               </div>
             </div>

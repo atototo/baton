@@ -14,12 +14,12 @@ function normalizeRepoUrl(value: string) {
   return value.replace(/\.git$/i, "");
 }
 
-function repoSlugFromUrl(value: string | null) {
+function repoSlugFromUrl(value: string | null): { slug: string; hostname: string } | null {
   const normalized = readNonEmptyString(value);
   if (!normalized) return null;
-  const match = normalizeRepoUrl(normalized).match(/github\.com[:/](.+?)\/(.+?)(?:\/)?$/i);
-  if (!match?.[1] || !match?.[2]) return null;
-  return `${match[1]}/${match[2]}`;
+  const match = normalizeRepoUrl(normalized).match(/(github(?:\.[a-z0-9-]+)*\.com)[:/](.+?)\/(.+?)(?:\/)?$/i);
+  if (!match?.[1] || !match?.[2] || !match?.[3]) return null;
+  return { slug: `${match[2]}/${match[3]}`, hostname: match[1] };
 }
 
 export interface PullRequestExecutionInput {
@@ -47,16 +47,16 @@ export interface WorkingTreeChangeSummary {
   paths: string[];
 }
 
-async function runCommand(command: string, args: string[], cwd: string) {
-  return execFile(command, args, { cwd });
+async function runCommand(command: string, args: string[], cwd: string, env?: Record<string, string>) {
+  return execFile(command, args, { cwd, env: env ? { ...process.env, ...env } : undefined });
 }
 
 async function runGit(cwd: string, args: string[]) {
   return runCommand("git", args, cwd);
 }
 
-async function runGh(cwd: string, args: string[]) {
-  return runCommand("gh", args, cwd);
+async function runGh(cwd: string, args: string[], ghHost?: string) {
+  return runCommand("gh", args, cwd, ghHost && ghHost !== "github.com" ? { GH_HOST: ghHost } : undefined);
 }
 
 async function resolveRepoUrl(cwd: string, preferredRepoUrl?: string | null) {
@@ -105,9 +105,9 @@ async function pushBranch(cwd: string, branch: string) {
   await runGit(cwd, ["push", "-u", "origin", branch]);
 }
 
-async function findExistingPullRequest(cwd: string, repository: string, branch: string) {
+async function findExistingPullRequest(cwd: string, repository: string, branch: string, ghHost?: string) {
   try {
-    const { stdout } = await runGh(cwd, ["pr", "list", "--repo", repository, "--head", branch, "--state", "open", "--json", "url,number"]);
+    const { stdout } = await runGh(cwd, ["pr", "list", "--repo", repository, "--head", branch, "--state", "open", "--json", "url,number"], ghHost);
     const rows = JSON.parse(stdout) as Array<{ url?: string; number?: number }>;
     const first = rows[0];
     if (!first?.url) return null;
@@ -127,9 +127,10 @@ async function createPullRequest(args: {
   baseBranch: string;
   title: string;
   body: string;
+  ghHost?: string;
 }) {
-  const { cwd, repository, branch, baseBranch, title, body } = args;
-  const existing = await findExistingPullRequest(cwd, repository, branch);
+  const { cwd, repository, branch, baseBranch, title, body, ghHost } = args;
+  const existing = await findExistingPullRequest(cwd, repository, branch, ghHost);
   if (existing) return existing;
 
   const { stdout } = await runGh(cwd, [
@@ -145,11 +146,11 @@ async function createPullRequest(args: {
     title,
     "--body",
     body,
-  ]);
+  ], ghHost);
   const url = readNonEmptyString(stdout);
   if (!url) throw conflict("Pull request creation succeeded but no URL was returned.");
 
-  const created = await findExistingPullRequest(cwd, repository, branch);
+  const created = await findExistingPullRequest(cwd, repository, branch, ghHost);
   return {
     pullRequestUrl: created?.pullRequestUrl ?? url,
     pullRequestNumber: created?.pullRequestNumber ?? null,
@@ -165,8 +166,8 @@ export function pullRequestService() {
     openForExecutionWorkspace: async (input: PullRequestExecutionInput): Promise<PullRequestExecutionResult> => {
       const cwd = input.cwd;
       const repositoryUrl = await resolveRepoUrl(cwd, input.preferredRepoUrl);
-      const repository = repoSlugFromUrl(repositoryUrl);
-      if (!repository) {
+      const repoInfo = repoSlugFromUrl(repositoryUrl);
+      if (!repoInfo) {
         throw conflict("Only GitHub remotes are currently supported for Baton pull request creation.");
       }
 
@@ -180,15 +181,16 @@ export function pullRequestService() {
       await pushBranch(cwd, branch);
       const pullRequest = await createPullRequest({
         cwd,
-        repository,
+        repository: repoInfo.slug,
         branch,
         baseBranch,
         title: input.title,
         body: input.body,
+        ghHost: repoInfo.hostname,
       });
 
       return {
-        repository,
+        repository: repoInfo.slug,
         repoUrl: repositoryUrl,
         branch,
         baseBranch,

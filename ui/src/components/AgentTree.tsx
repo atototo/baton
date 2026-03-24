@@ -27,6 +27,7 @@ import {
   SquarePen,
   Sun,
   Target,
+  Users,
 } from "lucide-react";
 import {
   DndContext,
@@ -602,6 +603,9 @@ export function AgentTree() {
 
         {/* 섹션 디바이더 */}
         <div className="mx-1 my-2 h-px bg-border" />
+
+        {/* 에이전트 섹션 */}
+        <SidebarNavItem to="/agents/all" label={t("nav.allAgents")} icon={Users} />
 
         {/* 에이전트 트리 섹션 */}
         <Collapsible open={agentsOpen} onOpenChange={setAgentsOpen}>

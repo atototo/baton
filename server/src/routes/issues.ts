@@ -250,11 +250,11 @@ export function issueRoutes(db: Db, storage: StorageService) {
   async function assertIssueCompletionAllowed(issueId: string) {
     const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
       issueId,
-      ["approve_pull_request"],
+      ["approve_pull_request", "approve_completion"],
       ["pending", "revision_requested"],
     );
     if (blockingApprovals.length > 0) {
-      throw conflict("Cannot mark issue done while pull request approval is pending", {
+      throw conflict("Cannot mark issue done while approval is pending", {
         approvalIds: blockingApprovals.map((approval) => approval.id),
       });
     }
@@ -281,7 +281,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
 
   async function findExistingActionableIssueApproval(args: {
     issue: NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
-    type: "approve_issue_plan" | "approve_pull_request";
+    type: "approve_issue_plan" | "approve_pull_request" | "approve_completion";
   }) {
     const { issue, type } = args;
     const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(issue.id);
@@ -399,7 +399,12 @@ export function issueRoutes(db: Db, storage: StorageService) {
       (approval) => approval.type === "approve_issue_plan" && approval.status === "approved",
     );
 
-    const approvalType = planText && !hasApprovedPlanApproval ? "approve_issue_plan" : "approve_pull_request";
+    const approvalType: "approve_issue_plan" | "approve_pull_request" | "approve_completion" =
+      planText && !hasApprovedPlanApproval
+        ? "approve_issue_plan"
+        : issue.executionWorkspaceId
+          ? "approve_pull_request"
+          : "approve_completion";
     const existingActionableApproval = await findExistingActionableIssueApproval({
       issue,
       type: approvalType,
@@ -418,7 +423,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       approvalType === "approve_pull_request"
         ? await resolveIssueBranchName(issue, commentBody, issue.description)
         : workspacePlan?.branch ?? extractBranchName(commentBody, issue.description);
-    const baseBranch = await resolveIssueBaseBranch(issue);
+    const baseBranch = approvalType !== "approve_completion" ? await resolveIssueBaseBranch(issue) : null;
     const approvalPayload =
       approvalType === "approve_issue_plan"
         ? {
@@ -428,13 +433,19 @@ export function issueRoutes(db: Db, storage: StorageService) {
             workspace: workspacePlan,
             summary: commentBody ?? "Requesting board approval for the proposed implementation plan.",
           }
-        : {
-            title: issue.title,
-            issueIdentifier: issue.identifier,
-            branch: branchName,
-            baseBranch,
-            summary: commentBody ?? "Requesting board approval before opening a pull request.",
-          };
+        : approvalType === "approve_completion"
+          ? {
+              title: issue.title,
+              issueIdentifier: issue.identifier,
+              summary: commentBody ?? "분석/리서치 작업 완료. 보드 승인 요청합니다.",
+            }
+          : {
+              title: issue.title,
+              issueIdentifier: issue.identifier,
+              branch: branchName,
+              baseBranch,
+              summary: commentBody ?? "Requesting board approval before opening a pull request.",
+            };
 
     const approval = await approvalsSvc.create(issue.companyId, {
       type: approvalType,
@@ -767,11 +778,37 @@ export function issueRoutes(db: Db, storage: StorageService) {
     if (!parentIssue) return;
 
     const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(parentIssue.id);
-    const hasApprovedPlanApproval = linkedApprovals.some(
+    const approvedPlanApprovals = linkedApprovals.filter(
       (approval) => approval.type === "approve_issue_plan" && approval.status === "approved",
     );
-    if (hasApprovedPlanApproval) return;
 
+    if (approvedPlanApprovals.length > 0) {
+      // If parent has an execution workspace, implementation is allowed
+      if (parentIssue.executionWorkspaceId) return;
+
+      // No workspace — only analysis/research subtasks were approved.
+      // Check if a workspace plan is already pending
+      const hasPendingWorkspacePlan = linkedApprovals.some(
+        (approval) =>
+          approval.type === "approve_issue_plan" &&
+          (approval.status === "pending" || approval.status === "revision_requested") &&
+          approval.payload?.executionWorkspace,
+      );
+      if (hasPendingWorkspacePlan) {
+        throw conflict(
+          "Implementation requires workspace approval. A plan with workspace is pending — wait for board approval.",
+          { parentIssueId, source },
+        );
+      }
+
+      // No workspace and no pending workspace plan — block
+      throw conflict(
+        "Implementation requires an execution workspace. Submit a new approve_issue_plan with workspace details.",
+        { parentIssueId, source, reason: "no_execution_workspace" },
+      );
+    }
+
+    // No approved plan at all — create one and block
     await maybeCreateParentPlanApprovalForDelegation({
       parentIssueId,
       actor,

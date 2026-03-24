@@ -906,20 +906,25 @@ export function agentRoutes(db: Db) {
 
     const patchData = { ...(req.body as Record<string, unknown>) };
     if (Object.prototype.hasOwnProperty.call(patchData, "adapterConfig")) {
-      const adapterConfig = asRecord(patchData.adapterConfig);
-      if (!adapterConfig) {
+      const adapterConfigPatch = asRecord(patchData.adapterConfig);
+      if (!adapterConfigPatch) {
         res.status(422).json({ error: "adapterConfig must be an object" });
         return;
       }
-      const changingInstructionsPath = Object.keys(adapterConfig).some((key) =>
+      const changingInstructionsPath = Object.keys(adapterConfigPatch).some((key) =>
         KNOWN_INSTRUCTIONS_PATH_KEYS.has(key),
       );
       if (changingInstructionsPath) {
         await assertCanManageInstructionsPath(req, existing);
       }
+      // Shallow merge: preserve existing keys, only overwrite provided ones
+      const existingConfig = (typeof existing.adapterConfig === "object" && existing.adapterConfig !== null)
+        ? (existing.adapterConfig as Record<string, unknown>)
+        : {};
+      const mergedConfig = { ...existingConfig, ...adapterConfigPatch };
       patchData.adapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
         existing.companyId,
-        adapterConfig,
+        mergedConfig,
         { strictMode: strictSecretsMode },
       );
     }

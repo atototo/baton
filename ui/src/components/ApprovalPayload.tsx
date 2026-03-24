@@ -1,4 +1,4 @@
-import { GitPullRequest, Lightbulb, ListChecks, ShieldCheck, UserPlus } from "lucide-react";
+import { CheckCircle, GitPullRequest, Lightbulb, ListChecks, ShieldCheck, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export const typeIcon: Record<string, typeof UserPlus> = {
@@ -6,6 +6,7 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   approve_ceo_strategy: Lightbulb,
   approve_issue_plan: ListChecks,
   approve_pull_request: GitPullRequest,
+  approve_completion: CheckCircle,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -17,6 +18,7 @@ export function useTypeLabel(): Record<string, string> {
     approve_ceo_strategy: t("approval.typeCeoStrategy"),
     approve_issue_plan: t("approval.typeIssuePlan"),
     approve_pull_request: t("approval.typePullRequest"),
+    approve_completion: t("approval.typeCompletion"),
   };
 }
 
@@ -26,6 +28,7 @@ export const typeLabel: Record<string, string> = {
   approve_ceo_strategy: "CEO Strategy",
   approve_issue_plan: "Issue Plan",
   approve_pull_request: "Pull Request",
+  approve_completion: "Completion",
 };
 
 function PayloadField({ label, value }: { label: string; value: unknown }) {

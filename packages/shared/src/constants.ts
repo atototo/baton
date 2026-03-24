@@ -134,6 +134,7 @@ export const APPROVAL_TYPES = [
   "approve_ceo_strategy",
   "approve_issue_plan",
   "approve_pull_request",
+  "approve_completion",
 ] as const;
 export type ApprovalType = (typeof APPROVAL_TYPES)[number];
 
