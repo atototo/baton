@@ -18,6 +18,7 @@ export const updateAgentInstructionsBundleSchema = z.object({
   rootPath: z.string().trim().min(1).nullable().optional(),
   entryFile: z.string().trim().min(1).optional(),
   clearLegacyPromptTemplate: z.boolean().optional().default(false),
+  replaceExisting: z.boolean().optional().default(false),
 });
 
 export type UpdateAgentInstructionsBundle = z.infer<typeof updateAgentInstructionsBundleSchema>;

@@ -1336,6 +1336,8 @@
     "bundleUpdated": "Instructions settings updated.",
     "switchToManaged": "Switch to managed",
     "switchToManagedConfirm": "This will copy existing files to Baton's managed directory. Continue?",
+    "cleanManaged": "Clean managed bundle",
+    "cleanManagedConfirm": "This will remove every managed instructions file except the current entry file. Continue?",
     "setAsEntryFile": "Set as entry file (injected during heartbeat)"
   },
   "projectConventions": {

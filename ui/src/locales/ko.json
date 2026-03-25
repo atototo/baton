@@ -1335,6 +1335,8 @@
     "bundleUpdated": "지시문 설정이 업데이트되었습니다.",
     "switchToManaged": "관리형으로 전환",
     "switchToManagedConfirm": "기존 파일을 Baton 관리 디렉토리로 복사합니다. 전환하시겠습니까?",
+    "cleanManaged": "관리형 번들 정리",
+    "cleanManagedConfirm": "현재 진입 파일만 남기고 나머지 관리형 지시문 파일을 모두 제거합니다. 계속하시겠습니까?",
     "setAsEntryFile": "이 파일을 진입 파일로 설정 (heartbeat 시 주입)"
   },
   "projectConventions": {

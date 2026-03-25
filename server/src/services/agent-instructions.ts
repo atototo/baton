@@ -551,6 +551,7 @@ export function agentInstructionsService() {
       rootPath?: string | null;
       entryFile?: string;
       clearLegacyPromptTemplate?: boolean;
+      replaceExisting?: boolean;
     },
   ): Promise<{ bundle: AgentInstructionsBundle; adapterConfig: Record<string, unknown> }> {
     const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
@@ -572,14 +573,25 @@ export function agentInstructionsService() {
       nextRootPath = resolvedRoot;
     }
 
+    const replaceExisting = input.replaceExisting === true;
+    let replacementEntryContent: string | null = null;
+    if (replaceExisting && nextMode === "managed") {
+      const currentEntryPath = state.rootPath ? resolvePathWithinRoot(state.rootPath, state.entryFile) : null;
+      replacementEntryContent = currentEntryPath
+        ? await fs.readFile(currentEntryPath, "utf8").catch(() => null)
+        : null;
+      if (replacementEntryContent === null) {
+        replacementEntryContent = await readLegacyInstructions(agent, state.config);
+      }
+      await fs.rm(nextRootPath, { recursive: true, force: true });
+    }
+
     await fs.mkdir(nextRootPath, { recursive: true });
 
     const existingFiles = await listFilesRecursive(nextRootPath);
     const exported = await exportFiles(agent);
     if (existingFiles.length === 0) {
-      // Only copy the entry file (not the entire directory) to avoid pulling
-      // unrelated project files when the external root is a project directory.
-      const entryContent = exported.files[exported.entryFile] ?? "";
+      const entryContent = replacementEntryContent ?? exported.files[exported.entryFile] ?? "";
       await writeBundleFiles(nextRootPath, { [nextEntryFile]: entryContent });
     }
     const refreshedFiles = existingFiles.length === 0 ? await listFilesRecursive(nextRootPath) : existingFiles;

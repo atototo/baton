@@ -131,7 +131,7 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
   };
 
   const updateBundle = useMutation({
-    mutationFn: (data: { mode?: "managed" | "external"; entryFile?: string }) =>
+    mutationFn: (data: { mode?: "managed" | "external"; entryFile?: string; replaceExisting?: boolean }) =>
       agentsApi.updateInstructionsBundle(agentId, data, companyId),
     onSuccess: () => {
       invalidateBundle();
@@ -148,7 +148,12 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
 
   const handleSwitchToManaged = () => {
     if (!window.confirm(t("agentInstructions.switchToManagedConfirm"))) return;
-    updateBundle.mutate({ mode: "managed" });
+    updateBundle.mutate({ mode: "managed", replaceExisting: true });
+  };
+
+  const handleCleanManagedBundle = () => {
+    if (!window.confirm(t("agentInstructions.cleanManagedConfirm"))) return;
+    updateBundle.mutate({ mode: "managed", replaceExisting: true });
   };
 
   const selectedFile = bundle?.files.find((f) => f.path === selectedFilePath);
@@ -187,6 +192,22 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
               <FolderOpen className="h-3 w-3 mr-1" />
             )}
             {t("agentInstructions.switchToManaged")}
+          </Button>
+        )}
+        {bundle.mode === "managed" && bundle.files.length > 1 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 text-xs"
+            onClick={handleCleanManagedBundle}
+            disabled={updateBundle.isPending}
+          >
+            {updateBundle.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            ) : (
+              <Trash2 className="h-3 w-3 mr-1" />
+            )}
+            {t("agentInstructions.cleanManaged")}
           </Button>
         )}
         {bundle.legacyPromptTemplateActive && (
