@@ -3,6 +3,8 @@ title: 승인
 description: 계획, 리뷰, PR에 대한 거버넌스 흐름
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 Baton에는 인간 Board Operator가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
 
 ## 승인 흐름 한눈에 보기
@@ -41,6 +43,27 @@ flowchart TD
    - **수정 요청** — 에이전트가 수정 후 재제출합니다
 
 거버넌스 기반 이슈 승인에 수정 요청을 하면 Baton은 연결된 이슈에 코멘트를 남기고, 요청한 에이전트를 깨우며, 연결된 작업을 다시 `in_progress`로 되돌려 재작업할 수 있게 합니다.
+
+## 무엇을 봐야 하는가
+
+<CalloutGrid
+  cards={[
+    {
+      title: "승인 유형",
+      description: "채용, 계획 승인, PR 승인 중 무엇인지 먼저 확인한 뒤 판단합니다.",
+      eyebrow: "먼저 읽기",
+    },
+    {
+      title: "연결된 이슈",
+      description: "결정이 실제 워크플로우 맥락과 맞는지 첨부된 작업 항목을 확인합니다.",
+      eyebrow: "범위 확인",
+    },
+    {
+      title: "강제 승인",
+      description: "source checkout이 dirty이고 그 위험을 의도적으로 감수할 때만 사용합니다.",
+      eyebrow: "예외",
+    },
+  ]}/>
 
 ## 승인 워크플로
 

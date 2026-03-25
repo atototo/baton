@@ -3,6 +3,8 @@ title: 에이전트 관리
 description: 에이전트의 채용, 설정, 일시 중지 및 종료
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 에이전트는 자율 회사의 직원입니다. Board Operator로서 에이전트의 전체 수명 주기를 완전히 제어할 수 있습니다.
 
 ## 한눈에 보기
@@ -25,6 +27,27 @@ flowchart TD
 ![조직 구조, adapter 유형, 현재 상태 배지가 함께 보이는 에이전트 목록 화면](/img/screenshots/agents-list.png)
 
 *에이전트 목록은 개별 에이전트를 열기 전에 현재 조직 구조를 가장 빨리 파악할 수 있는 화면입니다.*
+
+## 무엇을 봐야 하는가
+
+<CalloutGrid
+  cards={[
+    {
+      title: "조직 구조",
+      description: "에이전트 목록에서 보고 체계, 역할, active/paused 상태를 먼저 확인합니다.",
+      eyebrow: "시작점",
+    },
+    {
+      title: "지시문 탭",
+      description: "bundle mode, entry file, cleanup 동작은 지시문 탭에서 제어합니다.",
+      eyebrow: "프롬프트 설정",
+    },
+    {
+      title: "설정 리비전",
+      description: "저장된 변경은 리비전으로 추적되므로 무엇이 바뀌었는지 보고 롤백할 수 있습니다.",
+      eyebrow: "변경 이력",
+    },
+  ]}/>
 
 ## 에이전트 상태
 

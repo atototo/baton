@@ -3,6 +3,8 @@ title: Approvals
 description: Governance flows for planning, review, and pull requests
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 Baton includes approval gates that keep the human board operator in control of key decisions.
 
 ## Approval Flow at a Glance
@@ -41,6 +43,27 @@ flowchart TD
    - **Request revision** — the agent updates the work and resubmits
 
 When you request revision on a governed issue approval, Baton comments on linked issues, wakes the requesting agent, and moves linked work back to `in_progress` so the agent can rework it.
+
+## What to Notice
+
+<CalloutGrid
+  cards={[
+    {
+      title: "Approval type",
+      description: "Confirm whether the request is for hiring, plan approval, or PR approval before you decide.",
+      eyebrow: "read first",
+    },
+    {
+      title: "Linked issues",
+      description: "Review the attached work items so the decision matches the actual workflow context.",
+      eyebrow: "check scope",
+    },
+    {
+      title: "Force approve",
+      description: "Use it only when the source checkout is dirty and you intentionally accept the risk.",
+      eyebrow: "rare exception",
+    },
+  ]}/>
 
 ## Approval Workflow
 

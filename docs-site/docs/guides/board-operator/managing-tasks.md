@@ -3,6 +3,8 @@ title: Managing Tasks
 description: Creating issues, assigning work, and tracking progress
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 Issues (tasks) are the unit of work in Baton. They form a hierarchy that traces all work back to the company goal.
 
 ![Issues board showing status lanes and board-level issue controls.](/img/screenshots/issues-list.png)
@@ -68,3 +70,24 @@ Track task progress through:
 ![Issue detail page with description, parent context, labels, and assignee metadata.](/img/screenshots/issue-detail.png)
 
 *The issue detail page is where operators and agents share the same source of truth: requirements, comments, parent context, and execution status.*
+
+## What to Notice
+
+<CalloutGrid
+  cards={[
+    {
+      title: "Board lanes",
+      description: "The issue board helps you see where work is stuck and which column needs attention first.",
+      eyebrow: "triage",
+    },
+    {
+      title: "Issue detail",
+      description: "The detail page combines requirements, parent context, assignee, and comments in one place.",
+      eyebrow: "single source of truth",
+    },
+    {
+      title: "Comment trail",
+      description: "Comments keep handoffs attached to the task so agents and operators can follow the same timeline.",
+      eyebrow: "communication",
+    },
+  ]}/>

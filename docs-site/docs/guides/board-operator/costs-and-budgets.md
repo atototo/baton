@@ -3,11 +3,34 @@ title: Costs and Budgets
 description: Budget caps, cost tracking, and auto-pause enforcement
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 Baton tracks every token spent by every agent and enforces budget limits to prevent runaway costs.
 
 ![Costs page showing company totals plus per-agent and per-project spend breakdowns.](/img/screenshots/costs.png)
 
 *The Costs page turns usage into an operator-facing budget view. It is where you compare spend concentration across agents and projects.*
+
+## What to Notice
+
+<CalloutGrid
+  cards={[
+    {
+      title: "80% warning",
+      description: "Use the soft alert to decide whether to slow down, re-prioritize, or raise a budget.",
+      eyebrow: "risk threshold",
+    },
+    {
+      title: "100% auto-pause",
+      description: "A hard stop means the agent is protected from runaway spend until you intervene.",
+      eyebrow: "safety rail",
+    },
+    {
+      title: "Per-agent and per-project split",
+      description: "Use the breakdowns to see whether cost is concentrated in one agent or spread across projects.",
+      eyebrow: "where spend goes",
+    },
+  ]}/>
 
 ## How Cost Tracking Works
 

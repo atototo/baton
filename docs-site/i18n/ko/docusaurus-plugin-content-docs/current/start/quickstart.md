@@ -8,6 +8,7 @@ import {
   FlowStepper,
   ScreenTour,
   CompareModes,
+  CalloutGrid,
 } from "@site/src/components/docs";
 
 export const quickEvalPane = {
@@ -116,6 +117,28 @@ export const localDevPane = {
       imageSrc: "/img/screenshots/project-conventions.png",
       imageAlt: "컨벤션 탭이 열린 프로젝트 상세 화면",
       layout: "left",
+    },
+  ]}
+/>
+
+## 무엇을 봐야 하는가
+
+<CalloutGrid
+  cards={[
+    {
+      title: "회사 개요",
+      description: "대시보드에서 활성 회사, 현재 작업, 실시간 이벤트 레일을 먼저 확인합니다.",
+      eyebrow: "첫 화면",
+    },
+    {
+      title: "에이전트 상세",
+      description: "에이전트를 열어 adapter, Instructions 탭, 현재 실행 상태를 확인합니다.",
+      eyebrow: "runtime 설정",
+    },
+    {
+      title: "프로젝트 컨벤션",
+      description: "컨벤션 탭에서 Baton이 지원되는 실행에 합성할 내용을 확인합니다.",
+      eyebrow: "공유 컨텍스트",
     },
   ]}
 />

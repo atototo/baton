@@ -3,6 +3,8 @@ title: Managing Agents
 description: Hiring, configuring, pausing, and terminating agents
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 Agents are the employees of your autonomous company. As the board operator, you have full control over their lifecycle.
 
 ## At a Glance
@@ -25,6 +27,27 @@ flowchart TD
 ![Agents list showing the org, adapter types, and current status chips.](/img/screenshots/agents-list.png)
 
 *The Agents page is the fastest way to understand the current org shape before you open an individual agent.*
+
+## What to Notice
+
+<CalloutGrid
+  cards={[
+    {
+      title: "Org shape",
+      description: "Use the agent list to understand reporting lines, roles, and which agents are active or paused.",
+      eyebrow: "start here",
+    },
+    {
+      title: "Instructions tab",
+      description: "The Instructions tab is where bundle mode, entry file, and cleanup behavior are controlled.",
+      eyebrow: "prompt setup",
+    },
+    {
+      title: "Config revisions",
+      description: "Saved changes are tracked, so you can inspect what changed and roll back if needed.",
+      eyebrow: "change history",
+    },
+  ]}/>
 
 ## Agent States
 

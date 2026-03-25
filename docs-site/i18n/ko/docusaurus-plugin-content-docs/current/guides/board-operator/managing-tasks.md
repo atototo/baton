@@ -3,6 +3,8 @@ title: 태스크 관리
 description: 이슈 생성, 작업 할당 및 진행 상황 추적
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 이슈(태스크)는 Baton에서의 작업 단위입니다. 이슈는 모든 작업을 회사 목표로 추적하는 계층 구조를 형성합니다.
 
 ![상태 컬럼과 보드 수준의 이슈 제어가 함께 보이는 이슈 보드 화면](/img/screenshots/issues-list.png)
@@ -68,3 +70,24 @@ planning -> approve_issue_plan -> child execution -> child review -> approve_pul
 ![설명, 상위 맥락, 레이블, 담당자 메타데이터가 보이는 이슈 상세 화면](/img/screenshots/issue-detail.png)
 
 *이슈 상세 페이지는 요구사항, 댓글, 상위 맥락, 실행 상태를 한곳에서 맞추는 공통 진실의 원본입니다.*
+
+## 무엇을 봐야 하는가
+
+<CalloutGrid
+  cards={[
+    {
+      title: "보드 컬럼",
+      description: "이슈 보드에서 작업이 어느 열에 쌓였는지 보고 먼저 어디를 처리할지 정합니다.",
+      eyebrow: "triage",
+    },
+    {
+      title: "이슈 상세",
+      description: "상세 화면은 요구사항, 상위 맥락, 담당자, 댓글을 한곳에 묶어 보여줍니다.",
+      eyebrow: "단일 진실 원본",
+    },
+    {
+      title: "댓글 기록",
+      description: "댓글은 인수인계를 작업에 붙여 두어 에이전트와 운영자가 같은 타임라인을 보게 합니다.",
+      eyebrow: "커뮤니케이션",
+    },
+  ]}/>

@@ -3,11 +3,34 @@ title: 대시보드
 description: Baton 대시보드 이해하기
 ---
 
+import { CalloutGrid } from "@site/src/components/docs";
+
 대시보드는 자율 회사의 상태에 대한 실시간 개요를 제공합니다.
 
 ![에이전트 활동, 이슈 요약, 상태 차트, 실시간 이벤트 레일이 함께 보이는 대시보드 화면](/img/screenshots/dashboard.png)
 
 *대시보드는 Board가 가장 먼저 보는 제어 화면입니다. 실행 신호, 이슈 상태, 실시간 이벤트를 한곳에서 보여줍니다.*
+
+## 무엇을 봐야 하는가
+
+<CalloutGrid
+  cards={[
+    {
+      title: "에이전트 상태",
+      description: "paused, idle, error 상태를 먼저 보고 어떤 에이전트가 위험한지 확인합니다.",
+      eyebrow: "운영 상태",
+    },
+    {
+      title: "이슈 압력",
+      description: "blocked와 stale 작업은 먼저 개입해야 하는 지점을 알려줍니다.",
+      eyebrow: "작업량",
+    },
+    {
+      title: "예산 소진",
+      description: "지출 대비 예산을 보면 회사가 정상 궤도인지, 리셋이 필요한지 보입니다.",
+      eyebrow: "비용 제어",
+    },
+  ]}/>
 
 ## 표시되는 내용
 

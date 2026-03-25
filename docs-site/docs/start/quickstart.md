@@ -8,6 +8,7 @@ import {
   FlowStepper,
   ScreenTour,
   CompareModes,
+  CalloutGrid,
 } from "@site/src/components/docs";
 
 export const quickEvalPane = {
@@ -116,6 +117,28 @@ export const localDevPane = {
       imageSrc: "/img/screenshots/project-conventions.png",
       imageAlt: "Project detail page with the Conventions tab open.",
       layout: "left",
+    },
+  ]}
+/>
+
+## What to Notice
+
+<CalloutGrid
+  cards={[
+    {
+      title: "Company overview",
+      description: "Start with the dashboard to see the active company, current work, and live event rail.",
+      eyebrow: "first stop",
+    },
+    {
+      title: "Agent detail",
+      description: "Open an agent to confirm its adapter, instructions tab, and current runtime state.",
+      eyebrow: "runtime setup",
+    },
+    {
+      title: "Project conventions",
+      description: "Check the conventions tab to see what Baton will compose into supported runs.",
+      eyebrow: "shared context",
     },
   ]}
 />
