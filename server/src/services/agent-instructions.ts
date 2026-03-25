@@ -577,7 +577,10 @@ export function agentInstructionsService() {
     const existingFiles = await listFilesRecursive(nextRootPath);
     const exported = await exportFiles(agent);
     if (existingFiles.length === 0) {
-      await writeBundleFiles(nextRootPath, exported.files);
+      // Only copy the entry file (not the entire directory) to avoid pulling
+      // unrelated project files when the external root is a project directory.
+      const entryContent = exported.files[exported.entryFile] ?? "";
+      await writeBundleFiles(nextRootPath, { [nextEntryFile]: entryContent });
     }
     const refreshedFiles = existingFiles.length === 0 ? await listFilesRecursive(nextRootPath) : existingFiles;
     if (!refreshedFiles.includes(nextEntryFile)) {
