@@ -597,6 +597,29 @@ export function AgentDetail() {
         </div>
       </div>
 
+      {/* Tab navigation */}
+      <div className="flex items-center gap-1 border-b border-border">
+        {([
+          { key: "overview", label: t("agentDetail.breadcrumbOverview", { defaultValue: "개요" }) },
+          { key: "instructions", label: t("agentDetail.breadcrumbInstructions") },
+          { key: "configure", label: t("agentDetail.breadcrumbConfigure", { defaultValue: "설정" }) },
+          { key: "runs", label: t("agentDetail.breadcrumbRuns", { defaultValue: "실행" }) },
+        ] as const).map((tab) => (
+          <Link
+            key={tab.key}
+            to={tab.key === "overview" ? `/agents/${canonicalAgentRef}` : `/agents/${canonicalAgentRef}/${tab.key}`}
+            className={cn(
+              "px-3 py-2 text-sm font-medium transition-colors no-underline",
+              activeView === tab.key
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
       {isPendingApproval && (
         <p className="text-sm text-amber-500">

@@ -688,6 +688,7 @@
       "stdout": "stdout"
     },
     "breadcrumbAgents": "Agents",
+    "breadcrumbOverview": "Overview",
     "breadcrumbRuns": "Runs",
     "breadcrumbConfigure": "Configure",
     "breadcrumbInstructions": "Instructions",
