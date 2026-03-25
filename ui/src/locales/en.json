@@ -1332,7 +1332,11 @@
     "fileSaved": "File saved.",
     "fileDeleted": "File deleted.",
     "unsavedConfirm": "You have unsaved changes. Discard them?",
-    "editorPlaceholder": "Write instructions here..."
+    "editorPlaceholder": "Write instructions here...",
+    "bundleUpdated": "Instructions settings updated.",
+    "switchToManaged": "Switch to managed",
+    "switchToManagedConfirm": "This will copy existing files to Baton's managed directory. Continue?",
+    "setAsEntryFile": "Set as entry file (injected during heartbeat)"
   },
   "projectConventions": {
     "backstory": "Project Backstory",

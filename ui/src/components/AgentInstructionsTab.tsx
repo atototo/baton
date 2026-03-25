@@ -130,6 +130,27 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
     deleteFile.mutate(selectedFilePath);
   };
 
+  const updateBundle = useMutation({
+    mutationFn: (data: { mode?: "managed" | "external"; entryFile?: string }) =>
+      agentsApi.updateInstructionsBundle(agentId, data, companyId),
+    onSuccess: () => {
+      invalidateBundle();
+      pushToast({ tone: "success", title: t("agentInstructions.bundleUpdated") });
+    },
+    onError: (err: Error) => {
+      pushToast({ tone: "error", title: err.message });
+    },
+  });
+
+  const handleSetEntryFile = (path: string) => {
+    updateBundle.mutate({ entryFile: path });
+  };
+
+  const handleSwitchToManaged = () => {
+    if (!window.confirm(t("agentInstructions.switchToManagedConfirm"))) return;
+    updateBundle.mutate({ mode: "managed" });
+  };
+
   const selectedFile = bundle?.files.find((f) => f.path === selectedFilePath);
   const isEntryFile = selectedFile?.isEntryFile ?? false;
 
@@ -152,6 +173,22 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
             ? t("agentInstructions.modeExternal")
             : t("agentInstructions.modeManaged")}
         </Badge>
+        {bundle.mode === "external" && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 text-xs"
+            onClick={handleSwitchToManaged}
+            disabled={updateBundle.isPending}
+          >
+            {updateBundle.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            ) : (
+              <FolderOpen className="h-3 w-3 mr-1" />
+            )}
+            {t("agentInstructions.switchToManaged")}
+          </Button>
+        )}
         {bundle.legacyPromptTemplateActive && (
           <Badge variant="secondary" className="text-amber-600 dark:text-amber-400">
             {t("agentInstructions.legacyPromptActive")}
@@ -247,10 +284,21 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-sm font-mono truncate">{selectedFilePath}</span>
-                  {isEntryFile && (
+                  {isEntryFile ? (
                     <span className="shrink-0" title={t("agentInstructions.entryFile")}>
-                      <Star className="h-3 w-3 text-amber-500" />
+                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
                     </span>
+                  ) : (
+                    bundle.editable && !selectedFile?.deprecated && !selectedFile?.virtual && (
+                      <button
+                        className="shrink-0 opacity-30 hover:opacity-100 transition-opacity"
+                        title={t("agentInstructions.setAsEntryFile")}
+                        onClick={() => handleSetEntryFile(selectedFilePath!)}
+                        disabled={updateBundle.isPending}
+                      >
+                        <Star className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    )
                   )}
                   {editDirty && (
                     <span className="text-xs text-muted-foreground">({t("agentInstructions.modified")})</span>

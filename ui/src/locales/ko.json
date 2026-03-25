@@ -1331,7 +1331,11 @@
     "fileSaved": "파일이 저장되었습니다.",
     "fileDeleted": "파일이 삭제되었습니다.",
     "unsavedConfirm": "저장하지 않은 변경사항이 있습니다. 버리시겠습니까?",
-    "editorPlaceholder": "여기에 지시문을 작성하세요..."
+    "editorPlaceholder": "여기에 지시문을 작성하세요...",
+    "bundleUpdated": "지시문 설정이 업데이트되었습니다.",
+    "switchToManaged": "관리형으로 전환",
+    "switchToManagedConfirm": "기존 파일을 Baton 관리 디렉토리로 복사합니다. 전환하시겠습니까?",
+    "setAsEntryFile": "이 파일을 진입 파일로 설정 (heartbeat 시 주입)"
   },
   "projectConventions": {
     "backstory": "프로젝트 맥락 설명",
