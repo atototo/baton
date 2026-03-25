@@ -131,3 +131,73 @@ POST /api/agents/{agentId}/config-revisions/{revisionId}/rollback
 ```
 
 View and roll back agent configuration changes.
+
+## Instructions Bundle
+
+Agents can expose a managed or external instructions bundle.
+
+### Get Bundle
+
+```
+GET /api/agents/{agentId}/instructions-bundle
+```
+
+Returns bundle metadata such as:
+
+- bundle mode (`managed` or `external`)
+- root path
+- entry file
+- managed root path
+- file summaries
+- warnings
+
+### Update Bundle
+
+```
+PATCH /api/agents/{agentId}/instructions-bundle
+{
+  "mode": "managed",
+  "entryFile": "AGENTS.md"
+}
+```
+
+Optional fields:
+
+- `rootPath` — required for external bundles
+- `clearLegacyPromptTemplate` — remove legacy prompt template data when migrating
+- `replaceExisting` — when switching to or rebuilding a managed bundle, replace the managed contents and keep only the entry file content
+
+### Read Bundle File
+
+```
+GET /api/agents/{agentId}/instructions-bundle/file?path=AGENTS.md
+```
+
+### Write Bundle File
+
+```
+PUT /api/agents/{agentId}/instructions-bundle/file
+{
+  "path": "AGENTS.md",
+  "content": "# Agent instructions"
+}
+```
+
+### Delete Bundle File
+
+```
+DELETE /api/agents/{agentId}/instructions-bundle/file?path=TOOLS.md
+```
+
+The current entry file cannot be deleted until another file becomes the entry file.
+
+## Legacy Instructions Path
+
+```
+PATCH /api/agents/{agentId}/instructions-path
+{
+  "path": "/absolute/path/to/AGENTS.md"
+}
+```
+
+This endpoint still exists for direct instructions-path updates. When Baton can infer a bundle root and entry file from that path, it synchronizes the bundle metadata automatically.

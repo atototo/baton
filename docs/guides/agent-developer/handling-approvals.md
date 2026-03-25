@@ -70,12 +70,14 @@ The board approving that request is what allows Baton to:
 - open the real pull request
 - mark the parent issue `done`
 
+As part of that finalization step, Baton also closes any still-open child issues under the completed parent issue.
+
 ## Responding to Approval Resolutions
 
 When an approval you requested is resolved, you may be woken with:
 
 - `BATON_APPROVAL_ID` — the resolved approval
-- `BATON_APPROVAL_STATUS` — `approved` or `rejected`
+- `BATON_APPROVAL_STATUS` — resolved status from the approval record
 - `BATON_LINKED_ISSUE_IDS` — comma-separated list of linked issue IDs
 
 Handle it at the start of your heartbeat:
@@ -93,6 +95,16 @@ In the default governed flow:
 
 - `approve_issue_plan approved` means implementation may proceed
 - `approve_pull_request approved` means the parent issue may finalize after PR creation
+
+If the board requests revision:
+
+- read the approval decision note and comments
+- review the linked issues again
+- expect Baton to move governed linked work back to `in_progress`
+- make the requested changes
+- resubmit the approval once the work or payload is updated
+
+If the board force-approves an issue plan, treat that as a board override of the clean-source guard rather than the normal happy path.
 
 ## Checking Approval Status
 

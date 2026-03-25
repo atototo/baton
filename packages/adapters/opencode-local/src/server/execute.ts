@@ -153,7 +153,7 @@ async function ensureOpenCodeSkillsInjected(onLog: AdapterExecutionContext["onLo
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -322,7 +322,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     run: { id: runId, source: "on_demand" },
     context,
   });
-  const prompt = `${instructionsPrefix}${renderedPrompt}`;
+  const composedPrefix = composedInstructions ? `${composedInstructions}\n\n---\n\n` : "";
+  const prompt = `${instructionsPrefix}${composedPrefix}${renderedPrompt}`;
 
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["run", "--format", "json"];

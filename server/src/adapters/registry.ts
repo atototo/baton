@@ -23,6 +23,19 @@ import {
   sessionCodec as opencodeSessionCodec,
 } from "@atototo/adapter-opencode-local/server";
 import { agentConfigurationDoc as opencodeAgentConfigurationDoc, models as opencodeModels } from "@atototo/adapter-opencode-local";
+import {
+  execute as geminiExecute,
+  testEnvironment as geminiTestEnvironment,
+  sessionCodec as geminiSessionCodec,
+} from "@atototo/adapter-gemini-local/server";
+import { agentConfigurationDoc as geminiAgentConfigurationDoc, models as geminiModels } from "@atototo/adapter-gemini-local";
+import {
+  execute as piExecute,
+  testEnvironment as piTestEnvironment,
+  sessionCodec as piSessionCodec,
+} from "@atototo/adapter-pi-local/server";
+import { agentConfigurationDoc as piAgentConfigurationDoc, models as piModels } from "@atototo/adapter-pi-local";
+import { listPiModels } from "@atototo/adapter-pi-local/server";
 import { listCodexModels } from "./codex-models.js";
 import { listCursorModels } from "./cursor-models.js";
 import { processAdapter } from "./process/index.js";
@@ -70,8 +83,29 @@ const cursorLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: cursorAgentConfigurationDoc,
 };
 
+const geminiLocalAdapter: ServerAdapterModule = {
+  type: "gemini_local",
+  execute: geminiExecute,
+  testEnvironment: geminiTestEnvironment,
+  sessionCodec: geminiSessionCodec,
+  models: geminiModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: geminiAgentConfigurationDoc,
+};
+
+const piLocalAdapter: ServerAdapterModule = {
+  type: "pi_local",
+  execute: piExecute,
+  testEnvironment: piTestEnvironment,
+  sessionCodec: piSessionCodec,
+  models: piModels,
+  listModels: listPiModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: piAgentConfigurationDoc,
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>(
-  [claudeLocalAdapter, codexLocalAdapter, opencodeLocalAdapter, cursorLocalAdapter, processAdapter, httpAdapter].map((a) => [a.type, a]),
+  [claudeLocalAdapter, codexLocalAdapter, opencodeLocalAdapter, cursorLocalAdapter, geminiLocalAdapter, piLocalAdapter, processAdapter, httpAdapter].map((a) => [a.type, a]),
 );
 
 export function getServerAdapter(type: string): ServerAdapterModule {

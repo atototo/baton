@@ -1,4 +1,4 @@
-import type { Project, ProjectWorkspace } from "@atototo/shared";
+import type { Project, ProjectConventions, ProjectWorkspace } from "@atototo/shared";
 import { api } from "./client";
 
 function withCompanyScope(path: string, companyId?: string) {
@@ -30,4 +30,20 @@ export const projectsApi = {
   removeWorkspace: (projectId: string, workspaceId: string, companyId?: string) =>
     api.delete<ProjectWorkspace>(projectPath(projectId, companyId, `/workspaces/${encodeURIComponent(workspaceId)}`)),
   remove: (id: string, companyId?: string) => api.delete<Project>(projectPath(id, companyId)),
+
+  // Conventions
+  getConventions: (projectId: string, companyId?: string) =>
+    api.get<ProjectConventions>(projectPath(projectId, companyId, "/conventions")),
+  saveConventions: (
+    projectId: string,
+    data: { conventionsMd?: string; backstory?: string },
+    companyId?: string,
+  ) => api.put<ProjectConventions>(projectPath(projectId, companyId, "/conventions"), data),
+  patchConventions: (
+    projectId: string,
+    data: { conventionsMd?: string; backstory?: string },
+    companyId?: string,
+  ) => api.patch<ProjectConventions>(projectPath(projectId, companyId, "/conventions"), data),
+  generateCompactContext: (projectId: string, companyId?: string) =>
+    api.post<{ compactContext: string }>(projectPath(projectId, companyId, "/conventions/compact"), {}),
 };

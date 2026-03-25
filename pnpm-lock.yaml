@@ -158,6 +158,22 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/adapters/gemini-local:
+    dependencies:
+      '@atototo/adapter-utils':
+        specifier: workspace:*
+        version: link:../../adapter-utils
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.6.0
+        version: 24.12.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   packages/adapters/opencode-local:
     dependencies:
       '@atototo/adapter-utils':
@@ -167,6 +183,22 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/adapters/pi-local:
+    dependencies:
+      '@atototo/adapter-utils':
+        specifier: workspace:*
+        version: link:../../adapter-utils
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.6.0
+        version: 24.12.0
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -217,9 +249,15 @@ importers:
       '@atototo/adapter-cursor-local':
         specifier: workspace:*
         version: link:../packages/adapters/cursor-local
+      '@atototo/adapter-gemini-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/gemini-local
       '@atototo/adapter-opencode-local':
         specifier: workspace:*
         version: link:../packages/adapters/opencode-local
+      '@atototo/adapter-pi-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/pi-local
       '@atototo/adapter-utils':
         specifier: workspace:*
         version: link:../packages/adapter-utils
@@ -311,9 +349,15 @@ importers:
       '@atototo/adapter-cursor-local':
         specifier: workspace:*
         version: link:../packages/adapters/cursor-local
+      '@atototo/adapter-gemini-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/gemini-local
       '@atototo/adapter-opencode-local':
         specifier: workspace:*
         version: link:../packages/adapters/opencode-local
+      '@atototo/adapter-pi-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/pi-local
       '@atototo/adapter-utils':
         specifier: workspace:*
         version: link:../packages/adapter-utils
@@ -4426,6 +4470,9 @@ packages:
 
   '@types/node@22.19.11':
     resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
+
+  '@types/node@24.12.0':
+    resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
 
   '@types/node@25.2.3':
     resolution: {integrity: sha512-m0jEgYlYz+mDJZ2+F4v8D1AyQb+QzsNqRuI7xg1VQX/KlKS0qT9r1Mo16yo5F/MtifXFgaofIFsdFMox2SxIbQ==}
@@ -15172,6 +15219,10 @@ snapshots:
   '@types/node@22.19.11':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/node@24.12.0':
+    dependencies:
+      undici-types: 7.16.0
 
   '@types/node@25.2.3':
     dependencies:

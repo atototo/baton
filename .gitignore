@@ -9,6 +9,8 @@ coverage/
 .idea/
 data/
 .baton/
+.mcp.json
+.code-review-graph/
 .pnpm-store/
 tmp-*
 cli/tmp/

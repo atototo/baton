@@ -27,7 +27,7 @@ Review and PR approval are part of the enforced workflow, not optional conventio
 7. Implementation agents work inside the ticket execution workspace.
 8. When implementation completes, Baton rewrites the child to `in_review` and hands it to the reviewer.
 9. When all child reviews are done, Baton moves the parent to `in_review` and creates **PR Approval**.
-10. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
+10. When the board approves the PR request, Baton commits, pushes, opens the real PR, cascade-completes any remaining child issues for that parent, and only then marks the parent `done`.
 
 ## Core Rules
 
@@ -113,6 +113,7 @@ Used before implementation begins.
 - blocks the parent while pending
 - carries the execution workspace plan
 - provisions the ticket worktree on approval
+- may require a clean source repository unless the board explicitly force-approves
 
 ### PR Approval
 
@@ -120,6 +121,7 @@ Used after child reviews complete.
 
 - keeps the parent in `in_review` while pending
 - triggers the real commit, push, and pull request creation on approval
+- closes the remaining child issues of the completed parent as part of finalization
 
 ## Practical Checks
 
@@ -130,9 +132,11 @@ Before approving a plan, check:
 - base branch
 - project workspace
 - repo path
+- whether the source checkout is clean; only use force approve when you intentionally accept provisioning from a dirty repo
 
 Before approving a PR, check:
 
 - child reviews are complete
 - the PR branch matches the parent ticket
 - the generated PR content summarizes the actual changes
+- the parent is the issue you want to finalize, because approval will close the remaining open child issues under that parent

@@ -26,6 +26,7 @@ import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } fr
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import { executionWorkspaceService } from "./execution-workspaces.js";
+import { promptCompositionService } from "./prompt-composition.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -493,6 +494,7 @@ export function heartbeatService(db: Db) {
   const runLogStore = getRunLogStore();
   const secretsSvc = secretService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
+  const promptComposition = promptCompositionService(db);
 
   async function getAgent(agentId: string) {
     return db
@@ -1521,6 +1523,31 @@ export function heartbeatService(db: Db) {
           "local agent jwt secret missing or invalid; running without injected BATON_API_KEY",
         );
       }
+      // Compose project conventions into supplementary instructions
+      const resolvedProjectIdForPrompt = readNonEmptyString(context.projectId);
+      let composedInstructions: string | undefined;
+      if (resolvedProjectIdForPrompt) {
+        try {
+          const composedResult = await promptComposition.composePromptLayers({
+            projectId: resolvedProjectIdForPrompt,
+            companyId: agent.companyId,
+          });
+          if (composedResult) {
+            composedInstructions = composedResult.instructionsContent;
+            await onLog(
+              "stderr",
+              `[baton] Composed project conventions (${composedResult.metadata.totalCharacters} chars, compact=${composedResult.metadata.compactMode})\n`,
+            );
+          }
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err);
+          logger.warn(
+            { companyId: agent.companyId, agentId: agent.id, runId: run.id, projectId: resolvedProjectIdForPrompt },
+            `Failed to compose project conventions: ${reason}`,
+          );
+        }
+      }
+
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
@@ -1530,6 +1557,7 @@ export function heartbeatService(db: Db) {
         onLog,
         onMeta: onAdapterMeta,
         authToken: authToken ?? undefined,
+        composedInstructions,
       });
       const nextSessionState = resolveNextSessionState({
         codec: sessionCodec,

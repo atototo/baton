@@ -2,6 +2,10 @@ export type { Company } from "./company.js";
 export type {
   Agent,
   AgentPermissions,
+  AgentInstructionsBundleMode,
+  AgentInstructionsFileSummary,
+  AgentInstructionsFileDetail,
+  AgentInstructionsBundle,
   AgentKeyCreated,
   AgentConfigRevision,
   AdapterEnvironmentCheckLevel,
@@ -54,6 +58,7 @@ export type {
   JoinRequest,
   InstanceUserRoleGrant,
 } from "./access.js";
+export type { ProjectConventions } from "./project-conventions.js";
 export type {
   CompanyPortabilityInclude,
   CompanyPortabilitySecretRequirement,

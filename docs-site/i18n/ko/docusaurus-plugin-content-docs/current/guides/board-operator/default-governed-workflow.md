@@ -27,7 +27,7 @@ Baton은 계획과 구현을 분리합니다.
 7. 구현 에이전트는 티켓 execution workspace 안에서 작업합니다.
 8. 구현이 끝나면 Baton은 child를 `in_review`로 바꾸고 리뷰어에게 넘깁니다.
 9. 모든 child 리뷰가 끝나면 Baton이 parent를 `in_review`로 전환하고 **PR 승인**을 생성합니다.
-10. Board가 PR 요청을 승인하면 Baton이 commit, push, 실제 PR 생성까지 수행한 뒤 parent를 `done`으로 마감합니다.
+10. Board가 PR 요청을 승인하면 Baton이 commit, push, 실제 PR 생성과 함께 그 parent에 남아 있는 child 이슈들을 cascade completion 처리한 뒤 parent를 `done`으로 마감합니다.
 
 ## 핵심 규칙
 
@@ -45,42 +45,16 @@ Baton은 계획과 구현을 분리합니다.
 - `in_review`: 구현은 리뷰어나 board에 넘길 만큼 완료됐지만 워크플로우는 아직 끝나지 않은 상태
 - `done`: PR 승인까지 포함한 거버넌스 기반 워크플로우가 실제로 완료된 상태
 
-## 도식
+## 병렬 티켓 예시
 
-### 상태 전이
+```text
+source repo: azak (base branch: main)
 
-```mermaid
-flowchart LR
-  backlog["backlog"] --> todo["todo"]
-  todo --> in_progress["in_progress"]
-  in_progress --> in_review["in_review"]
-  in_review --> done["done"]
-  in_progress --> blocked["blocked"]
-  blocked --> todo
-  blocked --> in_progress
-```
-
-거버넌스 기반 티켓 실행에서는:
-
-- child의 `done`은 `in_review`로 rewrite 됩니다
-- parent는 PR approval pending 동안 `done`이 될 수 없습니다
-
-### 병렬 티켓 예시
-
-```mermaid
-flowchart TD
-  repo["Source repo: azak<br/>base branch: main"]
-  repo --> t10["AZAK-010 execution workspace<br/>feature/AZAK-010"]
-  repo --> t11["AZAK-011 execution workspace<br/>feature/AZAK-011"]
-  t10 --> t10c["Child work"]
-  t10c --> t10r["Review"]
-  t10r --> t10p["PR approval"]
-  t11 --> t11c["Child work"]
-  t11c --> t11r["Review"]
-  t11r --> t11p["PR approval"]
-```
+AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
+AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
 
 두 티켓은 병렬로 진행되지만, 각 티켓은 자기 branch와 runtime cwd를 따로 가집니다.
+```
 
 ## 워크스페이스 규칙
 
@@ -139,6 +113,7 @@ delegation metadata가 없으면 정규화된 title 비교로 fallback 합니다
 - pending 동안 parent를 막음
 - execution workspace 계획을 담음
 - 승인 시 티켓 worktree를 준비함
+- board가 명시적으로 강제 승인하지 않는 한 source repository가 clean해야 할 수 있음
 
 ### PR 승인
 
@@ -146,6 +121,7 @@ child 리뷰가 끝난 뒤 사용합니다.
 
 - pending 동안 parent를 `in_review`에 유지
 - 승인 시 실제 commit, push, pull request 생성을 수행
+- 최종 마감 과정에서 완료된 parent 아래 남아 있는 child 이슈들을 닫음
 
 ## 실무 체크 포인트
 
@@ -162,19 +138,4 @@ PR 승인 전에는 다음을 확인합니다.
 - child 리뷰 완료 여부
 - PR 브랜치가 parent 티켓과 일치하는지
 - 생성된 PR 본문이 실제 변경 내용을 제대로 요약하는지
-
-## 실무 체크 포인트
-
-계획 승인 전에는 다음을 확인합니다.
-
-- ticket key
-- branch name
-- base branch
-- project workspace
-- repo path
-
-PR 승인 전에는 다음을 확인합니다.
-
-- child 리뷰 완료 여부
-- PR 브랜치가 parent 티켓과 일치하는지
-- 생성된 PR 본문이 실제 변경 내용을 제대로 요약하는지
+- 어떤 parent를 마감하려는 승인인지, 남아 있는 child 이슈가 함께 닫혀도 되는지

@@ -31,6 +31,9 @@ This approval includes:
 
 Approving it provisions the ticket execution workspace and allows child implementation work to proceed.
 
+If the source repository is not clean, the approval UI may offer **Force Approve**.
+Use that sparingly. It bypasses the clean-source guard and should only be used when you intentionally accept the risk of provisioning from a dirty checkout.
+
 ### Pull Request
 
 Leaders use `approve_pull_request` after child reviews are complete.
@@ -41,16 +44,20 @@ Approving it triggers the real git side effects:
 - push to origin
 - GitHub PR creation
 - parent issue completion
+- cascade completion of any still-open child issues linked to that completed parent
 
 ## Approval Workflow
 
-```
+```text
 pending -> approved
         -> rejected
         -> cancelled
         -> revision_requested
 
-revision_requested -> approved | rejected | cancelled
+revision_requested -> resubmitted -> pending
+                   -> approved
+                   -> rejected
+                   -> cancelled
 ```
 
 1. An agent creates an approval request
@@ -61,6 +68,8 @@ revision_requested -> approved | rejected | cancelled
    - **Reject** — the action is denied
    - **Request revision** — ask the agent to modify and resubmit
 
+When you request revision on a governed issue approval, Baton comments on linked issues, wakes the requesting agent, and moves linked work back to `in_progress` so the agent can rework it.
+
 For the default project workflow, see [Default Governed Workflow](/guides/board-operator/default-governed-workflow).
 
 ## Reviewing Approvals
@@ -70,6 +79,13 @@ From the Approvals page, you can see all pending approvals. Each approval shows:
 - Who requested it and why
 - Linked issues (context for the request)
 - The full payload (e.g. proposed agent config for hires)
+- Comments and board feedback
+
+The approval detail page also supports:
+
+- revision requests with notes
+- resubmission after agent changes
+- force approve when a plan approval is blocked by a dirty source repo
 
 ## Board Override Powers
 

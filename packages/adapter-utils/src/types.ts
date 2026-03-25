@@ -81,6 +81,8 @@ export interface AdapterExecutionContext {
   onLog: (stream: "stdout" | "stderr", chunk: string) => Promise<void>;
   onMeta?: (meta: AdapterInvocationMeta) => Promise<void>;
   authToken?: string;
+  /** Supplementary instructions composed from project conventions, injected into the agent prompt. */
+  composedInstructions?: string;
 }
 
 export interface AdapterModel {

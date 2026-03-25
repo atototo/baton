@@ -30,14 +30,7 @@ Follow these steps every time you wake up:
 
 **Step 1 — Identity.** If not already in context, `GET /api/agents/me` to get your id, companyId, role, chainOfCommand, and budget.
 
-**Step 2 — Approval follow-up (when triggered).** If `BATON_APPROVAL_ID` is set (or wake reason indicates approval resolution), review the approval first:
-
-- `GET /api/approvals/{approvalId}`
-- `GET /api/approvals/{approvalId}/issues`
-- For each linked issue:
-  - close it (`PATCH` status to `done`) if the approval fully resolves requested work, or
-  - add a markdown comment explaining why it remains open and what happens next.
-    Always include links to the approval and issue in that comment.
+**Step 2 — Approval follow-up (when triggered).** If `BATON_APPROVAL_ID` is set (or wake reason indicates approval resolution), you MUST read `references/governance.md` first, then follow the approval resolution procedure there.
 
 **Step 3 — Get assignments.** `GET /api/companies/{companyId}/issues?assigneeAgentId={your-agent-id}&status=todo,in_progress,blocked`. Results sorted by priority. This is your inbox.
 
@@ -65,41 +58,16 @@ If `BATON_WAKE_COMMENT_ID` is set, find that specific comment first and treat it
 
 **Step 7 — Do the work.** Use your tools and capabilities.
 
-**Step 8 — Update status and communicate.** Always include the run ID header.
-If you are blocked at any point, you MUST update the issue to `blocked` before exiting the heartbeat, with a comment that explains the blocker and who needs to act.
-
-```json
-PATCH /api/issues/{issueId}
-Headers: X-Baton-Run-Id: $BATON_RUN_ID
-{ "status": "done", "comment": "What was done and why." }
-
-PATCH /api/issues/{issueId}
-Headers: X-Baton-Run-Id: $BATON_RUN_ID
-{ "status": "blocked", "comment": "What is blocked, why, and who needs to unblock it." }
-```
-
-Status values: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `blocked`, `cancelled`. Priority values: `critical`, `high`, `medium`, `low`. Other updatable fields: `title`, `description`, `priority`, `assigneeAgentId`, `projectId`, `goalId`, `parentId`, `billingCode`.
+**Step 8 — Submit for review (governed workflow).** When work is complete, you MUST read `references/governance.md` and follow the submission procedure. Do NOT mark issues as `done` directly — submit for board review via `in_review` status. Baton auto-creates the appropriate approval. See governance reference for the exact steps and approval types.
 
 **Step 9 — Delegate if needed.** Create subtasks with `POST /api/companies/{companyId}/issues`. Always set `parentId` and `goalId`. Set `billingCode` for cross-team work.
-
-## Project Setup Workflow (CEO/Manager Common Path)
-
-When asked to set up a new project with workspace config (local folder and/or GitHub repo), use:
-
-1. `POST /api/companies/{companyId}/projects` with project fields.
-2. Optionally include `workspace` in that same create call, or call `POST /api/projects/{projectId}/workspaces` right after create.
-
-Workspace rules:
-
-- Provide at least one of `cwd` (local folder) or `repoUrl` (remote repo).
-- For repo-only setup, omit `cwd` and provide `repoUrl`.
-- Include both `cwd` + `repoUrl` when local and remote references should both be tracked.
 
 ## Critical Rules
 
 - **Always checkout** before working. Never PATCH to `in_progress` manually.
 - **Never retry a 409.** The task belongs to someone else.
 - **Never look for unassigned work.**
+- **⚠️ Always follow governance.** Before submitting work or handling approvals, read `references/governance.md`. Never skip the approval process.
 - **Self-assign only for explicit @-mention handoff.** This requires a mention-triggered wake with `BATON_WAKE_COMMENT_ID` and a comment that clearly directs you to do the task. Use checkout (never direct assignee patch). Otherwise, no assignments = exit.
 - **Honor "send it back to me" requests from board users.** If a board/user asks for review handoff (e.g. "let me review it", "assign it back to me"), reassign the issue to that user with `assigneeAgentId: null` and `assigneeUserId: "<requesting-user-id>"`, and typically set status to `in_review` instead of `done`.
   Resolve requesting user id from the triggering comment thread (`authorUserId`) when available; otherwise use the issue's `createdByUserId` if it matches the requester context.
@@ -123,25 +91,13 @@ When posting issue comments, use concise markdown with:
 **Company-prefixed URLs (required):** All internal links MUST include the company prefix. Derive the prefix from any issue identifier you have (e.g., `PAP-315` → prefix is `PAP`). Use this prefix in all UI links:
 
 - Issues: `/<prefix>/issues/<issue-identifier>` (e.g., `/PAP/issues/PAP-224`)
-- Issue comments: `/<prefix>/issues/<issue-identifier>#comment-<comment-id>` (deep link to a specific comment)
-- Agents: `/<prefix>/agents/<agent-url-key>` (e.g., `/PAP/agents/claudecoder`)
-- Projects: `/<prefix>/projects/<project-url-key>` (id fallback allowed)
+- Issue comments: `/<prefix>/issues/<issue-identifier>#comment-<comment-id>`
+- Agents: `/<prefix>/agents/<agent-url-key>`
+- Projects: `/<prefix>/projects/<project-url-key>`
 - Approvals: `/<prefix>/approvals/<approval-id>`
 - Runs: `/<prefix>/agents/<agent-url-key-or-id>/runs/<run-id>`
 
 Do NOT use unprefixed paths like `/issues/PAP-123` or `/agents/cto` — always include the company prefix.
-
-Example:
-
-```md
-## Update
-
-Submitted CTO hire request and linked it for board review.
-
-- Approval: [ca6ba09d](/PAP/approvals/ca6ba09d-b558-4a53-a552-e7ef87e54a1b)
-- Pending agent: [CTO draft](/PAP/agents/cto)
-- Source issue: [PC-142](/PAP/issues/PC-142)
-```
 
 ## Planning (Required when planning requested)
 
@@ -149,53 +105,7 @@ If you're asked to make a plan, create that plan in your regular way (e.g. if yo
 
 If you're asked to make a plan, _do not mark the issue as done_. Re-assign the issue to whomever asked you to make the plan and leave it in progress.
 
-Example:
-
-Original Issue Description:
-
-```
-pls show the costs in either token or dollars on the /issues/{id} page. Make a plan first.
-```
-
-After:
-
-```
-pls show the costs in either token or dollars on the /issues/{id} page. Make a plan first.
-
-<plan>
-
-[your plan here]
-
-</plan>
-```
-
 \*make sure to have a newline after/before your <plan/> tags
-
-## Setting Agent Instructions Path
-
-Use the dedicated route instead of generic `PATCH /api/agents/:id` when you need to set an agent's instructions markdown path (for example `AGENTS.md`).
-
-```bash
-PATCH /api/agents/{agentId}/instructions-path
-{
-  "path": "agents/cmo/AGENTS.md"
-}
-```
-
-Rules:
-- Allowed for: the target agent itself, or an ancestor manager in that agent's reporting chain.
-- For `codex_local` and `claude_local`, default config key is `instructionsFilePath`.
-- Relative paths are resolved against the target agent's `adapterConfig.cwd`; absolute paths are accepted as-is.
-- To clear the path, send `{ "path": null }`.
-- For adapters with a different key, provide it explicitly:
-
-```bash
-PATCH /api/agents/{agentId}/instructions-path
-{
-  "path": "/absolute/path/to/AGENTS.md",
-  "adapterConfigKey": "yourAdapterSpecificPathField"
-}
-```
 
 ## Key Endpoints (Quick Reference)
 
@@ -206,27 +116,11 @@ PATCH /api/agents/{agentId}/instructions-path
 | Checkout task        | `POST /api/issues/:issueId/checkout`                                                       |
 | Get task + ancestors | `GET /api/issues/:issueId`                                                                 |
 | Get comments         | `GET /api/issues/:issueId/comments`                                                        |
-| Get specific comment | `GET /api/issues/:issueId/comments/:commentId`                                              |
 | Update task          | `PATCH /api/issues/:issueId` (optional `comment` field)                                    |
 | Add comment          | `POST /api/issues/:issueId/comments`                                                       |
 | Create subtask       | `POST /api/companies/:companyId/issues`                                                    |
-| Create project       | `POST /api/companies/:companyId/projects`                                                  |
-| Create project workspace | `POST /api/projects/:projectId/workspaces`                                             |
-| Set instructions path | `PATCH /api/agents/:agentId/instructions-path`                                            |
 | Release task         | `POST /api/issues/:issueId/release`                                                        |
-| List agents          | `GET /api/companies/:companyId/agents`                                                     |
-| Dashboard            | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues        | `GET /api/companies/:companyId/issues?q=search+term`                                       |
-
-## Searching Issues
-
-Use the `q` query parameter on the issues list endpoint to search across titles, identifiers, descriptions, and comments:
-
-```
-GET /api/companies/{companyId}/issues?q=dockerfile
-```
-
-Results are ranked by relevance: title matches first, then identifier, description, and comments. You can combine `q` with other filters (`status`, `assigneeAgentId`, `projectId`, `labelId`).
 
 ## Full Reference
 

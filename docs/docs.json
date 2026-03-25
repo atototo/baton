@@ -44,6 +44,7 @@
               "guides/board-operator/dashboard",
               "guides/board-operator/creating-a-company",
               "guides/board-operator/managing-agents",
+              "guides/board-operator/project-conventions",
               "guides/board-operator/org-structure",
               "guides/board-operator/managing-tasks",
               "guides/board-operator/approvals",
@@ -93,6 +94,8 @@
               "adapters/overview",
               "adapters/claude-local",
               "adapters/codex-local",
+              "adapters/gemini-local",
+              "adapters/pi-local",
               "adapters/process",
               "adapters/http",
               "adapters/creating-an-adapter"

@@ -16,6 +16,7 @@ description: Claude Code 로컬 adapter 설정 및 구성
 |------|------|------|------|
 | `cwd` | string | Yes | 에이전트 프로세스의 작업 디렉터리 (절대 경로; 권한이 허용되면 없을 경우 자동 생성) |
 | `model` | string | No | 사용할 Claude 모델 (예: `claude-opus-4-6`) |
+| `instructionsFilePath` | string | No | Baton이 Claude에 전달하는 bundle entry file의 절대 경로 |
 | `promptTemplate` | string | No | 모든 실행에 사용되는 프롬프트 |
 | `env` | object | No | 환경 변수 (시크릿 참조 지원) |
 | `timeoutSec` | number | No | 프로세스 타임아웃 (0 = 타임아웃 없음) |
@@ -42,6 +43,15 @@ adapter는 heartbeat 간에 Claude Code 세션 ID를 유지합니다. 다음 깨
 세션 재개는 cwd를 인식합니다: 마지막 실행 이후 에이전트의 작업 디렉터리가 변경된 경우 새 세션이 시작됩니다.
 
 알 수 없는 세션 오류로 재개에 실패하면 adapter가 자동으로 새 세션으로 재시도합니다.
+
+## Instructions 와 프로젝트 컨텍스트
+
+Claude local은 Baton에서 온 두 개의 프롬프트 레이어를 지원합니다:
+
+- `instructionsFilePath`를 통한 에이전트 instructions bundle entry file
+- project conventions와 governance reminders에서 생성된 composed project instructions
+
+이 구조로 역할별 지시문은 bundle에 유지하고, 프로젝트 컨텍스트는 별도로 주입할 수 있습니다.
 
 ## 스킬 주입
 

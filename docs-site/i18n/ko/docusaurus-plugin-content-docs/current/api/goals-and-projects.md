@@ -119,3 +119,47 @@ GET /api/projects/{projectId}/workspaces
 PATCH /api/projects/{projectId}/workspaces/{workspaceId}
 DELETE /api/projects/{projectId}/workspaces/{workspaceId}
 ```
+
+## 프로젝트 컨벤션
+
+프로젝트는 에이전트 실행 시 사용할 런타임 프롬프트 컨텍스트도 저장할 수 있습니다.
+
+### 컨벤션 조회
+
+```
+GET /api/projects/{projectId}/conventions
+```
+
+반환 필드:
+
+- `backstory`
+- `conventionsMd`
+- `compactContext`
+- `extraReferences`
+
+### 컨벤션 저장 또는 교체
+
+```
+PUT /api/projects/{projectId}/conventions
+{
+  "backstory": "Project context...",
+  "conventionsMd": "# Coding rules\n\n- ..."
+}
+```
+
+### 컨벤션 부분 수정
+
+```
+PATCH /api/projects/{projectId}/conventions
+{
+  "backstory": "Updated framing"
+}
+```
+
+### Compact Context 생성
+
+```
+POST /api/projects/{projectId}/conventions/compact
+```
+
+Baton이 heartbeat 실행 때 우선적으로 주입하는 짧은 compact-context 요약을 생성하고 저장합니다.

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, not, inArray } from "drizzle-orm";
 import { heartbeatRuns, issues as issueTable, type Db } from "@atototo/db";
 import {
   addApprovalCommentSchema,
@@ -63,42 +63,36 @@ function buildPullRequestBody(args: {
   baseBranch: string;
   changedPaths: string[];
   childIssues: Array<{ identifier: string | null; title: string }>;
+  approvalSummary?: string | null;
 }) {
-  const { issueIdentifier, ticketKey, branch, baseBranch, changedPaths, childIssues } = args;
-  const summaryLines =
-    changedPaths.length > 0
-      ? changedPaths.map((path) => `- Add or update \`${path}\``)
-      : [`- Finalize the approved work for ${issueIdentifier ?? ticketKey}`];
-  const childLines =
-    childIssues.length > 0
-      ? childIssues.map((child) => `- ${child.identifier ?? child.title}: ${child.title}`)
-      : ["- Child issue review completed in Baton"];
-  const validationLines = [
-    "- Baton child issues completed and reviewed",
-    `- Branch prepared for merge from \`${branch}\` into \`${baseBranch}\``,
-  ];
-  const contextLines = [
-    `- Parent issue: ${issueIdentifier ?? "(unknown)"}`,
-    `- Ticket: ${ticketKey}`,
-    `- Branch: ${branch}`,
-  ];
+  const { ticketKey, changedPaths, childIssues, approvalSummary } = args;
 
-  return [
-    "## Summary",
-    ...summaryLines,
-    "",
-    "## Included Work",
-    ...childLines,
-    "",
-    "## Files Changed",
-    ...(changedPaths.length > 0 ? changedPaths.map((path) => `- \`${path}\``) : ["- (no tracked file list available)"]),
-    "",
-    "## Validation",
-    ...validationLines,
-    "",
-    "## Baton Context",
-    ...contextLines,
-  ].join("\n");
+  const sections: string[] = [];
+
+  // Summary — use approval summary if available, otherwise list child work
+  sections.push("## Summary");
+  if (approvalSummary) {
+    sections.push(approvalSummary);
+  } else if (childIssues.length > 0) {
+    for (const child of childIssues) {
+      sections.push(`- ${child.title}`);
+    }
+  } else {
+    sections.push(`- ${ticketKey} 작업 완료`);
+  }
+
+  // Changed files
+  if (changedPaths.length > 0) {
+    sections.push("", "## Changes");
+    for (const path of changedPaths) {
+      sections.push(`- \`${path}\``);
+    }
+  }
+
+  // Ticket reference (minimal, non-Baton)
+  sections.push("", `---`, `Ticket: ${ticketKey}`);
+
+  return sections.join("\n");
 }
 
 export function approvalRoutes(db: Db) {
@@ -395,6 +389,7 @@ export function approvalRoutes(db: Db) {
         ? await executionWorkspacesSvc.provisionExecutionWorkspace({
             companyId: existingApproval.companyId,
             plan: workspacePlan,
+            force: req.body.force === true,
           })
         : null;
 
@@ -554,6 +549,30 @@ export function approvalRoutes(db: Db) {
           commitSha: pullRequestResult.commitSha,
         },
       });
+
+      // Cascade-close child issues of completed parent issues
+      for (const linkedIssue of linkedIssues) {
+        const childIssues = await db
+          .select()
+          .from(issueTable)
+          .where(and(eq(issueTable.parentId, linkedIssue.id), not(inArray(issueTable.status, ["done", "cancelled"]))));
+        for (const child of childIssues) {
+          await issuesSvc.update(child.id, { status: "done" });
+          await logActivity(db, {
+            companyId: approval.companyId,
+            actorType: "user",
+            actorId: req.actor.userId ?? "board",
+            action: "issue.cascade_completed_after_pr",
+            entityType: "issue",
+            entityId: child.id,
+            details: {
+              parentIssueId: linkedIssue.id,
+              approvalId: approval.id,
+              previousStatus: child.status,
+            },
+          });
+        }
+      }
     }
 
     if (approval.type === "approve_issue_plan" && provisionedWorkspace) {
@@ -840,10 +859,14 @@ export function approvalRoutes(db: Db) {
           { userId: req.actor.userId ?? "board" },
         );
 
-        // Resume blocked issue so the agent can rework it
+        // Resume issue so the agent can rework it
         const issue = await issuesSvc.getById(linked.id);
-        if (issue && issue.status === "blocked") {
-          await issuesSvc.update(linked.id, { status: "in_progress" });
+        if (issue && (issue.status === "blocked" || issue.status === "in_review")) {
+          await issuesSvc.update(linked.id, {
+            status: "in_progress",
+            assigneeAgentId: approval.requestedByAgentId,
+            assigneeUserId: null,
+          });
         }
       }
 

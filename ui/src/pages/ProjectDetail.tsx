@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation, Navigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { PROJECT_COLORS, isUuidLike, type ActivityEvent, type Agent, type Project, type ProjectStatus, type ProjectWorkspace } from "@atototo/shared";
-import { CalendarRange, CircleDashed, Flag, FolderKanban, UserRound } from "lucide-react";
+import { CalendarRange, CircleDashed, Flag, FolderKanban, UserRound, BookOpen } from "lucide-react";
 import { projectsApi } from "../api/projects";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
@@ -20,6 +20,7 @@ import { InlineEditor } from "../components/InlineEditor";
 import { StatusBadge } from "../components/StatusBadge";
 import { IssuesList } from "../components/IssuesList";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { ProjectConventionsEditor } from "../components/ProjectConventionsEditor";
 import { projectRouteRef } from "../lib/utils";
 import { ActivityRow } from "../components/ActivityRow";
 import { EmptyState } from "../components/EmptyState";
@@ -32,7 +33,7 @@ import { FolderGit2, Settings2, Sparkles } from "lucide-react";
 
 /* ── Top-level tab types ── */
 
-type ProjectTab = "overview" | "updates" | "issues" | "settings";
+type ProjectTab = "overview" | "updates" | "issues" | "conventions" | "settings";
 
 function resolveProjectTab(pathname: string, projectId: string): ProjectTab | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -42,6 +43,7 @@ function resolveProjectTab(pathname: string, projectId: string): ProjectTab | nu
   if (tab === "overview") return "overview";
   if (tab === "updates") return "updates";
   if (tab === "issues") return "issues";
+  if (tab === "conventions") return "conventions";
   if (tab === "settings") return "settings";
   return null;
 }
@@ -509,6 +511,10 @@ export function ProjectDetail() {
       navigate(`/projects/${canonicalProjectRef}/issues`, { replace: true });
       return;
     }
+    if (activeTab === "conventions") {
+      navigate(`/projects/${canonicalProjectRef}/conventions`, { replace: true });
+      return;
+    }
     if (activeTab === "settings") {
       navigate(`/projects/${canonicalProjectRef}/settings`, { replace: true });
       return;
@@ -552,6 +558,7 @@ export function ProjectDetail() {
     if (tab === "overview") navigate(`/projects/${canonicalProjectRef}/overview`);
     if (tab === "updates") navigate(`/projects/${canonicalProjectRef}/updates`);
     if (tab === "issues") navigate(`/projects/${canonicalProjectRef}/issues`);
+    if (tab === "conventions") navigate(`/projects/${canonicalProjectRef}/conventions`);
     if (tab === "settings") navigate(`/projects/${canonicalProjectRef}/settings`);
   };
 
@@ -578,6 +585,7 @@ export function ProjectDetail() {
           ["overview", t("projectDetail.overview")],
           ["updates", t("projectDetail.updates")],
           ["issues", t("projectDetail.issues")],
+          ["conventions", t("projectDetail.conventions")],
           ["settings", t("projectDetail.settings")],
         ] as const).map(([tab, label]) => (
           <button
@@ -617,6 +625,13 @@ export function ProjectDetail() {
 
       {activeTab === "issues" && project?.id && resolvedCompanyId && (
         <ProjectIssuesList projectId={project.id} companyId={resolvedCompanyId} />
+      )}
+
+      {activeTab === "conventions" && project?.id && resolvedCompanyId && (
+        <ProjectConventionsEditor
+          projectId={project.id}
+          companyId={resolvedCompanyId}
+        />
       )}
 
       {activeTab === "settings" && project?.id && resolvedCompanyId && (

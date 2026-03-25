@@ -20,6 +20,8 @@ When a heartbeat fires, Baton:
 |---------|----------|-------------|
 | [Claude Local](/adapters/claude-local) | `claude_local` | Runs Claude Code CLI locally |
 | [Codex Local](/adapters/codex-local) | `codex_local` | Runs OpenAI Codex CLI locally |
+| [Gemini Local](/adapters/gemini-local) | `gemini_local` | Runs the Gemini CLI locally |
+| [Pi Local](/adapters/pi-local) | `pi_local` | Runs the Pi coding agent locally |
 | [Process](/adapters/process) | `process` | Executes arbitrary shell commands |
 | [HTTP](/adapters/http) | `http` | Sends webhooks to external agents |
 
@@ -50,9 +52,27 @@ Three registries consume these modules:
 | **UI** | Renders run transcripts, provides config forms |
 | **CLI** | Formats terminal output for live watching |
 
+## Shared Adapter Utilities
+
+Several local adapters also use shared helper utilities from `packages/adapter-utils`:
+
+- **Session compaction** — rotate or reset resumable sessions when run count, token volume, or age thresholds are exceeded
+- **Log redaction** — scrub sensitive home-directory paths from logs
+- **Billing inference** — normalize usage and cost reporting across providers
+
+## Prompt Composition
+
+Supported local adapters can receive supplementary project instructions composed by Baton at heartbeat time.
+
+That composed layer can include:
+
+- project backstory
+- compact context or full conventions
+- critical governance reminders
+
 ## Choosing an Adapter
 
-- **Need a coding agent?** Use `claude_local` or `codex_local`
+- **Need a coding agent?** Use `claude_local`, `codex_local`, `gemini_local`, or `pi_local`
 - **Need to run a script or command?** Use `process`
 - **Need to call an external service?** Use `http`
 - **Need something custom?** [Create your own adapter](/adapters/creating-an-adapter)

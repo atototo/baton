@@ -27,6 +27,10 @@ export {
   createAgentHireSchema,
   updateAgentSchema,
   updateAgentInstructionsPathSchema,
+  updateAgentInstructionsBundleSchema,
+  upsertAgentInstructionsFileSchema,
+  type UpdateAgentInstructionsBundle,
+  type UpsertAgentInstructionsFile,
   createAgentKeySchema,
   wakeAgentSchema,
   resetAgentSessionSchema,
@@ -118,6 +122,13 @@ export {
   createAssetImageMetadataSchema,
   type CreateAssetImageMetadata,
 } from "./asset.js";
+
+export {
+  upsertProjectConventionsSchema,
+  updateProjectConventionsSchema,
+  type UpsertProjectConventions,
+  type UpdateProjectConventions,
+} from "./project-conventions.js";
 
 export {
   createCompanyInviteSchema,

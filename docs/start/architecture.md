@@ -19,7 +19,7 @@ Baton is a monorepo with four main layers.
 │  Schema, migrations, embedded mode  │
 ├─────────────────────────────────────┤
 │  Adapters                           │
-│  Claude Local, Codex Local,         │
+│  Claude, Codex, Gemini, Pi,         │
 │  Process, HTTP                      │
 └─────────────────────────────────────┘
 ```
@@ -57,7 +57,9 @@ baton/
 │   ├── adapter-utils/           # Adapter interfaces and helpers
 │   └── adapters/
 │       ├── claude-local/        # Claude Code adapter
-│       └── codex-local/         # OpenAI Codex adapter
+│       ├── codex-local/         # OpenAI Codex adapter
+│       ├── gemini-local/        # Gemini CLI adapter
+│       └── pi-local/            # Pi local adapter
 │
 ├── skills/                      # Agent skills
 │   └── baton/               # Core Baton skill (heartbeat protocol)
@@ -75,9 +77,10 @@ When a heartbeat fires:
 1. **Trigger** — Scheduler, manual invoke, or event (assignment, mention) triggers a heartbeat
 2. **Adapter invocation** — Server calls the configured adapter's `execute()` function
 3. **Agent process** — Adapter spawns the agent (e.g. Claude Code CLI) with Baton env vars and a prompt
-4. **Agent work** — The agent calls Baton's REST API to check assignments, checkout tasks, do work, and update status
-5. **Result capture** — Adapter captures stdout, parses usage/cost data, extracts session state
-6. **Run record** — Server records the run result, costs, and any session state for next heartbeat
+4. **Prompt composition** — Baton may compose project conventions and governance reminders into supplementary instructions
+5. **Agent work** — The agent calls Baton's REST API to check assignments, checkout tasks, do work, and update status
+6. **Result capture** — Adapter captures stdout, parses usage/cost data, extracts session state
+7. **Run record** — Server records the run result, costs, and any session state for next heartbeat
 
 ## Adapter Model
 
@@ -87,7 +90,7 @@ Adapters are the bridge between Baton and agent runtimes. Each adapter is a pack
 - **UI module** — stdout parser for the run viewer, config form fields for agent creation
 - **CLI module** — terminal formatter for `atototo run --watch`
 
-Built-in adapters: `claude_local`, `codex_local`, `process`, `http`. You can create custom adapters for any runtime.
+Built-in adapters: `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`. You can create custom adapters for any runtime.
 
 ## Key Design Decisions
 

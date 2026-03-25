@@ -14,6 +14,7 @@ import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { AgentConfigForm } from "../components/AgentConfigForm";
+import { AgentInstructionsTab } from "../components/AgentInstructionsTab";
 import { adapterLabels, roleLabels } from "../components/agent-config-primitives";
 import { getUIAdapter, buildTranscript } from "../adapters";
 import type { TranscriptEntry } from "../adapters";
@@ -54,6 +55,7 @@ import {
   ArrowLeft,
   Settings,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -190,10 +192,11 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "overview" | "configure" | "runs";
+type AgentDetailView = "overview" | "configure" | "instructions" | "runs";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "configure" || value === "configuration") return "configure";
+  if (value === "instructions") return "instructions";
   if (value === "runs") return value;
   return "overview";
 }
@@ -429,6 +432,8 @@ export function AgentDetail() {
         crumbs.push({ label: t("agentDetail.breadcrumbRunId", { id: urlRunId.slice(0, 8) }) });
       } else if (activeView === "configure") {
         crumbs.push({ label: t("agentDetail.breadcrumbConfigure") });
+      } else if (activeView === "instructions") {
+        crumbs.push({ label: t("agentDetail.breadcrumbInstructions") });
       } else if (activeView === "runs") {
         crumbs.push({ label: t("agentDetail.breadcrumbRuns") });
       }
@@ -550,6 +555,16 @@ export function AgentDetail() {
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
                 onClick={() => {
+                  navigate(`/agents/${canonicalAgentRef}/instructions`);
+                  setMoreOpen(false);
+                }}
+              >
+                <FileText className="h-3 w-3" />
+                {t("agentDetail.breadcrumbInstructions")}
+              </button>
+              <button
+                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
+                onClick={() => {
                   navigator.clipboard.writeText(agent.id);
                   setMoreOpen(false);
                 }}
@@ -580,6 +595,29 @@ export function AgentDetail() {
             </PopoverContent>
           </Popover>
         </div>
+      </div>
+
+      {/* Tab navigation */}
+      <div className="flex items-center gap-1 border-b border-border">
+        {([
+          { key: "overview", label: t("agentDetail.breadcrumbOverview", { defaultValue: "개요" }) },
+          { key: "instructions", label: t("agentDetail.breadcrumbInstructions") },
+          { key: "configure", label: t("agentDetail.breadcrumbConfigure", { defaultValue: "설정" }) },
+          { key: "runs", label: t("agentDetail.breadcrumbRuns", { defaultValue: "실행" }) },
+        ] as const).map((tab) => (
+          <Link
+            key={tab.key}
+            to={tab.key === "overview" ? `/agents/${canonicalAgentRef}` : `/agents/${canonicalAgentRef}/${tab.key}`}
+            className={cn(
+              "px-3 py-2 text-sm font-medium transition-colors no-underline",
+              activeView === tab.key
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
       </div>
 
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
@@ -669,6 +707,13 @@ export function AgentDetail() {
           onCancelActionChange={setCancelConfigAction}
           onSavingChange={setConfigSaving}
           updatePermissions={updatePermissions}
+        />
+      )}
+
+      {activeView === "instructions" && (
+        <AgentInstructionsTab
+          agentId={agent.id}
+          companyId={resolvedCompanyId ?? undefined}
         />
       )}
 
@@ -1227,97 +1272,98 @@ function ConfigurationTab({
     onSavingChange(updateAgent.isPending);
   }, [onSavingChange, updateAgent.isPending]);
 
-  return (
-    <div className="space-y-6">
-      <AgentConfigForm
-        mode="edit"
-        agent={agent}
-        onSave={(patch) => updateAgent.mutate(patch)}
-        isSaving={updateAgent.isPending}
-        adapterModels={adapterModels}
-        onDirtyChange={onDirtyChange}
-        onSaveActionChange={onSaveActionChange}
-        onCancelActionChange={onCancelActionChange}
-        hideInlineSave
-        sectionLayout="cards"
-      />
-
-      <div>
-        <h3 className="text-sm font-medium mb-3">{t("agentDetail.permissions")}</h3>
-        <div className="border border-border rounded-lg p-4">
-          <TooltipProvider>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-1.5">
-                <span>{t("agentDetail.canCreateAgents")}</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-56">
-                    {t("agentDetail.canCreateAgentsDescription")}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <Button
-                variant={agent.permissions?.canCreateAgents ? "default" : "outline"}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() =>
-                  updatePermissions.mutate(!Boolean(agent.permissions?.canCreateAgents))
-                }
-                disabled={updatePermissions.isPending}
-              >
-                {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
-              </Button>
+  const permissionsSection = (
+    <div>
+      <h3 className="text-sm font-medium mb-3">{t("agentDetail.permissions")}</h3>
+      <div className="border border-border rounded-lg p-4">
+        <TooltipProvider>
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5">
+              <span>{t("agentDetail.canCreateAgents")}</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-56">
+                  {t("agentDetail.canCreateAgentsDescription")}
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <div className="mt-4 space-y-2 border-t border-border pt-4">
-              {permissionGrantsQuery.isError && (
-                <p className="text-xs text-destructive">
-                  {permissionGrantsQuery.error instanceof Error
-                    ? permissionGrantsQuery.error.message
-                    : t("agentDetail.errors.updatePermissionsFailed")}
-                </p>
-              )}
-              {PERMISSION_KEYS.map((permissionKey) => {
-                const enabled = grantedPermissionKeys.has(permissionKey);
-                const nextGrants = enabled
-                  ? permissionGrants.filter((grant) => grant.permissionKey !== permissionKey)
-                  : [...permissionGrants, { permissionKey, scope: null }];
-                return (
-                  <div key={permissionKey} className="flex items-center justify-between gap-3 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <span>{t(`agentDetail.permissionLabels.${permissionKey}`)}</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-56">
-                          {t(`agentDetail.permissionDescriptions.${permissionKey}`)}
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Button
-                      variant={enabled ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
-                      onClick={() => updatePermissionGrants.mutate(
-                        nextGrants.map((grant) => ({
-                          permissionKey: grant.permissionKey,
-                          scope: grant.scope ?? null,
-                        })),
-                      )}
-                      disabled={!companyId || permissionGrantsQuery.isLoading || updatePermissionGrants.isPending}
-                    >
-                      {enabled ? t("agentDetail.enabled") : t("agentDetail.disabled")}
-                    </Button>
+            <Button
+              variant={agent.permissions?.canCreateAgents ? "default" : "outline"}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() =>
+                updatePermissions.mutate(!Boolean(agent.permissions?.canCreateAgents))
+              }
+              disabled={updatePermissions.isPending}
+            >
+              {agent.permissions?.canCreateAgents ? t("agentDetail.enabled") : t("agentDetail.disabled")}
+            </Button>
+          </div>
+          <div className="mt-4 space-y-2 border-t border-border pt-4">
+            {permissionGrantsQuery.isError && (
+              <p className="text-xs text-destructive">
+                {permissionGrantsQuery.error instanceof Error
+                  ? permissionGrantsQuery.error.message
+                  : t("agentDetail.errors.updatePermissionsFailed")}
+              </p>
+            )}
+            {PERMISSION_KEYS.map((permissionKey) => {
+              const enabled = grantedPermissionKeys.has(permissionKey);
+              const nextGrants = enabled
+                ? permissionGrants.filter((grant) => grant.permissionKey !== permissionKey)
+                : [...permissionGrants, { permissionKey, scope: null }];
+              return (
+                <div key={permissionKey} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span>{t(`agentDetail.permissionLabels.${permissionKey}`)}</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-56">
+                        {t(`agentDetail.permissionDescriptions.${permissionKey}`)}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                );
-              })}
-            </div>
-          </TooltipProvider>
-        </div>
+                  <Button
+                    variant={enabled ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => updatePermissionGrants.mutate(
+                      nextGrants.map((grant) => ({
+                        permissionKey: grant.permissionKey,
+                        scope: grant.scope ?? null,
+                      })),
+                    )}
+                    disabled={!companyId || permissionGrantsQuery.isLoading || updatePermissionGrants.isPending}
+                  >
+                    {enabled ? t("agentDetail.enabled") : t("agentDetail.disabled")}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </TooltipProvider>
       </div>
     </div>
+  );
+
+  return (
+    <AgentConfigForm
+      mode="edit"
+      agent={agent}
+      onSave={(patch) => updateAgent.mutate(patch)}
+      isSaving={updateAgent.isPending}
+      adapterModels={adapterModels}
+      onDirtyChange={onDirtyChange}
+      onSaveActionChange={onSaveActionChange}
+      onCancelActionChange={onCancelActionChange}
+      hideInlineSave
+      sectionLayout="cards"
+      afterSections={permissionsSection}
+    />
   );
 }
 

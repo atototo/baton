@@ -16,6 +16,7 @@ The `claude_local` adapter runs Anthropic's Claude Code CLI locally. It supports
 |-------|------|----------|-------------|
 | `cwd` | string | Yes | Working directory for the agent process (absolute path; created automatically if missing when permissions allow) |
 | `model` | string | No | Claude model to use (e.g. `claude-opus-4-6`) |
+| `instructionsFilePath` | string | No | Absolute path to the bundle entry file Baton points Claude at |
 | `promptTemplate` | string | No | Prompt used for all runs |
 | `env` | object | No | Environment variables (supports secret refs) |
 | `timeoutSec` | number | No | Process timeout (0 = no timeout) |
@@ -42,6 +43,15 @@ The adapter persists Claude Code session IDs between heartbeats. On the next wak
 Session resume is cwd-aware: if the agent's working directory changed since the last run, a fresh session starts instead.
 
 If resume fails with an unknown session error, the adapter automatically retries with a fresh session.
+
+## Instructions And Project Context
+
+Claude local supports two prompt layers from Baton:
+
+- the agent's instructions bundle entry file via `instructionsFilePath`
+- composed project instructions generated from project conventions and governance reminders
+
+This lets you keep role-specific instructions in the bundle while injecting project context separately.
 
 ## Skills Injection
 

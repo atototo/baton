@@ -41,6 +41,65 @@ Edit an agent's configuration from the agent detail page:
 
 Use the "Test Environment" button to validate that the agent's adapter config is correct before running.
 
+## Managing Instructions
+
+Each agent now has an **Instructions** tab on the agent detail page.
+
+This tab manages the markdown instructions bundle that Baton injects into the runtime prompt.
+
+Common patterns:
+
+- keep a single `AGENTS.md` file for simple agents
+- split managed bundles into `AGENTS.md`, `SOUL.md`, `HEARTBEAT.md`, `TOOLS.md`, or other markdown files for larger roles
+- point an agent at an external instructions directory when you want Baton to read an existing repo-managed prompt set
+
+### Managed vs External
+
+- **Managed** — Baton stores the bundle under its own instance directory and you edit files in the UI
+- **External** — Baton reads a directory on disk that you manage outside Baton
+
+Managed mode is the safer default for governed agents because Baton owns the prompt files and keeps them isolated from the project workspace.
+
+### Entry File
+
+Every bundle has one **entry file**.
+
+- Baton persists the selected entry file path in the agent config
+- the entry file is the canonical file the adapter points at during heartbeat
+- you can keep supporting files in the same managed bundle and reference them from the entry file
+
+### Cleaning a Managed Bundle
+
+If an old managed bundle contains unrelated files, use **Clean managed bundle** in the Instructions tab.
+
+This keeps only the current entry file and removes the rest of the managed bundle contents.
+
+## Project Conventions
+
+Projects now have a conventions editor in project detail.
+
+It stores:
+
+- **Backstory** — project context and domain framing
+- **Conventions** — full markdown guidance for the project
+- **Compact Context** — a generated short summary Baton can inject by default
+
+During heartbeats, Baton composes project conventions into supplementary instructions for supported local adapters.
+
+See [Project Conventions](/guides/board-operator/project-conventions).
+
+## Config Revisions
+
+Baton tracks configuration revisions for agents.
+
+Use the config revision history to:
+
+- inspect what changed
+- see changed keys
+- roll back to an earlier configuration snapshot
+
+Instructions bundle edits and instructions path changes are recorded through this same revision system.
+
 ## Pausing and Resuming
 
 Pause an agent to temporarily stop heartbeats:

@@ -149,7 +149,7 @@ export async function ensureCursorSkillsInjected(
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -327,7 +327,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     context,
   });
   const batonEnvNote = renderBatonEnvNote(env);
-  const prompt = `${instructionsPrefix}${batonEnvNote}${renderedPrompt}`;
+  const composedPrefix = composedInstructions ? `${composedInstructions}\n\n---\n\n` : "";
+  const prompt = `${instructionsPrefix}${composedPrefix}${batonEnvNote}${renderedPrompt}`;
 
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["-p", "--output-format", "stream-json", "--workspace", cwd];

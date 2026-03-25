@@ -87,14 +87,27 @@ export function ApprovalDetail() {
     }
   };
 
+  const [showForceConfirm, setShowForceConfirm] = useState(false);
+  const [forceError, setForceError] = useState<string | null>(null);
+
   const approveMutation = useMutation({
-    mutationFn: () => approvalsApi.approve(approvalId!),
+    mutationFn: (force?: boolean) => approvalsApi.approve(approvalId!, undefined, force),
     onSuccess: () => {
       setError(null);
+      setShowForceConfirm(false);
+      setForceError(null);
       refresh();
       navigate(`/approvals/${approvalId}?resolved=approved`, { replace: true });
     },
-    onError: (err) => setError(err instanceof Error ? err.message : t("approval.failedToApprove")),
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : t("approval.failedToApprove");
+      if (msg.includes("uncommitted changes") || msg.includes("clean source")) {
+        setForceError(msg);
+        setShowForceConfirm(true);
+      } else {
+        setError(msg);
+      }
+    },
   });
 
   const [decisionNote, setDecisionNote] = useState("");
@@ -276,7 +289,7 @@ export function ApprovalDetail() {
                 <Button
                   size="sm"
                   className="bg-green-700 hover:bg-green-600 text-white"
-                  onClick={() => approveMutation.mutate()}
+                  onClick={() => approveMutation.mutate(false)}
                   disabled={approveMutation.isPending}
                 >
                   {t("approval.approve")}
@@ -369,6 +382,31 @@ export function ApprovalDetail() {
             </Button>
           )}
         </div>
+        {showForceConfirm && (
+          <div className="border border-yellow-500/40 bg-yellow-500/10 rounded-md p-3 space-y-2">
+            <p className="text-sm text-yellow-200">{forceError}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("approval.forceApproveDescription")}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="bg-yellow-600 hover:bg-yellow-500 text-white"
+                onClick={() => approveMutation.mutate(true)}
+                disabled={approveMutation.isPending}
+              >
+                {t("approval.forceApprove")}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setShowForceConfirm(false); setForceError(null); }}
+              >
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border border-border rounded-lg p-4 space-y-3">

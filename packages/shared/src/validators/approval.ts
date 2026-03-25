@@ -13,6 +13,7 @@ export type CreateApproval = z.infer<typeof createApprovalSchema>;
 export const resolveApprovalSchema = z.object({
   decisionNote: z.string().optional().nullable(),
   decidedByUserId: z.string().optional().default("board"),
+  force: z.boolean().optional(),
 });
 
 export type ResolveApproval = z.infer<typeof resolveApprovalSchema>;

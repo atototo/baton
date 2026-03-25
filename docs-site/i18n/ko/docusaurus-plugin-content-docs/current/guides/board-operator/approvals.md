@@ -5,11 +5,6 @@ description: 계획, 리뷰, PR에 대한 거버넌스 흐름
 
 Baton에는 인간 Board Operator가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
 
-기본 거버넌스 기반 티켓 흐름에서 승인은 단순 기록이 아니라 실제 실행 게이트 역할을 합니다.
-
-- `approve_issue_plan`은 거버넌스 기반 티켓 실행을 여는 승인입니다
-- `approve_pull_request`는 거버넌스 기반 티켓 실행을 닫는 승인입니다
-
 ## 승인 유형
 
 ### 에이전트 채용
@@ -36,6 +31,8 @@ CEO의 초기 전략 계획은 CEO가 태스크를 `in_progress`로 이동하기
 
 이 승인을 통과하면 티켓 execution workspace가 준비되고 child 구현 작업이 진행될 수 있습니다.
 
+source repository가 clean하지 않으면 승인 UI에 **강제 승인**이 표시될 수 있습니다. 이 옵션은 신중하게 사용해야 합니다. dirty checkout에서 실행 workspace를 준비하는 위험을 의도적으로 감수할 때만 clean-source guard를 우회합니다.
+
 ### PR 승인
 
 리더는 child 리뷰가 끝난 뒤 `approve_pull_request`를 사용합니다.
@@ -46,14 +43,20 @@ CEO의 초기 전략 계획은 CEO가 태스크를 `in_progress`로 이동하기
 - origin으로 push
 - GitHub PR 생성
 - parent 이슈 종료
+- 완료된 parent에 연결된 아직 열려 있는 child 이슈들의 cascade completion
 
 ## 승인 워크플로
 
-```
+```text
 pending -> approved
         -> rejected
         -> cancelled
-        -> revision_requested -> resubmitted -> pending
+        -> revision_requested
+
+revision_requested -> resubmitted -> pending
+                   -> approved
+                   -> rejected
+                   -> cancelled
 ```
 
 1. 에이전트가 승인 요청을 생성합니다
@@ -64,23 +67,9 @@ pending -> approved
    - **거부** — 작업이 거부됩니다
    - **수정 요청** — 에이전트에게 수정 후 재제출을 요청합니다
 
+거버넌스 기반 이슈 승인에 수정 요청을 하면 Baton은 연결된 이슈에 코멘트를 남기고, 요청한 에이전트를 깨우며, 연결된 작업을 다시 `in_progress`로 되돌려 재작업할 수 있게 합니다.
+
 기본 프로젝트 흐름은 [거버넌스 기반 티켓 실행 흐름](/guides/board-operator/default-governed-workflow) 문서를 참고하세요.
-
-## Board가 실제로 승인하는 것
-
-`approve_issue_plan`에서는 다음을 승인합니다.
-
-- 어떤 ticket 기준으로 실행할지
-- 어떤 branch/base branch를 사용할지
-- 어떤 project workspace를 사용할지
-- 구현이 planning 단계에서 ticket worktree 단계로 넘어가도 되는지
-
-`approve_pull_request`에서는 다음을 승인합니다.
-
-- 최종 리뷰 handoff
-- 실제 commit과 push
-- 실제 GitHub pull request 생성
-- parent 이슈의 최종 종료
 
 ## 승인 검토
 
@@ -89,6 +78,13 @@ Approvals 페이지에서 모든 대기 중인 승인을 확인할 수 있습니
 - 누가 요청했으며 그 이유
 - 연결된 이슈 (요청에 대한 맥락)
 - 전체 페이로드 (예: 채용에 대한 제안된 에이전트 설정)
+- 코멘트와 board 피드백
+
+승인 상세 페이지에서는 다음도 지원합니다:
+
+- 메모를 포함한 수정 요청
+- 에이전트 변경 후 재제출
+- dirty source repo 때문에 계획 승인이 막힐 때의 강제 승인
 
 ## Board 재정 권한
 

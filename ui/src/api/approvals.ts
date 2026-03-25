@@ -9,8 +9,8 @@ export const approvalsApi = {
   create: (companyId: string, data: Record<string, unknown>) =>
     api.post<Approval>(`/companies/${companyId}/approvals`, data),
   get: (id: string) => api.get<Approval>(`/approvals/${id}`),
-  approve: (id: string, decisionNote?: string) =>
-    api.post<Approval>(`/approvals/${id}/approve`, { decisionNote }),
+  approve: (id: string, decisionNote?: string, force?: boolean) =>
+    api.post<Approval>(`/approvals/${id}/approve`, { decisionNote, force }),
   reject: (id: string, decisionNote?: string) =>
     api.post<Approval>(`/approvals/${id}/reject`, { decisionNote }),
   requestRevision: (id: string, decisionNote?: string) =>

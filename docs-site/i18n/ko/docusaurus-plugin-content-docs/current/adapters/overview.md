@@ -20,6 +20,8 @@ heartbeat가 발생하면 Baton은 다음을 수행합니다:
 |---------|----------|------|
 | [Claude Local](/adapters/claude-local) | `claude_local` | Claude Code CLI를 로컬에서 실행합니다 |
 | [Codex Local](/adapters/codex-local) | `codex_local` | OpenAI Codex CLI를 로컬에서 실행합니다 |
+| [Gemini Local](/adapters/gemini-local) | `gemini_local` | Gemini CLI를 로컬에서 실행합니다 |
+| [Pi Local](/adapters/pi-local) | `pi_local` | Pi coding agent를 로컬에서 실행합니다 |
 | [Process](/adapters/process) | `process` | 임의의 셸 명령을 실행합니다 |
 | [HTTP](/adapters/http) | `http` | 외부 에이전트에 webhook을 전송합니다 |
 
@@ -50,9 +52,27 @@ packages/adapters/<name>/
 | **UI** | 실행 트랜스크립트를 렌더링하고 설정 폼을 제공합니다 |
 | **CLI** | 실시간 모니터링을 위한 터미널 출력을 포맷합니다 |
 
+## 공통 Adapter 유틸리티
+
+여러 로컬 adapter는 `packages/adapter-utils`의 공통 헬퍼도 사용합니다:
+
+- **Session compaction** — 실행 횟수, 토큰량, 세션 나이 기준을 넘으면 재개 세션을 회전하거나 초기화합니다
+- **Log redaction** — 로그에서 민감한 홈 디렉터리 경로를 제거합니다
+- **Billing inference** — provider별 사용량/비용 보고를 정규화합니다
+
+## Prompt Composition
+
+지원되는 로컬 adapter는 heartbeat 시 Baton이 조합한 보조 프로젝트 지시문을 받을 수 있습니다.
+
+이 조합 레이어에는 다음이 들어갈 수 있습니다:
+
+- project backstory
+- compact context 또는 전체 conventions
+- 중요한 governance reminders
+
 ## Adapter 선택 가이드
 
-- **코딩 에이전트가 필요하신가요?** `claude_local` 또는 `codex_local`을 사용하십시오
+- **코딩 에이전트가 필요하신가요?** `claude_local`, `codex_local`, `gemini_local`, `pi_local`을 사용하십시오
 - **스크립트나 명령을 실행해야 하나요?** `process`를 사용하십시오
 - **외부 서비스를 호출해야 하나요?** `http`를 사용하십시오
 - **커스텀 adapter가 필요하신가요?** [직접 adapter를 만들어 보십시오](/adapters/creating-an-adapter)
