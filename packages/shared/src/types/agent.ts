@@ -8,6 +8,38 @@ export interface AgentPermissions {
   canCreateAgents: boolean;
 }
 
+export type AgentInstructionsBundleMode = "managed" | "external";
+
+export interface AgentInstructionsFileSummary {
+  path: string;
+  size: number;
+  language: string;
+  markdown: boolean;
+  isEntryFile: boolean;
+  editable: boolean;
+  deprecated: boolean;
+  virtual: boolean;
+}
+
+export interface AgentInstructionsFileDetail extends AgentInstructionsFileSummary {
+  content: string;
+}
+
+export interface AgentInstructionsBundle {
+  agentId: string;
+  companyId: string;
+  mode: AgentInstructionsBundleMode | null;
+  rootPath: string | null;
+  managedRootPath: string;
+  entryFile: string;
+  resolvedEntryPath: string | null;
+  editable: boolean;
+  warnings: string[];
+  legacyPromptTemplateActive: boolean;
+  legacyBootstrapPromptTemplateActive: boolean;
+  files: AgentInstructionsFileSummary[];
+}
+
 export interface Agent {
   id: string;
   companyId: string;

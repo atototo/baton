@@ -327,8 +327,7 @@ exit 1
     expect(ghLog).toContain(`--head feature/${ticketKey}`);
     expect(ghLog).toContain("add backend and frontend README documentation");
     expect(ghLog).toContain("## Summary");
-    expect(ghLog).toContain("## Included Work");
-    expect(ghLog).toContain("## Files Changed");
+    expect(ghLog).toContain("## Changes");
     expect(ghLog).toContain("backend/README.md");
     expect(ghLog).toContain("frontend/README.md");
     expect(ghLog).toContain("DOB-43");

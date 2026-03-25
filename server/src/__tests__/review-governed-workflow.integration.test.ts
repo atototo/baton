@@ -477,6 +477,19 @@ describe("review-governed workflow transitions", () => {
     });
 
     const parentId = randomUUID();
+    const executionWorkspaceId = randomUUID();
+    await db.insert(executionWorkspaces).values({
+      id: executionWorkspaceId,
+      companyId,
+      ownerIssueId: parentId,
+      sourceRepoCwd: "/tmp/source",
+      executionCwd: "/tmp/execution",
+      ticketKey: createIdentifier(issuePrefix, 1),
+      branch: `feature/${createIdentifier(issuePrefix, 1)}`,
+      baseBranch: "main",
+      status: "ready",
+      provisionedAt: new Date(),
+    });
     await db.insert(issues).values([
       {
         id: parentId,
@@ -488,6 +501,7 @@ describe("review-governed workflow transitions", () => {
         assigneeAgentId: leaderAgentId,
         checkoutRunId: leaderRunId,
         executionRunId: leaderRunId,
+        executionWorkspaceId,
         createdByUserId: reviewerUserId,
         issueNumber: 1,
         identifier: createIdentifier(issuePrefix, 1),
@@ -746,7 +760,7 @@ describe("review-governed workflow transitions", () => {
       .send({ status: "done" })
       .expect(409);
 
-    expect(response.body.error).toContain("pull request approval is pending");
+    expect(response.body.error).toContain("Cannot mark issue done while approval is pending");
 
     const parent = await db
       .select({ status: issues.status })
