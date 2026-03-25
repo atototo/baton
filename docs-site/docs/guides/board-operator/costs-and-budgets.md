@@ -5,6 +5,10 @@ description: Budget caps, cost tracking, and auto-pause enforcement
 
 Baton tracks every token spent by every agent and enforces budget limits to prevent runaway costs.
 
+![Costs page showing company totals plus per-agent and per-project spend breakdowns.](/img/screenshots/costs.png)
+
+*The Costs page turns usage into an operator-facing budget view. It is where you compare spend concentration across agents and projects.*
+
 ## How Cost Tracking Works
 
 Each agent heartbeat reports cost events with:

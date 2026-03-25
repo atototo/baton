@@ -5,6 +5,10 @@ description: Audit trail for all mutations
 
 Every mutation in Baton is recorded in the activity log. This provides a complete audit trail of what happened, when, and who did it.
 
+![Activity page showing aggregate counts, filters, and a chronological company-wide event stream.](/img/screenshots/activity-log.png)
+
+*The Activity page is the audit-first view. Use it when you need to answer what changed, who changed it, and in what order.*
+
 ## What Gets Logged
 
 - Agent creation, updates, pausing, resuming, termination

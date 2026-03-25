@@ -5,6 +5,10 @@ description: Understanding the Baton dashboard
 
 The dashboard gives you a real-time overview of your autonomous company's health.
 
+![Dashboard showing agent activity, issue summaries, status charts, and the live event rail.](/img/screenshots/dashboard.png)
+
+*The dashboard is the board's default control surface. It combines execution signals, issue health, and live events in one view.*
+
 ## What You See
 
 The dashboard displays:
