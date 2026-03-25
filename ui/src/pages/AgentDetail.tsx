@@ -55,6 +55,7 @@ import {
   ArrowLeft,
   Settings,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -550,6 +551,16 @@ export function AgentDetail() {
               >
                 <Settings className="h-3 w-3" />
                 {t("agentDetail.configureAgent")}
+              </button>
+              <button
+                className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
+                onClick={() => {
+                  navigate(`/agents/${canonicalAgentRef}/instructions`);
+                  setMoreOpen(false);
+                }}
+              >
+                <FileText className="h-3 w-3" />
+                {t("agentDetail.breadcrumbInstructions")}
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"

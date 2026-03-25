@@ -1153,6 +1153,8 @@ const ENABLED_ADAPTER_TYPES = new Set([
   "codex_local",
   "opencode_local",
   "cursor",
+  "gemini_local",
+  "pi_local",
 ]);
 
 /** Display list includes all real adapter types plus UI-only coming-soon entries. */
