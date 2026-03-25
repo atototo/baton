@@ -22,6 +22,10 @@ flowchart TD
   J --> K["Config revisions record the change"]
 ```
 
+![Agents list showing the org, adapter types, and current status chips.](/img/screenshots/agents-list.png)
+
+*The Agents page is the fastest way to understand the current org shape before you open an individual agent.*
+
 ## Agent States
 
 | Status | Meaning |
@@ -95,6 +99,10 @@ Every bundle has one **entry file**.
 4. Pick the entry file that the adapter should read first.
 5. If an old managed bundle contains unrelated files, use **Clean managed bundle** so only the current entry file remains.
 6. Run **Test Environment** before saving if you changed the adapter config or moved bundle paths.
+
+![Agent detail page with the Instructions tab open in managed mode.](/img/screenshots/agent-instructions.png)
+
+*The Instructions tab is where you switch bundle mode, pick the entry file, and clean a managed bundle when old files should be removed.*
 
 ### Cleaning a Managed Bundle
 

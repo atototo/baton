@@ -16,6 +16,10 @@ flowchart LR
   E --> F["Agent bundle + project conventions + governance reminders"]
 ```
 
+![Project detail page with backstory, coding conventions, and compact context fields.](/img/screenshots/project-conventions.png)
+
+*The Conventions tab is where project-level context becomes a reusable layer that Baton composes into supported runs.*
+
 ## What It Stores
 
 Each project can store three related prompt layers:

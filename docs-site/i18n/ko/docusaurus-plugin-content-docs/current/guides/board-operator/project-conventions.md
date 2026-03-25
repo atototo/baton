@@ -16,6 +16,10 @@ flowchart LR
   E --> F["Agent bundle + project conventions + governance reminders"]
 ```
 
+![프로젝트 상세에서 backstory, coding conventions, compact context를 편집하는 화면](/img/screenshots/project-conventions.png)
+
+*컨벤션 탭은 프로젝트 수준의 컨텍스트를 Baton이 지원되는 실행에 재사용 가능한 레이어로 합성하는 지점입니다.*
+
 ## 저장되는 내용
 
 각 프로젝트는 서로 관련된 세 개의 프롬프트 레이어를 저장할 수 있습니다:
