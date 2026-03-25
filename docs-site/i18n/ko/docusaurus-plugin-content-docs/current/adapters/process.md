@@ -13,7 +13,7 @@ description: 범용 셸 프로세스 adapter
 
 ## 사용하지 말아야 하는 경우
 
-- 실행 간 세션 지속성이 필요한 경우 (`claude_local` 또는 `codex_local` 사용)
+- 실행 간 세션 지속성이 필요한 경우 (`claude_local`, `codex_local`, `cursor`, `gemini_local`, `opencode_local`, 또는 `pi_local` 사용)
 - 에이전트가 heartbeat 간에 대화 컨텍스트를 유지해야 하는 경우
 
 ## 설정

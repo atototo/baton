@@ -5,45 +5,38 @@ description: Governance flows for planning, review, and pull requests
 
 Baton includes approval gates that keep the human board operator in control of key decisions.
 
+## Approval Flow at a Glance
+
+```mermaid
+flowchart TD
+  A["Approval request created"] --> B["Board reviews payload and linked issues"]
+  B --> C{"Decision"}
+  C -->|Approve| D["Action proceeds"]
+  C -->|Reject| E["Request stops"]
+  C -->|Request revision| F["Agent revises and resubmits"]
+  F --> A
+```
+
 ## Approval Types
 
-### Hire Agent
+| Approval | When it appears | What approval unlocks | Notes |
+|----------|-----------------|-----------------------|-------|
+| `hire_agent` | a manager or CEO wants to hire a subordinate | creates or activates the requested agent | payload includes name, role, capabilities, adapter config, and budget |
+| `approve_ceo_strategy` | the CEO submits an initial strategic plan | the CEO can continue with governed execution | this is the first board sign-off on company direction |
+| `approve_issue_plan` | a leader is ready to move delegated implementation into a ticket workspace | Baton provisions the ticket execution workspace and unblocks child implementation work | can be force-approved only when the board intentionally accepts a dirty source checkout |
+| `approve_pull_request` | child reviews are complete | Baton commits, pushes, opens the PR, and finalizes the parent issue | closes any still-open child issues under the completed parent |
 
-When an agent (typically a manager or CEO) wants to hire a new subordinate, they submit a hire request. This creates a `hire_agent` approval that appears in your approval queue.
+## Reviewing an Approval
 
-The approval includes the proposed agent's name, role, capabilities, adapter config, and budget.
+1. Open the approval from the **Approvals** page.
+2. Inspect the payload and any linked issues.
+3. Read the comments and decision note before acting.
+4. Choose one of three actions:
+   - **Approve** — the action proceeds
+   - **Reject** — the action stops
+   - **Request revision** — the agent updates the work and resubmits
 
-### CEO Strategy
-
-The CEO's initial strategic plan requires board approval before the CEO can start moving tasks to `in_progress`. This ensures human sign-off on the company direction.
-
-### Issue Plan
-
-Leaders use `approve_issue_plan` before delegated implementation begins.
-
-This approval includes:
-
-- ticket key
-- execution branch
-- base branch
-- project workspace
-- source repo path
-
-Approving it provisions the ticket execution workspace and allows child implementation work to proceed.
-
-If the source repository is not clean, the approval UI may offer **Force Approve**. Use that sparingly. It bypasses the clean-source guard and should only be used when you intentionally accept the risk of provisioning from a dirty checkout.
-
-### Pull Request
-
-Leaders use `approve_pull_request` after child reviews are complete.
-
-Approving it triggers the real git side effects:
-
-- commit in the execution workspace
-- push to origin
-- GitHub PR creation
-- parent issue completion
-- cascade completion of any still-open child issues linked to that completed parent
+When you request revision on a governed issue approval, Baton comments on linked issues, wakes the requesting agent, and moves linked work back to `in_progress` so the agent can rework it.
 
 ## Approval Workflow
 
@@ -59,17 +52,15 @@ revision_requested -> resubmitted -> pending
                    -> cancelled
 ```
 
-1. An agent creates an approval request
-2. It appears in your approval queue (Approvals page in the UI)
-3. You review the request details and any linked issues
-4. You can:
-   - **Approve** — the action proceeds
-   - **Reject** — the action is denied
-   - **Request revision** — ask the agent to modify and resubmit
+## Force Approve
 
-When you request revision on a governed issue approval, Baton comments on linked issues, wakes the requesting agent, and moves linked work back to `in_progress` so the agent can rework it.
+If the source repository is not clean, the approval UI may offer **Force Approve**.
 
-For the default project workflow, see [Governed Ticket Execution](/guides/board-operator/default-governed-workflow).
+Use it sparingly. It bypasses the clean-source guard and should only be used when you intentionally accept the risk of provisioning from a dirty checkout.
+
+Force approve is only relevant for `approve_issue_plan`.
+
+For the default project workflow, see [Governed Ticket Execution](./default-governed-workflow).
 
 ## Reviewing Approvals
 

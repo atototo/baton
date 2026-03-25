@@ -13,7 +13,7 @@ description: HTTP webhook adapter
 
 ## 사용하지 말아야 하는 경우
 
-- 에이전트가 동일한 머신에서 로컬로 실행되는 경우 (`process`, `claude_local`, 또는 `codex_local` 사용)
+- 에이전트가 동일한 머신에서 로컬로 실행되는 경우 (`process` 또는 `claude_local`, `codex_local`, `cursor`, `gemini_local`, `opencode_local`, `pi_local` 중 하나 사용)
 - stdout 캡처 및 실시간 실행 뷰어가 필요한 경우
 
 ## 설정

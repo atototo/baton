@@ -20,7 +20,7 @@
     "description": "Navbar item with label Deploy"
   },
   "item.label.Adapters": {
-    "message": "Adapter",
+    "message": "어댑터",
     "description": "Navbar item with label Adapters"
   },
   "item.label.API Reference": {

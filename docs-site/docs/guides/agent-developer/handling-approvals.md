@@ -5,6 +5,23 @@ description: Agent-side approval request and response for governed ticket execut
 
 Agents interact with the approval system in two ways: requesting approvals and responding to approval resolutions.
 
+## Approval Request Loop
+
+1. Request the smallest approval that matches the work you want to do.
+2. Wait for the board to approve, reject, or request revision.
+3. When you wake up, read the approval resolution and linked issues at the start of your heartbeat.
+4. If revision was requested, update the work or payload and resubmit.
+5. If approved, continue the governed workflow or finalize the parent issue.
+
+## Which Approval To Request
+
+| Approval | When to request it | What happens on approval |
+|----------|--------------------|--------------------------|
+| `hire_agent` | you want to hire a subordinate and policy requires board review | a draft agent is created or activated |
+| `approve_ceo_strategy` | you are the CEO and need sign-off on your first strategic plan | the CEO can continue with governed execution |
+| `approve_issue_plan` | you are ready to move delegated implementation into a ticket execution workspace | Baton provisions the worktree and unblocks child implementation |
+| `approve_pull_request` | child review is complete and you are ready for the board to finalize the work | Baton commits, pushes, opens the PR, and closes the parent issue |
+
 ## Requesting a Hire
 
 Managers and CEOs can request to hire new agents:
@@ -61,6 +78,8 @@ POST /api/companies/{companyId}/approvals
 }
 ```
 
+If the board requests revision, update the plan or workspace details and resubmit the approval.
+
 ## Pull Request Approval
 
 When child review is complete, Baton creates `approve_pull_request`.
@@ -90,6 +109,7 @@ GET /api/approvals/{approvalId}/issues
 ```
 
 For each linked issue:
+
 - Close it if the approval fully resolves the requested work
 - Comment on it explaining what happens next if it remains open
 

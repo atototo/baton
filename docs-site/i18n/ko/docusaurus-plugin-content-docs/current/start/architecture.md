@@ -3,26 +3,100 @@ title: 아키텍처
 description: 스택 개요, 요청 흐름, adapter 모델
 ---
 
-Baton은 네 가지 주요 계층으로 구성된 모노레포입니다.
+import {
+  StoryHero,
+  ControlPlaneDiagram,
+  CompareModes,
+  GovernedFlowTimeline,
+} from "@site/src/components/docs";
+
+export const controlPlanePane = {
+  title: "Baton control plane",
+  summary: "회사 상태, 거버넌스 규칙, 감사 기록을 동기화합니다.",
+  tone: "primary",
+  bullets: [
+    "회사 구조와 목표를 이해",
+    "이슈, 승인, 예산, 활동을 추적",
+    "어떤 작업이 진행될 수 있는지 결정",
+    "runtime이 사용하는 API 제공",
+  ],
+};
+
+export const executionAdapterPane = {
+  title: "Execution adapter",
+  summary: "Baton을 실제 에이전트가 실행되는 환경과 연결합니다.",
+  tone: "success",
+  bullets: [
+    "Claude, Codex, Gemini, Pi 또는 다른 runtime 실행",
+    "stdout, cost, session data 수집",
+    "설정과 environment context 전달",
+    "결과를 Baton으로 다시 보고",
+  ],
+};
+
+<StoryHero
+  eyebrow="시스템 관점"
+  title="Baton은 control plane과 execution adapter로 이루어집니다."
+  description="UI, API, 데이터베이스, adapter는 서로 다른 계층입니다. Baton은 회사 모델을 조정하고, adapter는 실제 작업이 실행되는 runtime과 Baton을 연결합니다."
+  bullets={[
+    "Control plane은 허용된 행동을 결정하고, 무슨 일이 일어났는지 기록하며, 회사 모델을 동기화합니다.",
+    "Adapters는 Baton을 Claude, Codex, Gemini, Pi, shell process, HTTP runtime과 연결합니다.",
+    "runtime이 바뀌어도 제품 구조는 일관되게 유지됩니다.",
+  ]}
+  stats={[
+    { value: "Control plane 우선", label: "Baton이 회사 상태, 거버넌스, 감사 기록을 소유합니다." },
+    { value: "여러 runtime", label: "같은 제품이 여러 에이전트 runtime을 조정할 수 있습니다." },
+    { value: "하나의 계약", label: "UI, API, adapter의 행동은 서로 맞물려 있습니다." },
+  ]}
+/>
 
 ## 스택 개요
 
-```
-┌─────────────────────────────────────┐
-│  React UI (Vite)                    │
-│  Dashboard, org management, tasks   │
-├─────────────────────────────────────┤
-│  Express.js REST API (Node.js)      │
-│  Routes, services, auth, adapters   │
-├─────────────────────────────────────┤
-│  PostgreSQL (Drizzle ORM)           │
-│  Schema, migrations, embedded mode  │
-├─────────────────────────────────────┤
-│  Adapters                           │
-│  Claude, Codex, Gemini, Pi,         │
-│  Process, HTTP                      │
-└─────────────────────────────────────┘
-```
+<ControlPlaneDiagram
+  center={{
+    title: "Baton",
+    description: "회사 모델과 실행을 연결하는 control plane입니다.",
+    tone: "primary",
+  }}
+  top={[
+    {
+      title: "React UI",
+      description: "운영자가 보는 대시보드입니다. 회사, 에이전트, 작업, 승인, 로그를 다룹니다.",
+      tone: "primary",
+    },
+  ]}
+  left={[
+    {
+      title: "Express API",
+      description: "인증, 비즈니스 로직, adapter 호출을 조정하는 REST 표면입니다.",
+      tone: "success",
+    },
+  ]}
+  right={[
+    {
+      title: "Adapters",
+      description: "Claude Code, Codex, Gemini, Pi, process, HTTP runtime과의 built-in 통합입니다.",
+      tone: "warning",
+    },
+  ]}
+  bottom={[
+    {
+      title: "PostgreSQL",
+      description: "회사, 에이전트, 이슈, 승인, 활동의 영속적 원본입니다.",
+      tone: "neutral",
+    },
+    {
+      title: "Docs와 skills",
+      description: "회사가 어떻게 행동해야 하는지 설명하는 참고 자료와 에이전트 instructions입니다.",
+      tone: "neutral",
+    },
+    {
+      title: "Audit와 budgets",
+      description: "자율 실행을 관측 가능하고 안전하게 만드는 안전장치입니다.",
+      tone: "danger",
+    },
+  ]}
+/>
 
 ## 기술 스택
 
@@ -30,9 +104,9 @@ Baton은 네 가지 주요 계층으로 구성된 모노레포입니다.
 |-------|-----------|
 | 프론트엔드 | React 19, Vite 6, React Router 7, Radix UI, Tailwind CSS 4, TanStack Query |
 | 백엔드 | Node.js 20+, Express.js 5, TypeScript |
-| 데이터베이스 | PostgreSQL 17 (또는 내장 PGlite), Drizzle ORM |
-| 인증 | Better Auth (세션 + API 키) |
-| Adapter | Claude Code CLI, Codex CLI, 셸 프로세스, HTTP 웹훅 |
+| 데이터베이스 | PostgreSQL 17 또는 내장 PGlite, Drizzle ORM |
+| 인증 | Better Auth, sessions, agent API keys |
+| Adapter | Claude Code CLI, Codex CLI, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
 | 패키지 매니저 | pnpm 9 with workspaces |
 
 ## 레포지토리 구조
@@ -40,16 +114,16 @@ Baton은 네 가지 주요 계층으로 구성된 모노레포입니다.
 ```
 baton/
 ├── ui/                          # React 프론트엔드
-│   ├── src/pages/              # 라우트 페이지
-│   ├── src/components/         # React 컴포넌트
-│   ├── src/api/                # API 클라이언트
-│   └── src/context/            # React context 프로바이더
+│   ├── src/pages/               # 라우트 페이지
+│   ├── src/components/          # React 컴포넌트
+│   ├── src/api/                 # API 클라이언트
+│   └── src/context/             # React context 프로바이더
 │
-├── server/                      # Express.js API
-│   ├── src/routes/             # REST 엔드포인트
-│   ├── src/services/           # 비즈니스 로직
-│   ├── src/adapters/           # 에이전트 실행 adapter
-│   └── src/middleware/         # 인증, 로깅
+├── server/                      # Express API
+│   ├── src/routes/              # REST 엔드포인트
+│   ├── src/services/            # 비즈니스 로직
+│   ├── src/adapters/            # 에이전트 실행 adapter
+│   └── src/middleware/          # 인증, 로깅
 │
 ├── packages/
 │   ├── db/                      # Drizzle 스키마 + 마이그레이션
@@ -61,41 +135,42 @@ baton/
 │       ├── gemini-local/        # Gemini CLI adapter
 │       └── pi-local/            # Pi local adapter
 │
-├── skills/                      # 에이전트 스킬
-│   └── baton/               # 코어 Baton 스킬 (heartbeat 프로토콜)
+├── skills/
+│   └── baton/                   # Core Baton skill and heartbeat protocol
 │
 ├── cli/                         # CLI 클라이언트
-│   └── src/                     # 설정 및 Control Plane 명령어
+│   └── src/                     # 설정 및 control plane 명령어
 │
 └── doc/                         # 내부 문서
 ```
 
 ## 요청 흐름
 
-Heartbeat가 실행되면:
+Heartbeat 실행은 stack을 따라 예측 가능한 순서로 이동합니다.
 
-1. **트리거** — 스케줄러, 수동 호출 또는 이벤트(할당, 멘션)가 heartbeat를 트리거합니다
-2. **Adapter 호출** — 서버가 설정된 adapter의 `execute()` 함수를 호출합니다
-3. **에이전트 프로세스** — Adapter가 Baton 환경 변수와 프롬프트를 포함하여 에이전트(예: Claude Code CLI)를 생성합니다
-4. **프롬프트 조합** — Baton이 project conventions와 governance reminders를 보조 instructions로 조합할 수 있습니다
-5. **에이전트 작업** — 에이전트가 Baton의 REST API를 호출하여 할당된 작업을 확인하고, 태스크를 체크아웃하고, 작업을 수행하고, 상태를 업데이트합니다
-6. **결과 캡처** — Adapter가 stdout를 캡처하고, 사용량/비용 데이터를 파싱하고, 세션 상태를 추출합니다
-7. **실행 기록** — 서버가 실행 결과, 비용, 다음 heartbeat를 위한 세션 상태를 기록합니다
+<GovernedFlowTimeline
+  stages={[
+    { title: "트리거", description: "스케줄, 수동 invoke, 멘션, 할당이 heartbeat를 시작합니다.", state: "warning" },
+    { title: "Adapter 호출", description: "서버가 선택된 adapter의 execute 함수를 호출합니다.", state: "active" },
+    { title: "Agent process", description: "Adapter가 Baton 환경 변수와 prompt context를 포함해 runtime을 실행합니다.", state: "pending" },
+    { title: "작업", description: "에이전트가 REST API를 호출해 할당을 확인하고, 태스크를 checkout하고, 상태를 갱신합니다.", state: "pending" },
+    { title: "기록", description: "서버가 결과, 비용, 다음 실행을 위한 session state를 저장합니다.", state: "done" },
+  ]}
+/>
 
 ## Adapter 모델
 
-Adapter는 Baton과 에이전트 런타임 사이의 브릿지입니다. 각 adapter는 세 가지 모듈로 구성된 패키지입니다:
+<CompareModes
+  left={controlPlanePane}
+  right={executionAdapterPane}
+/>
 
-- **서버 모듈** — 에이전트를 생성/호출하는 `execute()` 함수 및 환경 진단
-- **UI 모듈** — 실행 뷰어를 위한 stdout 파서, 에이전트 생성을 위한 설정 폼 필드
-- **CLI 모듈** — `baton run --watch`를 위한 터미널 포맷터
-
-기본 제공 adapter: `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`. 모든 런타임에 대해 커스텀 adapter를 생성할 수 있습니다.
+기본 제공 adapter에는 `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`가 포함됩니다.
 
 ## 핵심 설계 결정
 
-- **Control Plane이지 실행 플레인이 아닙니다** — Baton은 에이전트를 오케스트레이션하며, 직접 실행하지 않습니다
-- **회사 범위** — 모든 엔티티는 정확히 하나의 회사에 속하며, 엄격한 데이터 경계가 적용됩니다
-- **단일 담당자 태스크** — 원자적 체크아웃으로 동일한 태스크에 대한 동시 작업을 방지합니다
-- **Adapter 비종속적** — HTTP API를 호출할 수 있는 모든 런타임이 에이전트로 작동합니다
-- **기본 내장 모드** — 내장 PostgreSQL을 사용한 설정 없는 로컬 모드
+- **Control plane이지 실행 플레인이 아닙니다** - Baton은 에이전트를 조정하지만 runtime을 대체하지는 않습니다
+- **회사 범위** - 모든 엔티티는 정확히 하나의 회사에 속합니다
+- **단일 담당자 태스크** - 원자적 체크아웃으로 동일 태스크의 동시 작업을 막습니다
+- **Adapter 비종속적** - HTTP API를 호출할 수 있는 모든 runtime이 참여할 수 있습니다
+- **기본 내장 모드** - 별도 데이터베이스 없이 로컬 개발이 가능합니다

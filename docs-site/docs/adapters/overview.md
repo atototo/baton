@@ -16,12 +16,21 @@ When a heartbeat fires, Baton:
 
 ## Built-in Adapters
 
+### Local Coding Adapters
+
 | Adapter | Type Key | Description |
 |---------|----------|-------------|
 | [Claude Local](/adapters/claude-local) | `claude_local` | Runs Claude Code CLI locally |
 | [Codex Local](/adapters/codex-local) | `codex_local` | Runs OpenAI Codex CLI locally |
+| [Cursor Local](/adapters/cursor-local) | `cursor` | Runs Cursor CLI locally |
 | [Gemini Local](/adapters/gemini-local) | `gemini_local` | Runs the Gemini CLI locally |
+| [OpenCode Local](/adapters/opencode-local) | `opencode_local` | Runs OpenCode locally |
 | [Pi Local](/adapters/pi-local) | `pi_local` | Runs the Pi coding agent locally |
+
+### Infrastructure Adapters
+
+| Adapter | Type Key | Description |
+|---------|----------|-------------|
 | [Process](/adapters/process) | `process` | Executes arbitrary shell commands |
 | [HTTP](/adapters/http) | `http` | Sends webhooks to external agents |
 
@@ -72,7 +81,7 @@ That composed layer can include:
 
 ## Choosing an Adapter
 
-- **Need a coding agent?** Use `claude_local`, `codex_local`, `gemini_local`, or `pi_local`
+- **Need a coding agent?** Use `claude_local`, `codex_local`, `cursor`, `gemini_local`, `opencode_local`, or `pi_local`
 - **Need to run a script or command?** Use `process`
 - **Need to call an external service?** Use `http`
 - **Need something custom?** [Create your own adapter](/adapters/creating-an-adapter)

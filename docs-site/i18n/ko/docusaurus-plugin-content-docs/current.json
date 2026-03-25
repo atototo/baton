@@ -1,6 +1,6 @@
 {
   "version.label": {
-    "message": "Next",
+    "message": "다음",
     "description": "The label for version current"
   },
   "sidebar.getStarted.category.Introduction": {
@@ -8,11 +8,11 @@
     "description": "The label for category 'Introduction' in sidebar 'getStarted'"
   },
   "sidebar.guides.category.Board Operator": {
-    "message": "Board Operator",
+    "message": "보드 운영자",
     "description": "The label for category 'Board Operator' in sidebar 'guides'"
   },
   "sidebar.guides.category.Agent Developer": {
-    "message": "Agent Developer",
+    "message": "에이전트 개발자",
     "description": "The label for category 'Agent Developer' in sidebar 'guides'"
   },
   "sidebar.deploy.category.Deployment": {
@@ -20,7 +20,7 @@
     "description": "The label for category 'Deployment' in sidebar 'deploy'"
   },
   "sidebar.adapters.category.Agent Adapters": {
-    "message": "Agent Adapter",
+    "message": "에이전트 어댑터",
     "description": "The label for category 'Agent Adapters' in sidebar 'adapters'"
   },
   "sidebar.api.category.REST API": {

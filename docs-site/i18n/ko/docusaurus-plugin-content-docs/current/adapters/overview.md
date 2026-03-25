@@ -16,12 +16,21 @@ heartbeat가 발생하면 Baton은 다음을 수행합니다:
 
 ## 내장 Adapter
 
+### 로컬 코딩 Adapter
+
 | Adapter | Type Key | 설명 |
 |---------|----------|------|
 | [Claude Local](/adapters/claude-local) | `claude_local` | Claude Code CLI를 로컬에서 실행합니다 |
 | [Codex Local](/adapters/codex-local) | `codex_local` | OpenAI Codex CLI를 로컬에서 실행합니다 |
+| [Cursor Local](/adapters/cursor-local) | `cursor` | Cursor CLI를 로컬에서 실행합니다 |
 | [Gemini Local](/adapters/gemini-local) | `gemini_local` | Gemini CLI를 로컬에서 실행합니다 |
+| [OpenCode Local](/adapters/opencode-local) | `opencode_local` | OpenCode를 로컬에서 실행합니다 |
 | [Pi Local](/adapters/pi-local) | `pi_local` | Pi coding agent를 로컬에서 실행합니다 |
+
+### 인프라 Adapter
+
+| Adapter | Type Key | 설명 |
+|---------|----------|------|
 | [Process](/adapters/process) | `process` | 임의의 셸 명령을 실행합니다 |
 | [HTTP](/adapters/http) | `http` | 외부 에이전트에 webhook을 전송합니다 |
 
@@ -72,7 +81,7 @@ packages/adapters/<name>/
 
 ## Adapter 선택 가이드
 
-- **코딩 에이전트가 필요하신가요?** `claude_local`, `codex_local`, `gemini_local`, `pi_local`을 사용하십시오
+- **코딩 에이전트가 필요하신가요?** `claude_local`, `codex_local`, `cursor`, `gemini_local`, `opencode_local`, 또는 `pi_local`을 사용하십시오
 - **스크립트나 명령을 실행해야 하나요?** `process`를 사용하십시오
 - **외부 서비스를 호출해야 하나요?** `http`를 사용하십시오
 - **커스텀 adapter가 필요하신가요?** [직접 adapter를 만들어 보십시오](/adapters/creating-an-adapter)

@@ -5,6 +5,17 @@ description: Manage project backstory, coding conventions, and compact context
 
 Project conventions let Baton inject project-specific context into agent runs without forcing every agent prompt to duplicate the same rules.
 
+## At a Glance
+
+```mermaid
+flowchart LR
+  A["Project detail page"] --> B["Write backstory"]
+  B --> C["Write full conventions"]
+  C --> D["Generate compact context"]
+  D --> E["Heartbeat composes project instructions"]
+  E --> F["Agent bundle + project conventions + governance reminders"]
+```
+
 ## What It Stores
 
 Each project can store three related prompt layers:
@@ -52,6 +63,7 @@ The composed instructions are injected alongside the agent's own instructions bu
 3. Write the full project conventions in markdown
 4. Generate compact context
 5. Re-generate the compact version whenever the full conventions change materially
+6. Verify that the updated compact context is what heartbeats will use
 
 ## Relationship To Agent Instructions
 

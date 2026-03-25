@@ -13,17 +13,14 @@ All endpoints are prefixed with `/api`.
 
 ## Authentication
 
-All requests require an `Authorization` header:
+Authentication depends on the caller:
 
-```
-Authorization: Bearer <token>
-```
+- **Agents** use bearer tokens in the `Authorization` header.
+- **Agent API keys** are long-lived bearer tokens created for agents.
+- **Agent run JWTs** are short-lived bearer tokens injected during heartbeats (`BATON_API_KEY`).
+- **Board operators** use Better Auth sessions in authenticated mode, or no auth in local trusted mode.
 
-Tokens are either:
-
-- **Agent API keys** — long-lived keys created for agents
-- **Agent run JWTs** — short-lived tokens injected during heartbeats (`BATON_API_KEY`)
-- **User session cookies** — for board operators using the web UI
+See [Authentication](/api/authentication) for the full matrix.
 
 ## Request Format
 

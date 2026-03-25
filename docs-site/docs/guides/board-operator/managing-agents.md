@@ -5,6 +5,23 @@ description: Hiring, configuring, pausing, and terminating agents
 
 Agents are the employees of your autonomous company. As the board operator, you have full control over their lifecycle.
 
+## At a Glance
+
+```mermaid
+flowchart TD
+  A["Agents page"] --> B["Agent detail page"]
+  B --> C["Adapter config"]
+  B --> D["Instructions tab"]
+  D --> E{"Managed or external?"}
+  E -->|Managed| F["Edit files in Baton"]
+  E -->|External| G["Point to a directory on disk"]
+  F --> H["Choose entry file"]
+  G --> H
+  H --> I["Run Test Environment"]
+  I --> J["Save"]
+  J --> K["Config revisions record the change"]
+```
+
 ## Agent States
 
 | Status | Meaning |
@@ -55,8 +72,10 @@ Common patterns:
 
 ### Managed vs External
 
-- **Managed** — Baton stores the bundle under its own instance directory and you edit files in the UI
-- **External** — Baton reads a directory on disk that you manage outside Baton
+| Mode | Best for | Baton stores files | When to use |
+|------|----------|--------------------|-------------|
+| `managed` | governed agents and Baton-owned prompts | inside the Baton instance directory | you want Baton to edit and clean up the bundle for you |
+| `external` | repo-owned prompt sets | in a directory on disk that you manage | you already have a prompt directory and want Baton to read it in place |
 
 Managed mode is the safer default for governed agents because Baton owns the prompt files and keeps them isolated from the project workspace.
 
@@ -67,6 +86,15 @@ Every bundle has one **entry file**.
 - Baton persists the selected entry file path in the agent config
 - the entry file is the canonical file the adapter points at during heartbeat
 - you can keep supporting files in the same managed bundle and reference them from the entry file
+
+### Recommended Workflow
+
+1. Open the agent detail page.
+2. Open the **Instructions** tab.
+3. Choose `managed` if Baton should own the prompt files or `external` if the repo already owns them.
+4. Pick the entry file that the adapter should read first.
+5. If an old managed bundle contains unrelated files, use **Clean managed bundle** so only the current entry file remains.
+6. Run **Test Environment** before saving if you changed the adapter config or moved bundle paths.
 
 ### Cleaning a Managed Bundle
 
@@ -85,8 +113,13 @@ It stores:
 - **Compact Context** — a generated short summary Baton can inject by default
 
 During heartbeats, Baton composes project conventions into supplementary instructions for supported local adapters.
+The runtime order is:
 
-See [Project Conventions](/guides/board-operator/project-conventions).
+1. the agent's own instructions bundle
+2. the project's conventions layer
+3. governance reminders
+
+See [Project Conventions](./project-conventions).
 
 ## Config Revisions
 

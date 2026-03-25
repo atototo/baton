@@ -8,6 +8,28 @@
   --ifm-color-primary-lightest: #93bbfd;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --docs-surface: rgba(255, 255, 255, 0.88);
+  --docs-surface-2: rgba(248, 250, 252, 0.94);
+  --docs-surface-elevated: rgba(255, 255, 255, 0.92);
+  --docs-surface-raised: rgba(255, 255, 255, 0.98);
+  --docs-surface-hover: rgba(248, 250, 252, 1);
+  --docs-surface-border: rgba(148, 163, 184, 0.22);
+  --docs-accent-soft: rgba(37, 99, 235, 0.12);
+  --docs-accent-border: rgba(37, 99, 235, 0.28);
+  --docs-chip-bg: rgba(37, 99, 235, 0.08);
+  --docs-chip-fg: #1d4ed8;
+  --docs-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.94));
+  --docs-text: var(--ifm-font-color-base);
+  --docs-text-muted: #475569;
+  --docs-text-subtle: #64748b;
+  --docs-marker-bg: rgba(148, 163, 184, 0.16);
+  --docs-marker-fg: #334155;
+  --docs-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  --docs-shadow-soft: 0 14px 30px rgba(15, 23, 42, 0.06);
+  --docs-radius-xl: 28px;
+  --docs-radius-lg: 20px;
+  --docs-radius-md: 14px;
+  scroll-behavior: smooth;
 }
 
 [data-theme="dark"] {
@@ -19,4 +41,28 @@
   --ifm-color-primary-lighter: #93bbfd;
   --ifm-color-primary-lightest: #bfdbfe;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --docs-surface: rgba(15, 23, 42, 0.82);
+  --docs-surface-2: rgba(15, 23, 42, 0.94);
+  --docs-surface-elevated: rgba(15, 23, 42, 0.88);
+  --docs-surface-raised: rgba(15, 23, 42, 0.98);
+  --docs-surface-hover: rgba(30, 41, 59, 0.98);
+  --docs-surface-border: rgba(148, 163, 184, 0.18);
+  --docs-accent-soft: rgba(96, 165, 250, 0.16);
+  --docs-accent-border: rgba(96, 165, 250, 0.28);
+  --docs-chip-bg: rgba(96, 165, 250, 0.12);
+  --docs-chip-fg: #bfdbfe;
+  --docs-panel-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.84));
+  --docs-text: var(--ifm-font-color-base);
+  --docs-text-muted: #cbd5e1;
+  --docs-text-subtle: #94a3b8;
+  --docs-marker-bg: rgba(148, 163, 184, 0.14);
+  --docs-marker-fg: #e2e8f0;
+  --docs-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  --docs-shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

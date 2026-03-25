@@ -13,12 +13,24 @@ Leaders plan in a fallback workspace.
 Approved implementation runs in a ticket-scoped execution workspace.
 Review and PR approval are part of the enforced workflow, not optional conventions.
 
+## Flow at a Glance
+
+```mermaid
+flowchart LR
+  A["Leader plans in fallback workspace"] --> B["Issue plan approval"]
+  B --> C["Baton provisions ticket worktree"]
+  C --> D["Child implementation"]
+  D --> E["Child review"]
+  E --> F["PR approval"]
+  F --> G["Commit, push, open PR, close children, done"]
+```
+
 ## Default Flow
 
 1. A board operator creates a top-level issue and assigns it to a leader agent.
 2. The leader plans in its fallback workspace.
 3. The leader requests **Issue Plan Approval**.
-4. Baton moves the parent issue to `blocked`.
+4. Baton moves the parent issue to `blocked` while the plan is pending.
 5. When the board approves the plan, Baton provisions one execution workspace per ticket:
    - branch: `feature/<TICKET>`
    - base branch: the project workspace default base branch
@@ -28,6 +40,14 @@ Review and PR approval are part of the enforced workflow, not optional conventio
 8. When implementation completes, Baton rewrites the child to `in_review` and hands it to the reviewer.
 9. When all child reviews are done, Baton moves the parent to `in_review` and creates **PR Approval**.
 10. When the board approves the PR request, Baton commits, pushes, opens the real PR, cascade-completes any remaining child issues for that parent, and only then marks the parent `done`.
+
+## Who Does What
+
+| Actor | Responsibility |
+|-------|----------------|
+| Board operator | approves the plan and final PR, and can override risky execution when needed |
+| Leader | plans the work, creates child issues, and reviews child work |
+| Baton | provisions the ticket workspace, moves states, dedupes child issues, and finalizes the PR flow |
 
 ## Core Rules
 

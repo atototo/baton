@@ -3,53 +3,127 @@ title: Architecture
 description: Stack overview, request flow, and adapter model
 ---
 
-Baton is a monorepo with four main layers.
+import {
+  StoryHero,
+  ControlPlaneDiagram,
+  CompareModes,
+  GovernedFlowTimeline,
+} from "@site/src/components/docs";
 
-## Stack Overview
+export const controlPlanePane = {
+  title: "Baton control plane",
+  summary: "Keeps the company state, governance rules, and audit trail in sync.",
+  tone: "primary",
+  bullets: [
+    "Knows the company structure and goals",
+    "Tracks issues, approvals, budgets, and activity",
+    "Decides what work is allowed to proceed",
+    "Provides the API the runtime uses",
+  ],
+};
 
-```
-┌─────────────────────────────────────┐
-│  React UI (Vite)                    │
-│  Dashboard, org management, tasks   │
-├─────────────────────────────────────┤
-│  Express.js REST API (Node.js)      │
-│  Routes, services, auth, adapters   │
-├─────────────────────────────────────┤
-│  PostgreSQL (Drizzle ORM)           │
-│  Schema, migrations, embedded mode  │
-├─────────────────────────────────────┤
-│  Adapters                           │
-│  Claude, Codex, Gemini, Pi,         │
-│  Process, HTTP                      │
-└─────────────────────────────────────┘
-```
+export const executionAdapterPane = {
+  title: "Execution adapter",
+  summary: "Connects Baton to the environment where an agent actually runs.",
+  tone: "success",
+  bullets: [
+    "Launches Claude, Codex, Gemini, Pi, or another runtime",
+    "Collects stdout, cost, and session data",
+    "Supplies config and environment context",
+    "Reports results back to Baton",
+  ],
+};
 
-## Technology Stack
+<StoryHero
+  eyebrow="System view"
+  title="Baton is a control plane plus execution adapters."
+  description="The UI, API, database, and adapters are separate layers. Baton coordinates the company model; adapters connect Baton to the runtime where agents actually execute work."
+  bullets={[
+    "The control plane decides what is allowed, records what happened, and keeps the company model in sync.",
+    "Adapters connect Baton to Claude, Codex, Gemini, Pi, shell processes, and HTTP runtimes.",
+    "The product stays consistent even when the agent runtime changes.",
+  ]}
+  stats={[
+    { value: "Control plane first", label: "Baton owns company state, governance, and audit history." },
+    { value: "Multiple runtimes", label: "The same product can drive several agent runtimes." },
+    { value: "One contract", label: "UI, API, and adapter behavior remain aligned." },
+  ]}
+/>
+
+## Stack overview
+
+<ControlPlaneDiagram
+  center={{
+    title: "Baton",
+    description: "The control plane that ties the company model to execution.",
+    tone: "primary",
+  }}
+  top={[
+    {
+      title: "React UI",
+      description: "The dashboard for operators: company views, agent views, tasks, approvals, and logs.",
+      tone: "primary",
+    },
+  ]}
+  left={[
+    {
+      title: "Express API",
+      description: "The REST surface that coordinates auth, business logic, and adapter calls.",
+      tone: "success",
+    },
+  ]}
+  right={[
+    {
+      title: "Adapters",
+      description: "Built-in integrations for Claude Code, Codex, Gemini, Pi, process, and HTTP runtimes.",
+      tone: "warning",
+    },
+  ]}
+  bottom={[
+    {
+      title: "PostgreSQL",
+      description: "The persistent source of truth for companies, agents, issues, approvals, and activity.",
+      tone: "neutral",
+    },
+    {
+      title: "Docs and skills",
+      description: "Reference material and agent instructions that explain how the company should behave.",
+      tone: "neutral",
+    },
+    {
+      title: "Audit and budgets",
+      description: "The guardrails that make autonomous execution observable and safe.",
+      tone: "danger",
+    },
+  ]}
+/>
+
+## Technology stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 19, Vite 6, React Router 7, Radix UI, Tailwind CSS 4, TanStack Query |
 | Backend | Node.js 20+, Express.js 5, TypeScript |
-| Database | PostgreSQL 17 (or embedded PGlite), Drizzle ORM |
-| Auth | Better Auth (sessions + API keys) |
-| Adapters | Claude Code CLI, Codex CLI, shell process, HTTP webhook |
+| Database | PostgreSQL 17 or embedded PGlite, Drizzle ORM |
+| Auth | Better Auth, sessions, and agent API keys |
+| Adapters | Claude Code CLI, Codex CLI, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
 | Package manager | pnpm 9 with workspaces |
 
-## Repository Structure
+## Repository structure
 
 ```
 baton/
 ├── ui/                          # React frontend
-│   ├── src/pages/              # Route pages
-│   ├── src/components/         # React components
-│   ├── src/api/                # API client
-│   └── src/context/            # React context providers
+│   ├── src/pages/               # Route pages
+│   ├── src/components/          # React components
+│   ├── src/api/                 # API client
+│   └── src/context/             # React context providers
 │
-├── server/                      # Express.js API
-│   ├── src/routes/             # REST endpoints
-│   ├── src/services/           # Business logic
-│   ├── src/adapters/           # Agent execution adapters
-│   └── src/middleware/         # Auth, logging
+├── server/                      # Express API
+│   ├── src/routes/              # REST endpoints
+│   ├── src/services/            # Business logic
+│   ├── src/adapters/            # Agent execution adapters
+│   └── src/middleware/          # Auth and logging
 │
 ├── packages/
 │   ├── db/                      # Drizzle schema + migrations
@@ -61,41 +135,42 @@ baton/
 │       ├── gemini-local/        # Gemini CLI adapter
 │       └── pi-local/            # Pi local adapter
 │
-├── skills/                      # Agent skills
-│   └── baton/               # Core Baton skill (heartbeat protocol)
+├── skills/
+│   └── baton/                   # Core Baton skill and heartbeat protocol
 │
 ├── cli/                         # CLI client
-│   └── src/                     # Setup and control-plane commands
+│   └── src/                     # Setup and control plane commands
 │
-└── doc/                         # Internal documentation
+└── doc/                         # Internal docs
 ```
 
-## Request Flow
+## Request flow
 
-When a heartbeat fires:
+Heartbeat execution moves through the stack in a predictable sequence.
 
-1. **Trigger** — Scheduler, manual invoke, or event (assignment, mention) triggers a heartbeat
-2. **Adapter invocation** — Server calls the configured adapter's `execute()` function
-3. **Agent process** — Adapter spawns the agent (e.g. Claude Code CLI) with Baton env vars and a prompt
-4. **Prompt composition** — Baton may compose project conventions and governance reminders into supplementary instructions
-5. **Agent work** — The agent calls Baton's REST API to check assignments, checkout tasks, do work, and update status
-6. **Result capture** — Adapter captures stdout, parses usage/cost data, extracts session state
-7. **Run record** — Server records the run result, costs, and any session state for next heartbeat
+<GovernedFlowTimeline
+  stages={[
+    { title: "Trigger", description: "A schedule, manual invoke, mention, or assignment starts the heartbeat.", state: "warning" },
+    { title: "Adapter call", description: "The server calls the selected adapter’s execute function.", state: "active" },
+    { title: "Agent process", description: "The adapter launches the runtime with Baton environment variables and prompt context.", state: "pending" },
+    { title: "Work", description: "The agent calls the REST API to inspect assignments, checkout tasks, and update status.", state: "pending" },
+    { title: "Record", description: "The server stores results, cost data, and any session state for the next run.", state: "done" },
+  ]}
+/>
 
-## Adapter Model
+## Adapter model
 
-Adapters are the bridge between Baton and agent runtimes. Each adapter is a package with three modules:
+<CompareModes
+  left={controlPlanePane}
+  right={executionAdapterPane}
+/>
 
-- **Server module** — `execute()` function that spawns/calls the agent, plus environment diagnostics
-- **UI module** — stdout parser for the run viewer, config form fields for agent creation
-- **CLI module** — terminal formatter for `baton run --watch`
+Built-in adapters currently include `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, and `http`.
 
-Built-in adapters: `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`. You can create custom adapters for any runtime.
+## Key design decisions
 
-## Key Design Decisions
-
-- **Control plane, not execution plane** — Baton orchestrates agents; it doesn't run them
-- **Company-scoped** — all entities belong to exactly one company; strict data boundaries
-- **Single-assignee tasks** — atomic checkout prevents concurrent work on the same task
-- **Adapter-agnostic** — any runtime that can call an HTTP API works as an agent
-- **Embedded by default** — zero-config local mode with embedded PostgreSQL
+- **Control plane, not execution plane** - Baton orchestrates agents; it does not replace the runtime
+- **Company-scoped** - every entity belongs to exactly one company
+- **Single-assignee tasks** - atomic checkout prevents concurrent work on the same issue
+- **Adapter-agnostic** - any runtime that can call an HTTP API can participate
+- **Embedded by default** - local development works without a separate database
