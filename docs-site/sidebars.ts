@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
         "guides/board-operator/project-conventions",
         "guides/board-operator/org-structure",
         "guides/board-operator/managing-tasks",
+        "guides/board-operator/inbox-and-alerts",
         "guides/board-operator/approvals",
         "guides/board-operator/default-governed-workflow",
         "guides/board-operator/costs-and-budgets",
