@@ -395,4 +395,74 @@ export function CalloutGrid({ cards, className }: CalloutGridProps) {
   );
 }
 
+export type ScreenshotCallout = {
+  title: ReactNode;
+  description?: ReactNode;
+  tone?: Tone;
+  marker?: ReactNode;
+};
+
+export type AnnotatedScreenshotProps = {
+  imageSrc: string;
+  imageAlt: string;
+  callouts: ScreenshotCallout[];
+  title?: ReactNode;
+  description?: ReactNode;
+  imageCaption?: ReactNode;
+  imageBadge?: ReactNode;
+  layout?: "image-left" | "image-right";
+  className?: string;
+};
+
+export function AnnotatedScreenshot({
+  imageSrc,
+  imageAlt,
+  callouts,
+  title,
+  description,
+  imageCaption,
+  imageBadge,
+  layout = "image-left",
+  className,
+}: AnnotatedScreenshotProps) {
+  return (
+    <section className={clsx(styles.annotatedScreenshot, className)} data-layout={layout}>
+      {(title || description) && (
+        <div className={styles.annotatedScreenshotHeader}>
+          {title ? <h3 className={styles.annotatedScreenshotTitle}>{title}</h3> : null}
+          {description ? <p className={styles.annotatedScreenshotDescription}>{description}</p> : null}
+        </div>
+      )}
+
+      <div className={styles.annotatedScreenshotBody}>
+        <figure className={styles.annotatedScreenshotFigure}>
+          <div className={styles.annotatedScreenshotMedia}>
+            <img className={styles.annotatedScreenshotImage} src={imageSrc} alt={imageAlt} />
+            {imageBadge ? (
+              <div className={styles.annotatedScreenshotBadgeRow} aria-hidden="true">
+                <span className={styles.annotatedScreenshotBadge}>{imageBadge}</span>
+              </div>
+            ) : null}
+          </div>
+          {imageCaption ? <figcaption className={styles.annotatedScreenshotCaption}>{imageCaption}</figcaption> : null}
+        </figure>
+
+        <ol className={styles.annotatedScreenshotCallouts}>
+          {callouts.map((callout, index) => (
+            <li key={index} className={styles.annotatedScreenshotCallout} data-tone={callout.tone ?? "neutral"}>
+              <div className={styles.annotatedScreenshotMarker}>{callout.marker ?? index + 1}</div>
+              <div className={styles.annotatedScreenshotCalloutBody}>
+                <h4 className={styles.annotatedScreenshotCalloutTitle}>{callout.title}</h4>
+                {callout.description ? (
+                  <p className={styles.annotatedScreenshotCalloutDescription}>{callout.description}</p>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
 export type { Tone, StepState };

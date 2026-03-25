@@ -815,6 +815,170 @@
   font-size: 0.88rem;
 }
 
+.annotatedScreenshot {
+  display: grid;
+  gap: 1rem;
+}
+
+.annotatedScreenshotHeader {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.annotatedScreenshotTitle {
+  margin: 0;
+  color: var(--ifm-heading-color);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.annotatedScreenshotDescription {
+  margin: 0;
+  color: var(--docs-text-muted);
+  line-height: 1.6;
+}
+
+.annotatedScreenshotBody {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.05fr) minmax(240px, 0.95fr);
+  align-items: start;
+}
+
+.annotatedScreenshot[data-layout="image-right"] .annotatedScreenshotFigure {
+  order: 2;
+}
+
+.annotatedScreenshot[data-layout="image-right"] .annotatedScreenshotCallouts {
+  order: 1;
+}
+
+.annotatedScreenshotFigure {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.annotatedScreenshotMedia {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--docs-radius-lg);
+  border: 1px solid var(--docs-surface-border);
+  background: var(--docs-surface-raised);
+  box-shadow: var(--docs-shadow-soft);
+}
+
+.annotatedScreenshotImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.annotatedScreenshotBadgeRow {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.annotatedScreenshotBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--docs-surface-border);
+  background: rgba(15, 23, 42, 0.75);
+  color: white;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .annotatedScreenshotBadge {
+  background: rgba(15, 23, 42, 0.88);
+}
+
+.annotatedScreenshotCaption {
+  color: var(--docs-text-subtle);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.annotatedScreenshotCallouts {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.annotatedScreenshotCallout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.95rem 1rem;
+  border-radius: var(--docs-radius-lg);
+  border: 1px solid var(--docs-surface-border);
+  background: var(--docs-surface-elevated);
+}
+
+.annotatedScreenshotCallout[data-tone="primary"] {
+  border-color: var(--docs-accent-border);
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.annotatedScreenshotCallout[data-tone="success"] {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.annotatedScreenshotCallout[data-tone="warning"] {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.annotatedScreenshotCallout[data-tone="danger"] {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.annotatedScreenshotMarker {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--docs-marker-bg);
+  color: var(--docs-marker-fg);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.annotatedScreenshotCalloutBody {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.annotatedScreenshotCalloutTitle {
+  margin: 0;
+  color: var(--ifm-heading-color);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.annotatedScreenshotCalloutDescription {
+  margin: 0;
+  color: var(--docs-text-muted);
+  line-height: 1.55;
+}
+
 @media (max-width: 996px) {
   .storyHeroInner {
     grid-template-columns: 1fr;
@@ -831,6 +995,15 @@
   .controlPlaneCenter {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .annotatedScreenshotBody {
+    grid-template-columns: 1fr;
+  }
+
+  .annotatedScreenshot[data-layout="image-right"] .annotatedScreenshotFigure,
+  .annotatedScreenshot[data-layout="image-right"] .annotatedScreenshotCallouts {
+    order: initial;
   }
 }
 
@@ -851,6 +1024,15 @@
   .timelineItem,
   .stepCard {
     grid-template-columns: 1fr;
+  }
+
+  .annotatedScreenshotCallout {
+    grid-template-columns: 1fr;
+  }
+
+  .annotatedScreenshotMarker {
+    width: 1.75rem;
+    height: 1.75rem;
   }
 }
 
