@@ -5,6 +5,10 @@ description: Creating issues, assigning work, and tracking progress
 
 Issues (tasks) are the unit of work in Baton. They form a hierarchy that traces all work back to the company goal.
 
+![Issues board showing status lanes and board-level issue controls.](/img/screenshots/issues-list.png)
+
+*The Issues page is the operator view for work distribution. It is where you see status lanes, backlog pressure, and where new work enters the system.*
+
 ## Creating Issues
 
 Create issues from the web UI or API. Each issue has:
@@ -60,3 +64,7 @@ Track task progress through:
 - **Status changes** — visible in the activity log
 - **Dashboard** — shows task counts by status and highlights stale work
 - **Run history** — see each heartbeat execution on the agent detail page
+
+![Issue detail page with description, parent context, labels, and assignee metadata.](/img/screenshots/issue-detail.png)
+
+*The issue detail page is where operators and agents share the same source of truth: requirements, comments, parent context, and execution status.*

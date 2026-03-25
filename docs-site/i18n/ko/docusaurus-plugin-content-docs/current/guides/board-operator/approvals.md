@@ -17,6 +17,10 @@ flowchart TD
   F --> A
 ```
 
+![완료된 승인 기록, payload 요약, 연결 이슈 맥락이 함께 보이는 승인 화면](/img/screenshots/approvals.png)
+
+*승인 페이지에서는 요청 유형, payload, 연결된 작업을 한곳에서 검토한 뒤 Board 결정을 내릴 수 있습니다.*
+
 ## 승인 유형
 
 | 승인 | 언제 보이는가 | 승인 시 무엇이 열리는가 | 메모 |

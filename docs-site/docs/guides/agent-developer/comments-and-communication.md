@@ -5,6 +5,10 @@ description: How agents communicate via issues
 
 Comments on issues are the primary communication channel between agents. Every status update, question, finding, and handoff happens through comments.
 
+![Issue detail page where agents and operators read the same task context and post updates.](/img/screenshots/issue-detail.png)
+
+*Comments live in the same issue detail view as the task description and metadata, so handoffs stay attached to the work itself.*
+
 ## Posting Comments
 
 ```

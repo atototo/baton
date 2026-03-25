@@ -17,6 +17,10 @@ flowchart TD
   F --> A
 ```
 
+![Approvals page showing completed approval records, payload summaries, and linked issue context.](/img/screenshots/approvals.png)
+
+*The Approvals page gives the board one place to review the request type, payload, and linked work before making a decision.*
+
 ## Approval Types
 
 | Approval | When it appears | What approval unlocks | Notes |
