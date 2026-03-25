@@ -690,6 +690,7 @@
     "breadcrumbAgents": "Agents",
     "breadcrumbRuns": "Runs",
     "breadcrumbConfigure": "Configure",
+    "breadcrumbInstructions": "Instructions",
     "breadcrumbRunId": "Run {{id}}",
     "errors": {
       "noAgentReference": "No agent reference",
@@ -806,6 +807,7 @@
     "overview": "Overview",
     "updates": "Updates",
     "issues": "Issues",
+    "conventions": "Conventions",
     "settings": "Settings",
     "addDescription": "Add a description...",
     "status": "Status",
@@ -1235,6 +1237,8 @@
     "failedToDeleteAgent": "Delete failed",
     "deleteConfirm": "Delete this disapproved agent? This cannot be undone.",
     "deleteAgent": "Delete disapproved agent",
+    "forceApproveDescription": "The source repository has uncommitted changes. Do you want to create the branch anyway?",
+    "forceApprove": "Force Approve",
     "comments": "Comments",
     "board": "Board",
     "addComment": "Add a comment...",
@@ -1311,5 +1315,38 @@
     "high": "High",
     "medium": "Medium",
     "low": "Low"
+  },
+  "agentInstructions": {
+    "modeManaged": "Managed",
+    "modeExternal": "External",
+    "legacyPromptActive": "Legacy prompt template active",
+    "files": "Files",
+    "newFile": "New file",
+    "fileNamePlaceholder": "file-name.md",
+    "noFiles": "No instruction files.",
+    "selectFile": "Select a file to view or edit.",
+    "entryFile": "Entry file",
+    "modified": "modified",
+    "save": "Save",
+    "fileSaved": "File saved.",
+    "fileDeleted": "File deleted.",
+    "unsavedConfirm": "You have unsaved changes. Discard them?",
+    "editorPlaceholder": "Write instructions here..."
+  },
+  "projectConventions": {
+    "backstory": "Project Backstory",
+    "backstoryDescription": "Provide context about the project for agents.",
+    "backstoryPlaceholder": "Describe the project background, goals, and context...",
+    "conventions": "Coding Conventions",
+    "conventionsDescription": "Define coding standards and conventions in Markdown.",
+    "conventionsPlaceholder": "# Coding Conventions\n\n- Use TypeScript strict mode\n- ...",
+    "compactContext": "Compact Context",
+    "compactContextDescription": "Auto-generated summary for agent context injection.",
+    "generateCompact": "Generate",
+    "noCompactContext": "No compact context generated yet. Click Generate to create one.",
+    "save": "Save Conventions",
+    "saved": "Conventions saved.",
+    "compactGenerated": "Compact context generated.",
+    "unsavedChanges": "Unsaved changes"
   }
 }

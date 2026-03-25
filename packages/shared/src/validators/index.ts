@@ -124,6 +124,13 @@ export {
 } from "./asset.js";
 
 export {
+  upsertProjectConventionsSchema,
+  updateProjectConventionsSchema,
+  type UpsertProjectConventions,
+  type UpdateProjectConventions,
+} from "./project-conventions.js";
+
+export {
   createCompanyInviteSchema,
   acceptInviteSchema,
   listJoinRequestsQuerySchema,

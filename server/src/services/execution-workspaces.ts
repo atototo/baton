@@ -69,10 +69,12 @@ async function resolveGitRoot(cwd: string) {
 }
 
 async function ensureCleanRepo(cwd: string) {
-  const { stdout } = await runGit(cwd, ["status", "--porcelain"]);
+  // Only check tracked files (modified/deleted/staged). Untracked files are ignored
+  // so that new files like AGENTS.md don't block worktree creation.
+  const { stdout } = await runGit(cwd, ["status", "--porcelain", "-uno"]);
   if (stdout.trim().length > 0) {
     throw conflict(
-      "Source repository has uncommitted changes. Baton-managed worktrees require a clean source checkout.",
+      "Source repository has uncommitted changes to tracked files. Baton-managed worktrees require a clean source checkout.",
     );
   }
 }
@@ -240,6 +242,7 @@ export function executionWorkspaceService(db: Db) {
     async provisionExecutionWorkspace(input: {
       companyId: string;
       plan: ExecutionWorkspacePlan;
+      force?: boolean;
     }) {
       const sourceRepoCwd = await resolveGitRoot(input.plan.sourceRepoCwd);
       const ticketKey = normalizeExecutionTicketKey(input.plan.ticketKey);
@@ -253,7 +256,9 @@ export function executionWorkspaceService(db: Db) {
         explicitBranch: input.plan.branch,
       });
 
-      await ensureCleanRepo(sourceRepoCwd);
+      if (!input.force) {
+        await ensureCleanRepo(sourceRepoCwd);
+      }
       const currentBranch = await resolveCurrentBranch(sourceRepoCwd);
       if (currentBranch && currentBranch !== baseBranch) {
         throw conflict(

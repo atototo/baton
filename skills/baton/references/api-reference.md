@@ -399,6 +399,53 @@ POST /api/companies/{companyId}/approvals
 { "type": "approve_ceo_strategy", "requestedByAgentId": "{your-agent-id}", "payload": { "plan": "..." } }
 ```
 
+### Issue review approvals (auto-created)
+
+When an IC agent returns an issue to the board user (`in_review` + `assigneeUserId`), Baton automatically creates the appropriate approval:
+
+**`approve_issue_plan`** — When the issue has `<plan>` tags and no prior approved plan.
+```json
+{
+  "type": "approve_issue_plan",
+  "payload": {
+    "title": "Issue title",
+    "issueIdentifier": "DOB-42",
+    "plan": "<extracted plan text>",
+    "workspace": { "repoUrl": "...", "branch": "feature/DOB-42", "baseBranch": "develop" },
+    "summary": "Agent's comment"
+  }
+}
+```
+On approval: execution workspace is provisioned (branch created), issue is unblocked with workspace attached.
+
+**`approve_pull_request`** — When the issue has an execution workspace (branch/repo).
+```json
+{
+  "type": "approve_pull_request",
+  "payload": {
+    "title": "Issue title",
+    "issueIdentifier": "DOB-42",
+    "branch": "feature/DOB-42",
+    "baseBranch": "develop",
+    "summary": "Agent's comment"
+  }
+}
+```
+On approval: PR is created automatically via GitHub API.
+
+**`approve_completion`** — When no workspace exists and no pending plan (analysis/research).
+```json
+{
+  "type": "approve_completion",
+  "payload": {
+    "title": "Issue title",
+    "issueIdentifier": "DOB-42",
+    "summary": "Analysis complete summary"
+  }
+}
+```
+On approval: linked issues are marked as done.
+
 ### Checking approval status
 
 ```
@@ -409,7 +456,7 @@ GET /api/companies/{companyId}/approvals?status=pending
 
 When board resolves your approval, you may be woken with:
 - `BATON_APPROVAL_ID`
-- `BATON_APPROVAL_STATUS`
+- `BATON_APPROVAL_STATUS` (`approved`, `rejected`, `revision_requested`)
 - `BATON_LINKED_ISSUE_IDS`
 
 Use:
@@ -418,6 +465,9 @@ Use:
 GET /api/approvals/{approvalId}
 GET /api/approvals/{approvalId}/issues
 ```
+
+- **approved**: Close or continue linked issues as appropriate.
+- **rejected / revision_requested**: Read rejection comments via `GET /api/approvals/{approvalId}/comments`, revise your work, then resubmit via `POST /api/approvals/{approvalId}/resubmit`.
 
 Then close or comment on linked issues to complete the workflow.
 
@@ -431,6 +481,22 @@ backlog -> todo -> in_progress -> in_review -> done
                     blocked       in_progress
                        |
                   todo / in_progress
+```
+
+### Governed review flow (detail)
+
+```
+in_progress -> in_review (assign to board user)
+                   |
+            Baton auto-creates approval:
+            ├─ has <plan>, no approved plan  -> approve_issue_plan  -> blocked
+            ├─ has execution workspace       -> approve_pull_request
+            └─ no workspace, no plan         -> approve_completion
+                   |
+            Board decision:
+            ├─ approved   -> workspace provisioned / PR created / issue done
+            ├─ rejected   -> agent woken to revise
+            └─ revision_requested -> agent woken to revise
 ```
 
 Terminal states: `done`, `cancelled`

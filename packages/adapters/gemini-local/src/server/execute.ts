@@ -70,7 +70,7 @@ function renderApiAccessNote(env: Record<string, string>): string {
 // and re-enable ensureGeminiSkillsInjected() below.
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -234,8 +234,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const sessionHandoffNote = asString(context.batonSessionHandoffMarkdown, "").trim();
   const batonEnvNote = renderBatonEnvNote(env);
   const apiAccessNote = renderApiAccessNote(env);
+  const composedPrefix = composedInstructions ?? "";
   const prompt = joinPromptSections([
     instructionsPrefix,
+    composedPrefix,
     renderedBootstrapPrompt,
     sessionHandoffNote,
     batonEnvNote,

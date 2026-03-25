@@ -690,6 +690,7 @@
     "breadcrumbAgents": "에이전트",
     "breadcrumbRuns": "실행",
     "breadcrumbConfigure": "설정",
+    "breadcrumbInstructions": "지시문",
     "breadcrumbRunId": "실행 {{id}}",
     "errors": {
       "noAgentReference": "에이전트 참조가 없습니다",
@@ -806,6 +807,7 @@
     "overview": "개요",
     "updates": "업데이트",
     "issues": "이슈",
+    "conventions": "컨벤션",
     "settings": "설정",
     "addDescription": "설명 추가...",
     "status": "상태",
@@ -1234,6 +1236,8 @@
     "failedToDeleteAgent": "에이전트 삭제에 실패했습니다",
     "deleteConfirm": "이 거절된 에이전트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     "deleteAgent": "거절된 에이전트 삭제",
+    "forceApproveDescription": "소스 레포에 커밋되지 않은 변경사항이 있습니다. 그대로 브랜치를 생성하시겠습니까?",
+    "forceApprove": "강제 승인",
     "comments": "댓글",
     "board": "이사회",
     "addComment": "댓글 작성...",
@@ -1310,5 +1314,38 @@
     "high": "높음",
     "medium": "보통",
     "low": "낮음"
+  },
+  "agentInstructions": {
+    "modeManaged": "관리형",
+    "modeExternal": "외부",
+    "legacyPromptActive": "레거시 프롬프트 템플릿 사용 중",
+    "files": "파일",
+    "newFile": "새 파일",
+    "fileNamePlaceholder": "파일명.md",
+    "noFiles": "지시문 파일이 없습니다.",
+    "selectFile": "파일을 선택하여 확인하거나 편집하세요.",
+    "entryFile": "진입 파일",
+    "modified": "수정됨",
+    "save": "저장",
+    "fileSaved": "파일이 저장되었습니다.",
+    "fileDeleted": "파일이 삭제되었습니다.",
+    "unsavedConfirm": "저장하지 않은 변경사항이 있습니다. 버리시겠습니까?",
+    "editorPlaceholder": "여기에 지시문을 작성하세요..."
+  },
+  "projectConventions": {
+    "backstory": "프로젝트 맥락 설명",
+    "backstoryDescription": "에이전트가 참고할 프로젝트 배경 정보를 제공합니다.",
+    "backstoryPlaceholder": "프로젝트 배경, 목표, 맥락을 설명하세요...",
+    "conventions": "코딩 컨벤션",
+    "conventionsDescription": "마크다운으로 코딩 표준과 컨벤션을 정의합니다.",
+    "conventionsPlaceholder": "# 코딩 컨벤션\n\n- TypeScript strict 모드 사용\n- ...",
+    "compactContext": "요약 컨텍스트",
+    "compactContextDescription": "에이전트 컨텍스트 주입용 자동 생성 요약입니다.",
+    "generateCompact": "생성",
+    "noCompactContext": "아직 요약 컨텍스트가 없습니다. 생성 버튼을 클릭하세요.",
+    "save": "컨벤션 저장",
+    "saved": "컨벤션이 저장되었습니다.",
+    "compactGenerated": "요약 컨텍스트가 생성되었습니다.",
+    "unsavedChanges": "저장하지 않은 변경사항"
   }
 }

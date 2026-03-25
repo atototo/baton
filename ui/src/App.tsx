@@ -110,6 +110,7 @@ function boardRoutes() {
       <Route path="projects/:projectId/updates" element={<ProjectDetail />} />
       <Route path="projects/:projectId/issues" element={<ProjectDetail />} />
       <Route path="projects/:projectId/issues/:filter" element={<ProjectDetail />} />
+      <Route path="projects/:projectId/conventions" element={<ProjectDetail />} />
       <Route path="projects/:projectId/settings" element={<ProjectDetail />} />
       <Route path="issues" element={<Issues />} />
       <Route path="issues/all" element={<Navigate to="/issues" replace />} />
@@ -225,6 +226,7 @@ export function App() {
           <Route path="projects/:projectId/updates" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/issues" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/issues/:filter" element={<UnprefixedBoardRedirect />} />
+          <Route path="projects/:projectId/conventions" element={<UnprefixedBoardRedirect />} />
           <Route path="projects/:projectId/settings" element={<UnprefixedBoardRedirect />} />
           <Route path=":companyPrefix" element={<Layout />}>
             {boardRoutes()}

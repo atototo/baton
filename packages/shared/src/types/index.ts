@@ -58,6 +58,7 @@ export type {
   JoinRequest,
   InstanceUserRoleGrant,
 } from "./access.js";
+export type { ProjectConventions } from "./project-conventions.js";
 export type {
   CompanyPortabilityInclude,
   CompanyPortabilitySecretRequirement,

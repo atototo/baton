@@ -277,7 +277,7 @@ export async function runClaudeLogin(input: {
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -327,6 +327,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const combinedPath = path.join(skillsDir, "agent-instructions.md");
     await fs.writeFile(combinedPath, instructionsContent + pathDirective, "utf-8");
     effectiveInstructionsFilePath = combinedPath;
+  }
+
+  // Append project conventions if available
+  if (composedInstructions) {
+    if (effectiveInstructionsFilePath) {
+      const existingContent = await fs.readFile(effectiveInstructionsFilePath, "utf-8");
+      await fs.writeFile(
+        effectiveInstructionsFilePath,
+        existingContent + "\n\n---\n\n" + composedInstructions,
+        "utf-8",
+      );
+    } else {
+      const composedPath = path.join(skillsDir, "project-conventions.md");
+      await fs.writeFile(composedPath, composedInstructions, "utf-8");
+      effectiveInstructionsFilePath = composedPath;
+    }
   }
 
   const runtimeSessionParams = parseObject(runtime.sessionParams);

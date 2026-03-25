@@ -14,6 +14,7 @@ import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { AgentConfigForm } from "../components/AgentConfigForm";
+import { AgentInstructionsTab } from "../components/AgentInstructionsTab";
 import { adapterLabels, roleLabels } from "../components/agent-config-primitives";
 import { getUIAdapter, buildTranscript } from "../adapters";
 import type { TranscriptEntry } from "../adapters";
@@ -190,10 +191,11 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "overview" | "configure" | "runs";
+type AgentDetailView = "overview" | "configure" | "instructions" | "runs";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "configure" || value === "configuration") return "configure";
+  if (value === "instructions") return "instructions";
   if (value === "runs") return value;
   return "overview";
 }
@@ -429,6 +431,8 @@ export function AgentDetail() {
         crumbs.push({ label: t("agentDetail.breadcrumbRunId", { id: urlRunId.slice(0, 8) }) });
       } else if (activeView === "configure") {
         crumbs.push({ label: t("agentDetail.breadcrumbConfigure") });
+      } else if (activeView === "instructions") {
+        crumbs.push({ label: t("agentDetail.breadcrumbInstructions") });
       } else if (activeView === "runs") {
         crumbs.push({ label: t("agentDetail.breadcrumbRuns") });
       }
@@ -669,6 +673,13 @@ export function AgentDetail() {
           onCancelActionChange={setCancelConfigAction}
           onSavingChange={setConfigSaving}
           updatePermissions={updatePermissions}
+        />
+      )}
+
+      {activeView === "instructions" && (
+        <AgentInstructionsTab
+          agentId={agent.id}
+          companyId={resolvedCompanyId ?? undefined}
         />
       )}
 
