@@ -8,6 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-25
+
+### Added / 추가
+- Agent instructions bundles with managed and external modes, bundle file CRUD, entry-file selection, and role-based default instruction seeds
+  - managed/external 모드, 번들 파일 CRUD, 진입 파일 선택, 역할별 기본 시드를 포함한 agent instructions bundle 추가
+- Instructions tab in agent detail with bundle file tree, editor, managed-mode switching, and managed-bundle cleanup
+  - 에이전트 상세의 Instructions 탭에 파일 트리, 에디터, managed 전환, managed bundle 정리 기능 추가
+- Project conventions management with `backstory`, markdown conventions, generated compact context, and project conventions API endpoints
+  - `backstory`, markdown conventions, compact context 생성, 프로젝트 컨벤션 API를 포함한 project conventions 관리 기능 추가
+- New local adapters: `gemini_local` and `pi_local`
+  - 신규 로컬 어댑터 `gemini_local`, `pi_local` 추가
+- Shared adapter utilities for session compaction, billing inference, and log redaction
+  - session compaction, billing inference, log redaction용 공통 adapter utilities 추가
+- New `approve_completion` approval path for workspace-less analysis and research handoffs
+  - workspace가 없는 분석/리서치 완료를 위한 `approve_completion` 승인 경로 추가
+- Approval detail support for force-approve handling when plan approval is blocked by a dirty source checkout
+  - 소스 체크아웃 오염으로 plan approval이 막힐 때 사용할 force approve 처리 추가
+
+### Changed / 변경
+- Heartbeat execution can now compose project conventions and governance reminders into supplementary adapter instructions
+  - heartbeat 실행 시 프로젝트 컨벤션과 거버넌스 리마인더를 보조 지시문으로 조합해 주입하도록 변경
+- Supported local adapters now consume bundle entry files and composed project context together instead of relying only on legacy prompt fields
+  - 지원되는 로컬 어댑터가 레거시 prompt 필드만이 아니라 bundle entry file과 프로젝트 컨텍스트 조합을 함께 사용하도록 변경
+- Approval flows now treat `revision_requested` as a first-class actionable state across inbox, approvals, and linked issue handling
+  - approval/inbox/연결 이슈 처리 전반에서 `revision_requested`를 1급 액션 상태로 다루도록 변경
+- Governed workflow approvals can now wake agents, comment on linked issues, and unblock governed work more consistently after rejection or revision request
+  - governed workflow 승인에서 거절/수정 요청 이후 에이전트 깨우기, 연결 이슈 코멘트, 재작업 unblock이 더 일관되게 동작하도록 변경
+- Pull request approval now uses a more focused PR body format and finishes the linked parent workflow more deterministically
+  - PR approval 시 더 간결한 PR 본문을 만들고 parent 완료 흐름을 더 결정적으로 처리하도록 변경
+- Agent detail and settings UX now include tab navigation, role selection, adapter-specific permission placement, and clearer environment guidance
+  - 에이전트 상세/설정 UX에 탭 네비게이션, 역할 선택, 어댑터별 권한 배치, 더 명확한 환경 변수 가이드를 반영
+- Docs site expanded to cover instructions bundles, project conventions, new adapters, and updated governance behavior
+  - docs site에 instructions bundle, project conventions, 신규 어댑터, 갱신된 거버넌스 동작 문서 추가
+
+### Fixed / 수정
+- Fixed switching to managed instructions so new managed bundles only copy the entry file instead of entire external project trees
+  - managed instructions 전환 시 외부 프로젝트 전체가 아니라 진입 파일만 복사되도록 수정
+- Fixed cleanup of polluted managed instruction bundles by allowing the board to rebuild the managed bundle down to the current entry file
+  - 오염된 managed instruction bundle을 현재 진입 파일만 남기고 재구성할 수 있도록 수정
+- Fixed revision-request handling so linked governed issues can resume correctly for rework from `blocked` or `in_review`
+  - revision request 이후 연결된 governed 이슈가 `blocked` 또는 `in_review`에서 올바르게 재작업 재개되도록 수정
+- Fixed PR approval finalization to cascade-close remaining open child issues under the completed parent
+  - PR approval 완료 시 parent 아래 남아 있던 child issue들이 함께 종료되도록 수정
+- Fixed instructions-path updates to keep bundle metadata synchronized with the stored adapter config
+  - instructions-path 업데이트 시 bundle 메타데이터가 adapter config와 계속 동기화되도록 수정
+- Fixed Claude permission toggles and related agent settings form behavior in the updated adapter config UX
+  - 새 어댑터 설정 UX에서 Claude 권한 토글과 관련된 에이전트 설정 폼 동작 문제 수정
+
 ## [0.4.0] - 2026-03-19
 
 ### Added / 추가
@@ -112,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark/light theme with indigo design system
   - 인디고 디자인 시스템 기반 다크/라이트 테마
 
-[Unreleased]: https://github.com/atototo/baton/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/atototo/baton/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/atototo/baton/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/atototo/baton/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/atototo/baton/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/atototo/baton/compare/v0.1.0...v0.2.0

@@ -16,6 +16,7 @@ The `codex_local` adapter runs OpenAI's Codex CLI locally. It supports session p
 |-------|------|----------|-------------|
 | `cwd` | string | Yes | Working directory for the agent process (absolute path; created automatically if missing when permissions allow) |
 | `model` | string | No | Model to use |
+| `instructionsFilePath` | string | No | Absolute path to the bundle entry file Baton prepends to the prompt |
 | `promptTemplate` | string | No | Prompt used for all runs |
 | `env` | object | No | Environment variables (supports secret refs) |
 | `timeoutSec` | number | No | Process timeout (0 = no timeout) |
@@ -29,6 +30,15 @@ Codex uses `previous_response_id` for session continuity. The adapter serializes
 ## Skills Injection
 
 The adapter symlinks Baton skills into the global Codex skills directory (`~/.codex/skills`). Existing user skills are not overwritten.
+
+## Instructions And Project Context
+
+Codex local receives:
+
+- the agent bundle entry file from `instructionsFilePath`
+- any composed project instructions Baton generates from project conventions
+
+This keeps long-lived role behavior and project-specific context separate while still presenting one effective runtime prompt.
 
 ## Environment Test
 

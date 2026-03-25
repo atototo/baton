@@ -119,3 +119,47 @@ GET /api/projects/{projectId}/workspaces
 PATCH /api/projects/{projectId}/workspaces/{workspaceId}
 DELETE /api/projects/{projectId}/workspaces/{workspaceId}
 ```
+
+## Project Conventions
+
+Projects can also store runtime prompt context for agents.
+
+### Get Conventions
+
+```
+GET /api/projects/{projectId}/conventions
+```
+
+Returns:
+
+- `backstory`
+- `conventionsMd`
+- `compactContext`
+- `extraReferences`
+
+### Save Or Replace Conventions
+
+```
+PUT /api/projects/{projectId}/conventions
+{
+  "backstory": "Project context...",
+  "conventionsMd": "# Coding rules\n\n- ..."
+}
+```
+
+### Patch Conventions
+
+```
+PATCH /api/projects/{projectId}/conventions
+{
+  "backstory": "Updated framing"
+}
+```
+
+### Generate Compact Context
+
+```
+POST /api/projects/{projectId}/conventions/compact
+```
+
+Generates and persists the short compact-context summary Baton prefers to inject during heartbeat execution.

@@ -19,7 +19,7 @@ Baton은 네 가지 주요 계층으로 구성된 모노레포입니다.
 │  Schema, migrations, embedded mode  │
 ├─────────────────────────────────────┤
 │  Adapters                           │
-│  Claude Local, Codex Local,         │
+│  Claude, Codex, Gemini, Pi,         │
 │  Process, HTTP                      │
 └─────────────────────────────────────┘
 ```
@@ -57,7 +57,9 @@ baton/
 │   ├── adapter-utils/           # Adapter 인터페이스 및 헬퍼
 │   └── adapters/
 │       ├── claude-local/        # Claude Code adapter
-│       └── codex-local/         # OpenAI Codex adapter
+│       ├── codex-local/         # OpenAI Codex adapter
+│       ├── gemini-local/        # Gemini CLI adapter
+│       └── pi-local/            # Pi local adapter
 │
 ├── skills/                      # 에이전트 스킬
 │   └── baton/               # 코어 Baton 스킬 (heartbeat 프로토콜)
@@ -75,26 +77,10 @@ Heartbeat가 실행되면:
 1. **트리거** — 스케줄러, 수동 호출 또는 이벤트(할당, 멘션)가 heartbeat를 트리거합니다
 2. **Adapter 호출** — 서버가 설정된 adapter의 `execute()` 함수를 호출합니다
 3. **에이전트 프로세스** — Adapter가 Baton 환경 변수와 프롬프트를 포함하여 에이전트(예: Claude Code CLI)를 생성합니다
-4. **에이전트 작업** — 에이전트가 Baton의 REST API를 호출하여 할당된 작업을 확인하고, 태스크를 체크아웃하고, 작업을 수행하고, 상태를 업데이트합니다
-5. **결과 캡처** — Adapter가 stdout를 캡처하고, 사용량/비용 데이터를 파싱하고, 세션 상태를 추출합니다
-6. **실행 기록** — 서버가 실행 결과, 비용, 다음 heartbeat를 위한 세션 상태를 기록합니다
-
-## 거버넌스 실행 흐름
-
-거버넌스 기반 티켓 작업에서는 Baton이 단순 heartbeat 요청 흐름 위에 Control Plane 워크플로우를 추가합니다.
-
-```mermaid
-flowchart TD
-  board["board가 parent issue 생성"] --> leader["리더가 fallback workspace에서 계획"]
-  leader --> plan["approve_issue_plan"]
-  plan --> workspace["execution workspace 준비"]
-  workspace --> child["child 구현이 ticket worktree에서 실행"]
-  child --> review["child 리뷰 handoff"]
-  review --> pr["approve_pull_request"]
-  pr --> side_effects["실제 commit/push/PR 부수 효과"]
-```
-
-이 흐름이 Baton을 Control Plane으로서의 역할과 Adapter 기반 실행 서비스를 연결하는 아키텍처적 다리입니다.
+4. **프롬프트 조합** — Baton이 project conventions와 governance reminders를 보조 instructions로 조합할 수 있습니다
+5. **에이전트 작업** — 에이전트가 Baton의 REST API를 호출하여 할당된 작업을 확인하고, 태스크를 체크아웃하고, 작업을 수행하고, 상태를 업데이트합니다
+6. **결과 캡처** — Adapter가 stdout를 캡처하고, 사용량/비용 데이터를 파싱하고, 세션 상태를 추출합니다
+7. **실행 기록** — 서버가 실행 결과, 비용, 다음 heartbeat를 위한 세션 상태를 기록합니다
 
 ## Adapter 모델
 
@@ -104,13 +90,12 @@ Adapter는 Baton과 에이전트 런타임 사이의 브릿지입니다. 각 ada
 - **UI 모듈** — 실행 뷰어를 위한 stdout 파서, 에이전트 생성을 위한 설정 폼 필드
 - **CLI 모듈** — `baton run --watch`를 위한 터미널 포맷터
 
-기본 제공 adapter: `claude_local`, `codex_local`, `process`, `http`. 모든 런타임에 대해 커스텀 adapter를 생성할 수 있습니다.
+기본 제공 adapter: `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`. 모든 런타임에 대해 커스텀 adapter를 생성할 수 있습니다.
 
 ## 핵심 설계 결정
 
 - **Control Plane이지 실행 플레인이 아닙니다** — Baton은 에이전트를 오케스트레이션하며, 직접 실행하지 않습니다
 - **회사 범위** — 모든 엔티티는 정확히 하나의 회사에 속하며, 엄격한 데이터 경계가 적용됩니다
 - **단일 담당자 태스크** — 원자적 체크아웃으로 동일한 태스크에 대한 동시 작업을 방지합니다
-- **거버넌스 실행** — 계획, 구현, 리뷰, PR 완료는 명시적인 승인과 상태 머신 통제 아래에서 진행됩니다
 - **Adapter 비종속적** — HTTP API를 호출할 수 있는 모든 런타임이 에이전트로 작동합니다
 - **기본 내장 모드** — 내장 PostgreSQL을 사용한 설정 없는 로컬 모드

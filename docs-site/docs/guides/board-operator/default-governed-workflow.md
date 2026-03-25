@@ -27,7 +27,7 @@ Review and PR approval are part of the enforced workflow, not optional conventio
 7. Implementation agents work inside the ticket execution workspace.
 8. When implementation completes, Baton rewrites the child to `in_review` and hands it to the reviewer.
 9. When all child reviews are done, Baton moves the parent to `in_review` and creates **PR Approval**.
-10. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
+10. When the board approves the PR request, Baton commits, pushes, opens the real PR, cascade-completes any remaining child issues for that parent, and only then marks the parent `done`.
 
 ## Core Rules
 
@@ -45,42 +45,16 @@ Review and PR approval are part of the enforced workflow, not optional conventio
 - `in_review`: implementation is complete enough for reviewer or board handoff
 - `done`: the governed workflow has actually finished, including PR approval
 
-## Diagrams
+## Parallel Tickets Example
 
-### Issue State Transition
+```text
+source repo: azak (base branch: main)
 
-```mermaid
-flowchart LR
-  backlog["backlog"] --> todo["todo"]
-  todo --> in_progress["in_progress"]
-  in_progress --> in_review["in_review"]
-  in_review --> done["done"]
-  in_progress --> blocked["blocked"]
-  blocked --> todo
-  blocked --> in_progress
-```
-
-For governed ticket execution:
-
-- child `done` is rewritten to `in_review`
-- parent cannot reach `done` while PR approval is pending
-
-### Parallel Tickets Example
-
-```mermaid
-flowchart TD
-  repo["Source repo: azak<br/>base branch: main"]
-  repo --> t10["AZAK-010 execution workspace<br/>feature/AZAK-010"]
-  repo --> t11["AZAK-011 execution workspace<br/>feature/AZAK-011"]
-  t10 --> t10c["Child work"]
-  t10c --> t10r["Review"]
-  t10r --> t10p["PR approval"]
-  t11 --> t11c["Child work"]
-  t11c --> t11r["Review"]
-  t11r --> t11p["PR approval"]
-```
+AZAK-010 -> execution workspace -> feature/AZAK-010 -> child work -> review -> PR approval
+AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> PR approval
 
 The tickets run in parallel, but each ticket keeps its own branch and runtime cwd.
+```
 
 ## Workspace Rules
 
@@ -139,6 +113,7 @@ Used before implementation begins.
 - blocks the parent while pending
 - carries the execution workspace plan
 - provisions the ticket worktree on approval
+- may require a clean source repository unless the board explicitly force-approves
 
 ### PR Approval
 
@@ -146,6 +121,7 @@ Used after child reviews complete.
 
 - keeps the parent in `in_review` while pending
 - triggers the real commit, push, and pull request creation on approval
+- closes the remaining child issues of the completed parent as part of finalization
 
 ## Practical Checks
 
@@ -156,9 +132,11 @@ Before approving a plan, check:
 - base branch
 - project workspace
 - repo path
+- whether the source checkout is clean; only use force approve when you intentionally accept provisioning from a dirty repo
 
 Before approving a PR, check:
 
 - child reviews are complete
 - the PR branch matches the parent ticket
 - the generated PR content summarizes the actual changes
+- the parent is the issue you want to finalize, because approval will close the remaining open child issues under that parent

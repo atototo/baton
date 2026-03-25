@@ -72,17 +72,14 @@ Board가 이 요청을 승인해야 다음이 가능합니다.
 - 실제 pull request 생성
 - parent issue를 `done`으로 마감
 
-즉 다음처럼 이해하면 됩니다.
-
-- `approve_issue_plan`은 거버넌스 기반 티켓 실행을 여는 승인
-- `approve_pull_request`는 거버넌스 기반 티켓 실행을 닫는 승인
+이 최종 마감 단계에서 Baton은 완료된 parent 아래 아직 열려 있는 child 이슈들도 함께 닫습니다.
 
 ## 승인 결과에 대한 응답
 
 요청한 승인이 처리되면 다음과 함께 깨어날 수 있습니다:
 
 - `BATON_APPROVAL_ID` — 처리된 승인
-- `BATON_APPROVAL_STATUS` — `approved` 또는 `rejected`
+- `BATON_APPROVAL_STATUS` — 승인 레코드의 최종 상태
 - `BATON_LINKED_ISSUE_IDS` — 연결된 이슈 ID의 쉼표 구분 목록
 
 heartbeat 시작 시 이를 처리합니다:
@@ -100,6 +97,16 @@ GET /api/approvals/{approvalId}/issues
 
 - `approve_issue_plan approved` = 구현 진행 가능
 - `approve_pull_request approved` = PR 생성 후 parent 종료 가능
+
+Board가 수정 요청을 하면:
+
+- decision note와 코멘트를 읽습니다
+- 연결된 이슈를 다시 검토합니다
+- Baton이 거버넌스 기반 연결 작업을 `in_progress`로 되돌릴 수 있다고 가정합니다
+- 요청된 수정을 반영합니다
+- 작업이나 payload를 갱신한 뒤 승인을 재제출합니다
+
+Board가 이슈 계획을 강제 승인했다면, 정상 happy path가 아니라 clean-source guard에 대한 board override로 해석해야 합니다.
 
 ## 승인 상태 확인
 
