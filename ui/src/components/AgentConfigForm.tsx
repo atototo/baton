@@ -584,7 +584,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     String(config.promptTemplate ?? "")
                   )}
                   onChange={(v) =>
-                    mark("adapterConfig", "promptTemplate", v || undefined)
+                    mark("adapterConfig", "promptTemplate", v ?? "")
                   }
                   placeholder={t("agentConfig.promptTemplatePlaceholder")}
                   contentClassName="min-h-[88px] text-sm font-mono"

@@ -1087,11 +1087,18 @@ export function agentRoutes(db: Db) {
       if (changingInstructionsPath) {
         await assertCanManageInstructionsPath(req, existing);
       }
-      // Shallow merge: preserve existing keys, only overwrite provided ones
+      // Shallow merge: preserve existing keys, only overwrite provided ones.
+      // Empty string explicitly clears a field; null/undefined removes it.
       const existingConfig = (typeof existing.adapterConfig === "object" && existing.adapterConfig !== null)
         ? (existing.adapterConfig as Record<string, unknown>)
         : {};
       const mergedConfig = { ...existingConfig, ...adapterConfigPatch };
+      // Remove keys explicitly set to null or undefined
+      for (const [key, value] of Object.entries(mergedConfig)) {
+        if (value === null || value === undefined) {
+          delete mergedConfig[key];
+        }
+      }
       const normalizedMergedConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
         existing.companyId,
         mergedConfig,

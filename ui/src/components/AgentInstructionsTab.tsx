@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   FolderOpen,
   Star,
+  Upload,
 } from "lucide-react";
 import type {
   AgentInstructionsBundle,
@@ -146,6 +147,22 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
     updateBundle.mutate({ entryFile: path });
   };
 
+  const handleImportFiles = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      for (const file of Array.from(files)) {
+        const content = await file.text();
+        await agentsApi.saveInstructionsFile(agentId, { path: file.name, content }, companyId);
+      }
+      invalidateBundle();
+      pushToast({ tone: "success", title: t("agentInstructions.filesImported") });
+      // Reset input
+      e.target.value = "";
+    },
+    [agentId, companyId, invalidateBundle, pushToast, t],
+  );
+
   const handleSwitchToManaged = () => {
     if (!window.confirm(t("agentInstructions.switchToManagedConfirm"))) return;
     updateBundle.mutate({ mode: "managed", replaceExisting: true });
@@ -240,13 +257,28 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
               {t("agentInstructions.files")}
             </h4>
             {bundle.editable && (
-              <button
-                className="p-1 rounded hover:bg-accent transition-colors"
-                onClick={() => setShowNewFileInput(!showNewFileInput)}
-                title={t("agentInstructions.newFile")}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  className="p-1 rounded hover:bg-accent transition-colors"
+                  onClick={() => setShowNewFileInput(!showNewFileInput)}
+                  title={t("agentInstructions.newFile")}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <label
+                  className="p-1 rounded hover:bg-accent transition-colors cursor-pointer"
+                  title={t("agentInstructions.importFiles")}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <input
+                    type="file"
+                    accept=".md,.txt,.yaml,.yml"
+                    multiple
+                    className="hidden"
+                    onChange={handleImportFiles}
+                  />
+                </label>
+              </div>
             )}
           </div>
 

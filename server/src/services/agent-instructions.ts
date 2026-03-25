@@ -461,7 +461,10 @@ export function agentInstructionsService() {
         warnings: [...state.warnings, `Instructions root does not exist: ${state.rootPath}`],
       }, []);
     }
-    const files = await listFilesRecursive(state.rootPath);
+    // External mode: only show the entry file to avoid exposing entire project directory
+    const files = state.mode === "external"
+      ? (state.entryFile ? [state.entryFile] : [])
+      : await listFilesRecursive(state.rootPath);
     const summaries = await Promise.all(files.map((relativePath) => readFileSummary(state.rootPath!, relativePath, state.entryFile)));
     return toBundle(agent, state, summaries);
   }
