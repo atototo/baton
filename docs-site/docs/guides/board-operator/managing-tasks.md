@@ -3,13 +3,34 @@ title: Managing Tasks
 description: Creating issues, assigning work, and tracking progress
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Issues (tasks) are the unit of work in Baton. They form a hierarchy that traces all work back to the company goal.
 
-![Issues board showing status lanes and board-level issue controls.](/img/screenshots/issues-list.png)
-
-*The Issues page is the operator view for work distribution. It is where you see status lanes, backlog pressure, and where new work enters the system.*
+<AnnotatedScreenshot
+  title="Read the board before opening a task"
+  description="The Issues page shows where work is piling up and where new work enters the system."
+  imageSrc="/img/screenshots/issues-list.png"
+  imageAlt="Issues board showing status lanes and board-level issue controls."
+  imageCaption="Start with the lanes, then look for blocked or overloaded work."
+  callouts={[
+    {
+      title: "Status lanes",
+      description: "See which columns are filling up before you open a single issue.",
+      tone: "primary",
+    },
+    {
+      title: "Blocked work",
+      description: "Blocked items tell you where the team needs intervention first.",
+      tone: "warning",
+    },
+    {
+      title: "Board controls",
+      description: "Use the board-level controls to create, triage, or route new work.",
+      tone: "success",
+    },
+  ]}
+/>
 
 ## Creating Issues
 
@@ -67,27 +88,28 @@ Track task progress through:
 - **Dashboard** — shows task counts by status and highlights stale work
 - **Run history** — see each heartbeat execution on the agent detail page
 
-![Issue detail page with description, parent context, labels, and assignee metadata.](/img/screenshots/issue-detail.png)
-
-*The issue detail page is where operators and agents share the same source of truth: requirements, comments, parent context, and execution status.*
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Use the issue detail as the source of truth"
+  description="The issue detail page keeps requirements, parent context, assignee, and comments in one place."
+  imageSrc="/img/screenshots/issue-detail.png"
+  imageAlt="Issue detail page with description, parent context, labels, and assignee metadata."
+  imageCaption="Check the requirements first, then read the comments and parent context."
+  layout="image-right"
+  callouts={[
     {
-      title: "Board lanes",
-      description: "The issue board helps you see where work is stuck and which column needs attention first.",
-      eyebrow: "triage",
+      title: "Requirements",
+      description: "Read the description before you judge whether the task is ready to move.",
+      tone: "primary",
     },
     {
-      title: "Issue detail",
-      description: "The detail page combines requirements, parent context, assignee, and comments in one place.",
-      eyebrow: "single source of truth",
+      title: "Parent context",
+      description: "Use the parent issue to understand why this task exists in the company tree.",
+      tone: "success",
     },
     {
       title: "Comment trail",
-      description: "Comments keep handoffs attached to the task so agents and operators can follow the same timeline.",
-      eyebrow: "communication",
+      description: "Comments carry handoffs, blockers, and status updates for operators and agents.",
+      tone: "warning",
     },
-  ]}/>
+  ]}
+/>

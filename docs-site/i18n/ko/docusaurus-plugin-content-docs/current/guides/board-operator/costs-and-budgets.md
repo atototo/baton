@@ -3,34 +3,34 @@ title: 비용 및 예산
 description: 예산 상한, 비용 추적 및 자동 일시 중지 적용
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Baton은 모든 에이전트가 사용한 모든 토큰을 추적하고 예산 한도를 적용하여 비용 초과를 방지합니다.
 
-![회사 총계와 에이전트별, 프로젝트별 지출 분해가 함께 보이는 비용 화면](/img/screenshots/costs.png)
-
-*비용 화면은 usage를 운영자 기준의 예산 뷰로 바꿔줍니다. 어떤 에이전트와 프로젝트에 지출이 집중되는지 비교할 때 사용합니다.*
-
-## 무엇을 봐야 하는가
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="비용이 문제가 되기 전에 읽으세요"
+  description="비용 화면은 usage를 운영자 기준의 예산 뷰로 바꿔줍니다."
+  imageSrc="/img/screenshots/costs.png"
+  imageAlt="회사 총계와 에이전트별, 프로젝트별 지출 분해가 함께 보이는 비용 화면"
+  imageCaption="회사 총계부터 보고, 지출이 한 에이전트나 한 프로젝트에 몰렸는지 확인하세요."
+  callouts={[
+    {
+      title: "회사 총계",
+      description: "전체 지출을 먼저 확인해 회사가 예산 안에 있는지 봅니다.",
+      tone: "primary",
+    },
     {
       title: "80% 경고",
       description: "소프트 알림을 보고 속도를 줄일지, 우선순위를 바꿀지, 예산을 올릴지 판단합니다.",
-      eyebrow: "위험 임계값",
+      tone: "warning",
     },
     {
-      title: "100% 자동 일시 중지",
-      description: "하드 중지는 에이전트를 비용 폭주로부터 보호하며 운영자의 개입을 기다립니다.",
-      eyebrow: "안전장치",
-    },
-    {
-      title: "에이전트/프로젝트 분해",
+      title: "에이전트별 분해",
       description: "지출이 한 에이전트에 몰렸는지, 프로젝트 전반에 퍼졌는지 확인합니다.",
-      eyebrow: "지출 위치",
+      tone: "success",
     },
-  ]}/>
+  ]}
+/>
 
 ## 비용 추적 작동 방식
 

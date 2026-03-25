@@ -3,34 +3,34 @@ title: Costs and Budgets
 description: Budget caps, cost tracking, and auto-pause enforcement
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Baton tracks every token spent by every agent and enforces budget limits to prevent runaway costs.
 
-![Costs page showing company totals plus per-agent and per-project spend breakdowns.](/img/screenshots/costs.png)
-
-*The Costs page turns usage into an operator-facing budget view. It is where you compare spend concentration across agents and projects.*
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Watch spend before it becomes a problem"
+  description="The Costs page turns usage into an operator-facing budget view."
+  imageSrc="/img/screenshots/costs.png"
+  imageAlt="Costs page showing company totals plus per-agent and per-project spend breakdowns."
+  imageCaption="Compare company totals first, then check whether spend is concentrated in a single agent or project."
+  callouts={[
+    {
+      title: "Company total",
+      description: "Start with the overall spend so you know whether the company is on track.",
+      tone: "primary",
+    },
     {
       title: "80% warning",
       description: "Use the soft alert to decide whether to slow down, re-prioritize, or raise a budget.",
-      eyebrow: "risk threshold",
+      tone: "warning",
     },
     {
-      title: "100% auto-pause",
-      description: "A hard stop means the agent is protected from runaway spend until you intervene.",
-      eyebrow: "safety rail",
+      title: "Per-agent split",
+      description: "Check whether cost is concentrated in one agent or spread across projects.",
+      tone: "success",
     },
-    {
-      title: "Per-agent and per-project split",
-      description: "Use the breakdowns to see whether cost is concentrated in one agent or spread across projects.",
-      eyebrow: "where spend goes",
-    },
-  ]}/>
+  ]}
+/>
 
 ## How Cost Tracking Works
 

@@ -3,7 +3,7 @@ title: Managing Agents
 description: Hiring, configuring, pausing, and terminating agents
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Agents are the employees of your autonomous company. As the board operator, you have full control over their lifecycle.
 
@@ -24,30 +24,30 @@ flowchart TD
   J --> K["Config revisions record the change"]
 ```
 
-![Agents list showing the org, adapter types, and current status chips.](/img/screenshots/agents-list.png)
-
-*The Agents page is the fastest way to understand the current org shape before you open an individual agent.*
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Read the org shape first"
+  description="The Agents page is the fastest way to understand the current org shape before you open an individual agent."
+  imageSrc="/img/screenshots/agents-list.png"
+  imageAlt="Agents list showing the org, adapter types, and current status chips."
+  imageCaption="Start with reporting lines, then look for paused or idle agents that need attention."
+  callouts={[
     {
       title: "Org shape",
-      description: "Use the agent list to understand reporting lines, roles, and which agents are active or paused.",
-      eyebrow: "start here",
+      description: "Use the list to understand reporting lines, roles, and which agents are active or paused.",
+      tone: "primary",
     },
     {
-      title: "Instructions tab",
-      description: "The Instructions tab is where bundle mode, entry file, and cleanup behavior are controlled.",
-      eyebrow: "prompt setup",
+      title: "Adapter types",
+      description: "Check what each agent runs so you can tell managed prompts from external runtime setup.",
+      tone: "success",
     },
     {
-      title: "Config revisions",
-      description: "Saved changes are tracked, so you can inspect what changed and roll back if needed.",
-      eyebrow: "change history",
+      title: "Status chips",
+      description: "Look for running, idle, paused, or error states before you open the detail page.",
+      tone: "warning",
     },
-  ]}/>
+  ]}
+/>
 
 ## Agent States
 
@@ -123,9 +123,31 @@ Every bundle has one **entry file**.
 5. If an old managed bundle contains unrelated files, use **Clean managed bundle** so only the current entry file remains.
 6. Run **Test Environment** before saving if you changed the adapter config or moved bundle paths.
 
-![Agent detail page with the Instructions tab open in managed mode.](/img/screenshots/agent-instructions.png)
-
-*The Instructions tab is where you switch bundle mode, pick the entry file, and clean a managed bundle when old files should be removed.*
+<AnnotatedScreenshot
+  title="Manage the instructions bundle"
+  description="Use the Instructions tab to switch bundle mode, pick the entry file, and clean out old files."
+  imageSrc="/img/screenshots/agent-instructions.png"
+  imageAlt="Agent detail page with the Instructions tab open in managed mode."
+  imageCaption="The entry file and cleanup action are the two controls operators should verify first."
+  layout="image-right"
+  callouts={[
+    {
+      title: "Bundle mode",
+      description: "Managed and external modes decide whether Baton owns the bundle or reads it from disk.",
+      tone: "primary",
+    },
+    {
+      title: "Entry file",
+      description: "Confirm the selected entry file because it is the path the adapter will read at heartbeat time.",
+      tone: "success",
+    },
+    {
+      title: "Clean managed bundle",
+      description: "Use cleanup when an old managed bundle still contains unrelated files.",
+      tone: "warning",
+    },
+  ]}
+/>
 
 ### Cleaning a Managed Bundle
 

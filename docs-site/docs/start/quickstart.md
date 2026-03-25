@@ -8,7 +8,7 @@ import {
   FlowStepper,
   ScreenTour,
   CompareModes,
-  CalloutGrid,
+  AnnotatedScreenshot,
 } from "@site/src/components/docs";
 
 export const quickEvalPane = {
@@ -123,22 +123,27 @@ export const localDevPane = {
 
 ## What to Notice
 
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Start with the dashboard"
+  description="The dashboard tells you what Baton is managing right now before you open any individual agent."
+  imageSrc="/img/screenshots/dashboard.png"
+  imageAlt="Baton dashboard showing company activity, recent work, and live events."
+  imageCaption="Scan the company name, the live event rail, and the overall health signals first."
+  callouts={[
     {
       title: "Company overview",
-      description: "Start with the dashboard to see the active company, current work, and live event rail.",
-      eyebrow: "first stop",
+      description: "Check the active company name and org shape so you know which workspace you are in.",
+      tone: "primary",
     },
     {
-      title: "Agent detail",
-      description: "Open an agent to confirm its adapter, instructions tab, and current runtime state.",
-      eyebrow: "runtime setup",
+      title: "Live event rail",
+      description: "Read recent mutations first so you understand what changed before you click around.",
+      tone: "success",
     },
     {
-      title: "Project conventions",
-      description: "Check the conventions tab to see what Baton will compose into supported runs.",
-      eyebrow: "shared context",
+      title: "Status chips",
+      description: "Look for running, idle, paused, or error states to spot the next place that needs attention.",
+      tone: "warning",
     },
   ]}
 />

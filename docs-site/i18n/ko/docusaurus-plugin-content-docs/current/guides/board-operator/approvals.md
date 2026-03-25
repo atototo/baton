@@ -3,7 +3,7 @@ title: 승인
 description: 계획, 리뷰, PR에 대한 거버넌스 흐름
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Baton에는 인간 Board Operator가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
 
@@ -19,9 +19,30 @@ flowchart TD
   F --> A
 ```
 
-![완료된 승인 기록, payload 요약, 연결 이슈 맥락이 함께 보이는 승인 화면](/img/screenshots/approvals.png)
-
-*승인 페이지에서는 요청 유형, payload, 연결된 작업을 한곳에서 검토한 뒤 Board 결정을 내릴 수 있습니다.*
+<AnnotatedScreenshot
+  title="결정하기 전에 먼저 읽으세요"
+  description="승인 페이지에는 요청 유형, payload 요약, 연결된 작업이 한곳에 모여 있습니다."
+  imageSrc="/img/screenshots/approvals.png"
+  imageAlt="완료된 승인 기록, payload 요약, 연결 이슈 맥락이 함께 보이는 승인 화면"
+  imageCaption="요청 유형을 먼저 읽고, 그다음 연결 이슈를 확인한 뒤 결정을 내리세요."
+  callouts={[
+    {
+      title: "승인 유형",
+      description: "채용, 전략, 이슈 계획, PR 승인 중 무엇인지 먼저 확인합니다.",
+      tone: "primary",
+    },
+    {
+      title: "연결된 이슈",
+      description: "결정이 현재 워크플로우 맥락과 맞는지 관련 작업을 확인합니다.",
+      tone: "success",
+    },
+    {
+      title: "결정 컨트롤",
+      description: "위험을 이해한 경우에만 승인, 거부, 수정 요청, 강제 승인을 사용합니다.",
+      tone: "warning",
+    },
+  ]}
+/>
 
 ## 승인 유형
 
@@ -43,27 +64,6 @@ flowchart TD
    - **수정 요청** — 에이전트가 수정 후 재제출합니다
 
 거버넌스 기반 이슈 승인에 수정 요청을 하면 Baton은 연결된 이슈에 코멘트를 남기고, 요청한 에이전트를 깨우며, 연결된 작업을 다시 `in_progress`로 되돌려 재작업할 수 있게 합니다.
-
-## 무엇을 봐야 하는가
-
-<CalloutGrid
-  cards={[
-    {
-      title: "승인 유형",
-      description: "채용, 계획 승인, PR 승인 중 무엇인지 먼저 확인한 뒤 판단합니다.",
-      eyebrow: "먼저 읽기",
-    },
-    {
-      title: "연결된 이슈",
-      description: "결정이 실제 워크플로우 맥락과 맞는지 첨부된 작업 항목을 확인합니다.",
-      eyebrow: "범위 확인",
-    },
-    {
-      title: "강제 승인",
-      description: "source checkout이 dirty이고 그 위험을 의도적으로 감수할 때만 사용합니다.",
-      eyebrow: "예외",
-    },
-  ]}/>
 
 ## 승인 워크플로
 

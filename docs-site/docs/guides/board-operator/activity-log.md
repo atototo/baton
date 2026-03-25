@@ -3,34 +3,34 @@ title: Activity Log
 description: Audit trail for all mutations
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Every mutation in Baton is recorded in the activity log. This provides a complete audit trail of what happened, when, and who did it.
 
-![Activity page showing aggregate counts, filters, and a chronological company-wide event stream.](/img/screenshots/activity-log.png)
-
-*The Activity page is the audit-first view. Use it when you need to answer what changed, who changed it, and in what order.*
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Use the activity log as the audit trail"
+  description="The Activity page is the audit-first view when you need to answer what changed, who changed it, and in what order."
+  imageSrc="/img/screenshots/activity-log.png"
+  imageAlt="Activity page showing aggregate counts, filters, and a chronological company-wide event stream."
+  imageCaption="Scan the timeline first, then narrow it with filters when you need a specific answer."
+  callouts={[
     {
       title: "Event timeline",
       description: "The chronological feed lets you reconstruct what happened without leaving the page.",
-      eyebrow: "history",
+      tone: "primary",
     },
     {
       title: "Filtering",
-      description: "Actor and entity filters make it easy to narrow the audit trail to one issue, agent, or approval.",
-      eyebrow: "forensics",
+      description: "Actor and entity filters narrow the audit trail to one issue, agent, or approval.",
+      tone: "success",
     },
     {
       title: "Mutation trail",
       description: "Create, update, pause, approve, and comment events all land here as the company record.",
-      eyebrow: "source of truth",
+      tone: "warning",
     },
-  ]}/>
+  ]}
+/>
 
 ## What Gets Logged
 

@@ -3,7 +3,7 @@ title: Approvals
 description: Governance flows for planning, review, and pull requests
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 Baton includes approval gates that keep the human board operator in control of key decisions.
 
@@ -19,9 +19,30 @@ flowchart TD
   F --> A
 ```
 
-![Approvals page showing completed approval records, payload summaries, and linked issue context.](/img/screenshots/approvals.png)
-
-*The Approvals page gives the board one place to review the request type, payload, and linked work before making a decision.*
+<AnnotatedScreenshot
+  title="Scan the approval before deciding"
+  description="The Approvals page keeps the request type, payload summary, and linked work in one place."
+  imageSrc="/img/screenshots/approvals.png"
+  imageAlt="Approvals page showing completed approval records, payload summaries, and linked issue context."
+  imageCaption="Read the request type first, then confirm the linked issues before choosing a decision."
+  callouts={[
+    {
+      title: "Approval type",
+      description: "Identify whether this is a hire, strategy, issue plan, or pull request approval.",
+      tone: "primary",
+    },
+    {
+      title: "Linked issues",
+      description: "Check the related work so the decision matches the current workflow context.",
+      tone: "success",
+    },
+    {
+      title: "Decision controls",
+      description: "Approve, reject, request revision, or force approve only when you understand the risk.",
+      tone: "warning",
+    },
+  ]}
+/>
 
 ## Approval Types
 
@@ -43,27 +64,6 @@ flowchart TD
    - **Request revision** — the agent updates the work and resubmits
 
 When you request revision on a governed issue approval, Baton comments on linked issues, wakes the requesting agent, and moves linked work back to `in_progress` so the agent can rework it.
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
-    {
-      title: "Approval type",
-      description: "Confirm whether the request is for hiring, plan approval, or PR approval before you decide.",
-      eyebrow: "read first",
-    },
-    {
-      title: "Linked issues",
-      description: "Review the attached work items so the decision matches the actual workflow context.",
-      eyebrow: "check scope",
-    },
-    {
-      title: "Force approve",
-      description: "Use it only when the source checkout is dirty and you intentionally accept the risk.",
-      eyebrow: "rare exception",
-    },
-  ]}/>
 
 ## Approval Workflow
 

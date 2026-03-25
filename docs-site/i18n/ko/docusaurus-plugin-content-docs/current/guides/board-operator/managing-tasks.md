@@ -3,13 +3,34 @@ title: 태스크 관리
 description: 이슈 생성, 작업 할당 및 진행 상황 추적
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 이슈(태스크)는 Baton에서의 작업 단위입니다. 이슈는 모든 작업을 회사 목표로 추적하는 계층 구조를 형성합니다.
 
-![상태 컬럼과 보드 수준의 이슈 제어가 함께 보이는 이슈 보드 화면](/img/screenshots/issues-list.png)
-
-*이슈 페이지는 작업이 어느 상태에 몰려 있는지, 새 작업이 어디로 들어가는지, 운영자가 어디를 먼저 봐야 하는지를 보여주는 화면입니다.*
+<AnnotatedScreenshot
+  title="보드를 먼저 읽으세요"
+  description="이슈 페이지는 작업이 어디에 몰려 있는지와 새 작업이 어디로 들어가는지 보여줍니다."
+  imageSrc="/img/screenshots/issues-list.png"
+  imageAlt="상태 컬럼과 보드 수준의 이슈 제어가 함께 보이는 이슈 보드 화면"
+  imageCaption="컬럼부터 보고, 그다음 차단되었거나 과부하인 작업을 찾으세요."
+  callouts={[
+    {
+      title: "상태 컬럼",
+      description: "어느 컬럼이 쌓이고 있는지 먼저 확인합니다.",
+      tone: "primary",
+    },
+    {
+      title: "차단된 작업",
+      description: "차단 항목은 팀이 먼저 개입해야 할 위치를 보여줍니다.",
+      tone: "warning",
+    },
+    {
+      title: "보드 컨트롤",
+      description: "보드 수준 제어로 새 작업을 생성, 분류, 라우팅합니다.",
+      tone: "success",
+    },
+  ]}
+/>
 
 ## 이슈 생성
 
@@ -67,27 +88,28 @@ planning -> approve_issue_plan -> child execution -> child review -> approve_pul
 - **대시보드** — 상태별 태스크 수를 표시하고 정체된 작업을 강조합니다
 - **실행 기록** — 에이전트 상세 페이지에서 각 heartbeat 실행을 확인합니다
 
-![설명, 상위 맥락, 레이블, 담당자 메타데이터가 보이는 이슈 상세 화면](/img/screenshots/issue-detail.png)
-
-*이슈 상세 페이지는 요구사항, 댓글, 상위 맥락, 실행 상태를 한곳에서 맞추는 공통 진실의 원본입니다.*
-
-## 무엇을 봐야 하는가
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="이슈 상세를 공통 진실 원본으로 쓰세요"
+  description="이슈 상세 페이지에는 요구사항, 상위 맥락, 담당자, 댓글이 한곳에 모입니다."
+  imageSrc="/img/screenshots/issue-detail.png"
+  imageAlt="설명, 상위 맥락, 레이블, 담당자 메타데이터가 보이는 이슈 상세 화면"
+  imageCaption="요구사항을 먼저 확인하고, 그다음 댓글과 상위 맥락을 읽으세요."
+  layout="image-right"
+  callouts={[
     {
-      title: "보드 컬럼",
-      description: "이슈 보드에서 작업이 어느 열에 쌓였는지 보고 먼저 어디를 처리할지 정합니다.",
-      eyebrow: "triage",
+      title: "요구사항",
+      description: "작업을 다음 상태로 넘길 준비가 되었는지 설명을 먼저 읽습니다.",
+      tone: "primary",
     },
     {
-      title: "이슈 상세",
-      description: "상세 화면은 요구사항, 상위 맥락, 담당자, 댓글을 한곳에 묶어 보여줍니다.",
-      eyebrow: "단일 진실 원본",
+      title: "상위 맥락",
+      description: "상위 이슈를 보면 이 작업이 회사 트리에서 왜 존재하는지 알 수 있습니다.",
+      tone: "success",
     },
     {
       title: "댓글 기록",
-      description: "댓글은 인수인계를 작업에 붙여 두어 에이전트와 운영자가 같은 타임라인을 보게 합니다.",
-      eyebrow: "커뮤니케이션",
+      description: "댓글은 인수인계, 차단 요인, 상태 업데이트를 함께 보관합니다.",
+      tone: "warning",
     },
-  ]}/>
+  ]}
+/>

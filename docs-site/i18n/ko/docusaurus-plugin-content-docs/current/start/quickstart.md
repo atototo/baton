@@ -8,7 +8,7 @@ import {
   FlowStepper,
   ScreenTour,
   CompareModes,
-  CalloutGrid,
+  AnnotatedScreenshot,
 } from "@site/src/components/docs";
 
 export const quickEvalPane = {
@@ -123,22 +123,27 @@ export const localDevPane = {
 
 ## 무엇을 봐야 하는가
 
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="대시보드부터 확인하세요"
+  description="대시보드는 개별 에이전트를 열기 전에 Baton이 지금 무엇을 관리하는지 보여줍니다."
+  imageSrc="/img/screenshots/dashboard.png"
+  imageAlt="회사 활동, 최근 작업, 실시간 이벤트가 보이는 Baton 대시보드"
+  imageCaption="회사 이름, 실시간 이벤트 레일, 전체 상태 신호를 먼저 확인하세요."
+  callouts={[
     {
       title: "회사 개요",
-      description: "대시보드에서 활성 회사, 현재 작업, 실시간 이벤트 레일을 먼저 확인합니다.",
-      eyebrow: "첫 화면",
+      description: "활성 회사 이름과 조직 구조를 확인해 지금 어느 작업공간을 보고 있는지 파악합니다.",
+      tone: "primary",
     },
     {
-      title: "에이전트 상세",
-      description: "에이전트를 열어 adapter, Instructions 탭, 현재 실행 상태를 확인합니다.",
-      eyebrow: "runtime 설정",
+      title: "실시간 이벤트 레일",
+      description: "최근 변경 사항을 먼저 읽어서 화면을 더 클릭하기 전에 무엇이 바뀌었는지 이해합니다.",
+      tone: "success",
     },
     {
-      title: "프로젝트 컨벤션",
-      description: "컨벤션 탭에서 Baton이 지원되는 실행에 합성할 내용을 확인합니다.",
-      eyebrow: "공유 컨텍스트",
+      title: "상태 배지",
+      description: "running, idle, paused, error 상태를 찾아 다음에 개입할 위치를 빠르게 찾습니다.",
+      tone: "warning",
     },
   ]}
 />

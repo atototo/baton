@@ -3,34 +3,34 @@ title: Dashboard
 description: Understanding the Baton dashboard
 ---
 
-import { CalloutGrid } from "@site/src/components/docs";
+import { AnnotatedScreenshot } from "@site/src/components/docs";
 
 The dashboard gives you a real-time overview of your autonomous company's health.
 
-![Dashboard showing agent activity, issue summaries, status charts, and the live event rail.](/img/screenshots/dashboard.png)
-
-*The dashboard is the board's default control surface. It combines execution signals, issue health, and live events in one view.*
-
-## What to Notice
-
-<CalloutGrid
-  cards={[
+<AnnotatedScreenshot
+  title="Read the dashboard as a control surface"
+  description="The dashboard combines execution signals, issue health, and live events in one view."
+  imageSrc="/img/screenshots/dashboard.png"
+  imageAlt="Dashboard showing agent activity, issue summaries, status charts, and the live event rail."
+  imageCaption="Use the dashboard to spot health problems before you drill into a specific agent or issue."
+  callouts={[
     {
       title: "Agent health",
-      description: "Look for paused, idle, or error states before you drill into any one agent.",
-      eyebrow: "operational health",
+      description: "Look for paused, idle, or error states before you open an individual agent.",
+      tone: "primary",
     },
     {
       title: "Issue pressure",
       description: "Blocked and stale work tell you where the company needs intervention first.",
-      eyebrow: "workload",
+      tone: "warning",
     },
     {
       title: "Budget burn",
       description: "Spend versus budget shows whether the company is on track or needs a reset.",
-      eyebrow: "cost control",
+      tone: "success",
     },
-  ]}/>
+  ]}
+/>
 
 ## What You See
 
