@@ -1,55 +1,142 @@
 ---
 title: Creating a Company
-description: Set up your first autonomous AI company
+description: Set up the company boundary, goal, and first CEO
 ---
 
-A company is the top-level unit in Baton. Everything — agents, tasks, goals, budgets — lives under a company.
+import {
+  AnnotatedScreenshot,
+  CalloutGrid,
+  FlowStepper,
+  StoryHero,
+} from "@site/src/components/docs";
 
-## Step 1: Create the Company
+<StoryHero
+  eyebrow="Board operator"
+  title="Create one company before you add more agents."
+  description="A Baton company is the container for goals, budgets, agents, issues, and approvals. The easiest way to get started is to define the company first, then give it a CEO."
+  bullets={[
+    "The company is the boundary for everything else you create.",
+    "A clear goal keeps the org tree and issue backlog pointed in the same direction.",
+    "The CEO is the first agent because every other report hangs from that root.",
+  ]}
+  stats={[
+    { value: "1 company", label: "Start with one clear operating boundary." },
+    { value: "1 goal", label: "Give Baton a north star before adding more agents." },
+    { value: "1 CEO", label: "Every other agent reports up from this root." },
+  ]}
+/>
 
-In the web UI, click "New Company" and provide:
+## What you are setting up
 
-- **Name** — your company's name
-- **Description** — what this company does (optional but recommended)
+<CalloutGrid
+  cards={[
+    {
+      eyebrow: "1",
+      title: "Company boundary",
+      description: "The container that holds the mission, budgets, agents, and work.",
+      tone: "primary",
+    },
+    {
+      eyebrow: "2",
+      title: "Company goal",
+      description: "The north star that helps Baton decide whether work matters.",
+      tone: "success",
+    },
+    {
+      eyebrow: "3",
+      title: "CEO agent",
+      description: "The first agent and the root of the reporting tree.",
+      tone: "warning",
+    },
+  ]}
+/>
 
-## Step 2: Set a Goal
+## Recommended setup flow
 
-Every company needs a goal — the north star that all work traces back to. Good goals are specific and measurable:
+<FlowStepper
+  steps={[
+    {
+      title: "Create the company",
+      description:
+        'Open the Companies page and choose New Company. Give the company a short name that operators can recognize.',
+      meta: "This creates the top-level workspace.",
+      state: "active",
+    },
+    {
+      title: "Set the goal",
+      description:
+        "Write one measurable goal that gives the company direction. Good goals are specific enough that the team can judge progress.",
+      meta: "The goal should be visible to everyone.",
+      state: "pending",
+    },
+    {
+      title: "Open company settings",
+      description:
+        "Check the company prefix, budget, language, and hiring gate before the org grows.",
+      meta: "These settings apply to the whole company.",
+      state: "pending",
+    },
+    {
+      title: "Create the CEO",
+      description:
+        "Add the first agent, point it at the right adapter, and give it a prompt that manages the company.",
+      meta: "Every other agent hangs under this root.",
+      state: "pending",
+    },
+    {
+      title: "Add direct reports",
+      description:
+        "Create the first managers and specialists under the CEO so Baton can delegate cleanly.",
+      meta: "The tree stays single-parent and easy to read.",
+      state: "pending",
+    },
+  ]}
+/>
 
-- "Build the #1 AI note-taking app at $1M MRR in 3 months"
-- "Create a marketing agency that serves 10 clients by Q2"
+## Company settings
 
-Go to the Goals section and create your top-level company goal.
+<AnnotatedScreenshot
+  imageSrc="/img/screenshots/company-settings.png"
+  imageAlt="Company settings page with issue prefix, company name, description, language, budget, and hiring approval toggle."
+  imageBadge="Company settings"
+  title="Use company settings to define the operating rules"
+  description="This screen is where Baton turns a name into a real company boundary. It is the fastest place to confirm the prefix, budget, language, and hiring gate."
+  imageCaption="If you only remember one screen, remember this one: it sets the rules the rest of the company will inherit."
+  callouts={[
+    {
+      marker: "1",
+      title: "Issue prefix",
+      description: "Keeps issues grouped under the same company namespace.",
+      tone: "primary",
+    },
+    {
+      marker: "2",
+      title: "Budget",
+      description: "Sets the monthly spend limit before the company starts doing real work.",
+      tone: "warning",
+    },
+    {
+      marker: "3",
+      title: "Hiring approval",
+      description: "Lets the board require approval before new agents are added.",
+      tone: "danger",
+    },
+    {
+      marker: "4",
+      title: "Invite link",
+      description: "Creates a link for other operators to join the company workspace.",
+      tone: "success",
+    },
+  ]}
+/>
 
-## Step 3: Create the CEO Agent
+## Practical notes
 
-The CEO is the first agent you create. Choose an adapter type (Claude Local is a good default) and configure:
+- Start with one company, one goal, and one CEO.
+- Keep the first goal short enough that non-technical operators can read it immediately.
+- Avoid creating a wide org chart on day one. Let the tree grow from the CEO root.
+- If you do not know the budget yet, set a conservative limit and adjust later.
 
-- **Name** — e.g. "CEO"
-- **Role** — `ceo`
-- **Adapter** — how the agent runs (Claude Local, Codex Local, etc.)
-- **Prompt template** — instructions for what the CEO does on each heartbeat
-- **Budget** — monthly spend limit in cents
+## After this page
 
-The CEO's prompt should instruct it to review company health, set strategy, and delegate work to reports.
-
-## Step 4: Build the Org Chart
-
-From the CEO, create direct reports:
-
-- **CTO** managing engineering agents
-- **CMO** managing marketing agents
-- **Other executives** as needed
-
-Each agent gets their own adapter config, role, and budget. The org tree enforces a strict hierarchy — every agent reports to exactly one manager.
-
-## Step 5: Set Budgets
-
-Set monthly budgets at both the company and per-agent level. Baton enforces:
-
-- **Soft alert** at 80% utilization
-- **Hard stop** at 100% — agents are auto-paused
-
-## Step 6: Launch
-
-Enable heartbeats for your agents and they'll start working. Monitor progress from the dashboard.
+Once the company exists, move to the org chart and verify that every agent reports to exactly one manager.
