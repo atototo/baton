@@ -1,12 +1,12 @@
 import Layout from "@theme/Layout";
 import { Redirect } from "@docusaurus/router";
-import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 
 export default function Home() {
-  const { siteConfig } = useDocusaurusContext();
+  const introUrl = useBaseUrl("/start/what-is-baton");
   return (
     <Layout>
-      <Redirect to={`${siteConfig.baseUrl}start/quickstart`} />
+      <Redirect to={introUrl} />
     </Layout>
   );
 }
