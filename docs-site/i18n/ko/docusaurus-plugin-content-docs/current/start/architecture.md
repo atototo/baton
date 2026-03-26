@@ -1,6 +1,6 @@
 ---
 title: 아키텍처
-description: 스택 개요, 요청 흐름, adapter 모델
+description: 스택 개요, 요청 흐름, 어댑터 모델
 ---
 
 import {
@@ -11,7 +11,7 @@ import {
 } from "@site/src/components/docs";
 
 export const controlPlanePane = {
-  title: "Baton control plane",
+  title: "Baton 운영 레이어",
   summary: "회사 상태, 거버넌스 규칙, 감사 기록을 동기화합니다.",
   tone: "primary",
   bullets: [
@@ -23,7 +23,7 @@ export const controlPlanePane = {
 };
 
 export const executionAdapterPane = {
-  title: "Execution adapter",
+  title: "실행 어댑터",
   summary: "Baton을 실제 에이전트가 실행되는 환경과 연결합니다.",
   tone: "success",
   bullets: [
@@ -40,7 +40,7 @@ export const executionAdapterPane = {
   description="UI, API, 데이터베이스, adapter는 서로 다른 계층입니다. Baton은 회사 모델을 조정하고, adapter는 실제 작업이 실행되는 runtime과 Baton을 연결합니다."
   bullets={[
     "Control plane은 허용된 행동을 결정하고, 무슨 일이 일어났는지 기록하며, 회사 모델을 동기화합니다.",
-    "Adapters는 Baton을 Claude, Codex, Gemini, Pi, shell process, HTTP runtime과 연결합니다.",
+    "어댑터는 Baton을 Claude, Codex, Cursor, OpenCode, Gemini, Pi, 셸 프로세스, HTTP runtime과 연결합니다.",
     "runtime이 바뀌어도 제품 구조는 일관되게 유지됩니다.",
   ]}
   stats={[
@@ -74,8 +74,8 @@ export const executionAdapterPane = {
   ]}
   right={[
     {
-      title: "Adapters",
-      description: "Claude Code, Codex, Gemini, Pi, process, HTTP runtime과의 built-in 통합입니다.",
+      title: "어댑터",
+      description: "Claude Code, Codex, Cursor, OpenCode, Gemini, Pi, process, HTTP runtime과의 기본 통합입니다.",
       tone: "warning",
     },
   ]}
@@ -106,8 +106,8 @@ export const executionAdapterPane = {
 | 백엔드 | Node.js 20+, Express.js 5, TypeScript |
 | 데이터베이스 | PostgreSQL 17 또는 내장 PGlite, Drizzle ORM |
 | 인증 | Better Auth, sessions, agent API keys |
-| Adapter | Claude Code CLI, Codex CLI, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
-| 패키지 매니저 | pnpm 9 with workspaces |
+| 어댑터 | Claude Code CLI, Codex CLI, Cursor CLI, OpenCode, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
+| 패키지 매니저 | pnpm 9 워크스페이스 |
 
 ## 레포지토리 구조
 
@@ -122,17 +122,19 @@ baton/
 ├── server/                      # Express API
 │   ├── src/routes/              # REST 엔드포인트
 │   ├── src/services/            # 비즈니스 로직
-│   ├── src/adapters/            # 에이전트 실행 adapter
+│   ├── src/adapters/            # 에이전트 실행 어댑터
 │   └── src/middleware/          # 인증, 로깅
 │
 ├── packages/
 │   ├── db/                      # Drizzle 스키마 + 마이그레이션
 │   ├── shared/                  # API 타입, 상수, 검증기
-│   ├── adapter-utils/           # Adapter 인터페이스 및 헬퍼
+│   ├── adapter-utils/           # 어댑터 인터페이스 및 헬퍼
 │   └── adapters/
 │       ├── claude-local/        # Claude Code adapter
 │       ├── codex-local/         # OpenAI Codex adapter
+│       ├── cursor-local/        # Cursor CLI adapter
 │       ├── gemini-local/        # Gemini CLI adapter
+│       ├── opencode-local/      # OpenCode adapter
 │       └── pi-local/            # Pi local adapter
 │
 ├── skills/
@@ -165,7 +167,7 @@ Heartbeat 실행은 stack을 따라 예측 가능한 순서로 이동합니다.
   right={executionAdapterPane}
 />
 
-기본 제공 adapter에는 `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, `http`가 포함됩니다.
+기본 제공 어댑터에는 `claude_local`, `codex_local`, `cursor_local`, `opencode_local`, `gemini_local`, `pi_local`, `process`, `http`가 포함됩니다.
 
 ## 핵심 설계 결정
 

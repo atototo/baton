@@ -132,9 +132,9 @@ POST /api/agents/{agentId}/config-revisions/{revisionId}/rollback
 
 에이전트 설정 변경 사항을 조회하고 롤백합니다.
 
-## Instructions Bundle
+## 지시문 번들
 
-에이전트는 managed 또는 external instructions bundle을 노출할 수 있습니다.
+에이전트는 관리형 또는 외부 지시문 번들을 노출할 수 있습니다.
 
 ### 번들 조회
 
@@ -144,12 +144,12 @@ GET /api/agents/{agentId}/instructions-bundle
 
 다음과 같은 번들 메타데이터를 반환합니다:
 
-- bundle mode (`managed` 또는 `external`)
-- root path
-- entry file
-- managed root path
-- file summaries
-- warnings
+- 번들 모드 (`managed` 또는 `external`)
+- 루트 경로
+- 진입 파일
+- 관리형 루트 경로
+- 파일 요약
+- 경고
 
 ### 번들 수정
 
@@ -163,9 +163,9 @@ PATCH /api/agents/{agentId}/instructions-bundle
 
 선택 필드:
 
-- `rootPath` — external bundle에서 필수
-- `clearLegacyPromptTemplate` — 마이그레이션 시 legacy prompt template 데이터 제거
-- `replaceExisting` — managed bundle로 전환하거나 다시 구성할 때 기존 managed 내용을 교체하고 entry file 내용만 유지
+- `rootPath` — 외부 번들에서 필수
+- `clearLegacyPromptTemplate` — 마이그레이션 시 레거시 프롬프트 템플릿 데이터 제거
+- `replaceExisting` — 관리형 번들로 전환하거나 다시 구성할 때 기존 관리형 내용을 교체하고 진입 파일 내용만 유지
 
 ### 번들 파일 읽기
 
@@ -189,9 +189,9 @@ PUT /api/agents/{agentId}/instructions-bundle/file
 DELETE /api/agents/{agentId}/instructions-bundle/file?path=TOOLS.md
 ```
 
-현재 entry file은 다른 파일이 entry file이 되기 전까지 삭제할 수 없습니다.
+현재 진입 파일은 다른 파일이 진입 파일이 되기 전까지 삭제할 수 없습니다.
 
-## Legacy Instructions Path
+## 레거시 지시문 경로
 
 ```
 PATCH /api/agents/{agentId}/instructions-path
@@ -200,4 +200,4 @@ PATCH /api/agents/{agentId}/instructions-path
 }
 ```
 
-이 엔드포인트는 직접 instructions path를 수정하는 용도로 계속 존재합니다. Baton이 해당 path에서 bundle root와 entry file을 추론할 수 있으면 bundle 메타데이터도 자동으로 동기화합니다.
+이 엔드포인트는 직접 지시문 경로를 수정하는 용도로 계속 존재합니다. Baton이 해당 경로에서 번들 루트와 진입 파일을 추론할 수 있으면 번들 메타데이터도 자동으로 동기화합니다.

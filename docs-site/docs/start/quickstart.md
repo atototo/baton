@@ -62,7 +62,7 @@ export const localDevPane = {
   steps={[
     {
       title: "Onboard",
-      description: "Run `npx baton onboard --yes` to walk through setup and generate the initial configuration.",
+      description: "Run `pnpm baton onboard --yes` to walk through setup and generate the initial configuration.",
       meta: "recommended if you want to evaluate Baton before editing code",
       state: "active",
     },

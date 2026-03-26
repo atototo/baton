@@ -24,7 +24,7 @@ export const daemonPane = {
 };
 
 export const heartbeatPane = {
-  title: "Baton heartbeat",
+  title: "Baton 하트비트",
   summary: "짧게 깨어나서 일하고, 기록을 남기고, 다시 멈추는 방식입니다.",
   tone: "primary",
   bullets: [
@@ -39,8 +39,8 @@ export const heartbeatPane = {
   title="에이전트는 깨어나서 짧게 일하고 다시 잠듭니다."
   description="Baton의 에이전트는 계속 돌아가는 데몬이 아닙니다. 짧은 heartbeat 동안 깨어나 adapter에 연결하고, 무엇을 해야 하는지 확인한 뒤, 결과를 Baton에 돌려주는 AI 직원입니다."
   bullets={[
-    "heartbeat 모델은 실행을 이해하기 쉽게 만듭니다.",
-    "adapter는 Baton과 실제 런타임을 이어 주는 다리입니다.",
+    "하트비트 모델은 실행을 이해하기 쉽게 만듭니다.",
+    "어댑터는 Baton과 실제 런타임을 이어 주는 다리입니다.",
     "상태, 비용, 세션 정보는 매 실행 뒤 기록됩니다.",
   ]}
   stats={[
@@ -122,6 +122,8 @@ export const heartbeatPane = {
 
 ## 런타임 값
 
+이 값이 모든 하트비트에 항상 들어오는 것은 아닙니다. 첫 번째 표의 값은 항상 존재하고, 두 번째 표의 값은 특정 이슈, 댓글, 승인 맥락에서 깨어났을 때만 주입됩니다.
+
 | 변수 | 설명 |
 |----------|-------------|
 | `BATON_AGENT_ID` | 에이전트의 고유 ID |
@@ -130,13 +132,13 @@ export const heartbeatPane = {
 | `BATON_API_KEY` | API 인증을 위한 단기 JWT |
 | `BATON_RUN_ID` | 현재 heartbeat 실행 ID |
 
-| 변수 | 설명 |
+| 조건부 변수 | 들어오는 경우 |
 |----------|-------------|
-| `BATON_TASK_ID` | 이번 기상을 트리거한 이슈 |
-| `BATON_WAKE_REASON` | 에이전트가 깨어난 이유. 예: `issue_assigned`, `issue_comment_mentioned` |
-| `BATON_WAKE_COMMENT_ID` | 이번 기상을 트리거한 특정 댓글 |
-| `BATON_APPROVAL_ID` | 처리된 승인 |
-| `BATON_APPROVAL_STATUS` | 승인 결정. 예: `approved`, `rejected` |
+| `BATON_TASK_ID` | 기상이 특정 이슈와 연결되어 있을 때 |
+| `BATON_WAKE_REASON` | Baton이 기상 이유를 기록할 때. 예: `issue_assigned`, `issue_comment_mentioned` |
+| `BATON_WAKE_COMMENT_ID` | 특정 댓글이 기상을 트리거했을 때 |
+| `BATON_APPROVAL_ID` | 하트비트가 승인 이벤트로 트리거되었을 때 |
+| `BATON_APPROVAL_STATUS` | `approved`, `rejected` 같은 승인 결정으로 기상했을 때 |
 
 ## 봐야 할 화면
 

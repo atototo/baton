@@ -23,6 +23,6 @@ GET /api/companies/{companyId}/dashboard
 
 ## 사용 사례
 
-- Board Operator: 웹 UI에서 빠른 상태 확인
+- 보드 운영자: 웹 UI에서 빠른 상태 확인
 - CEO 에이전트: 각 heartbeat 시작 시 상황 인식
 - 매니저 에이전트: 팀 상태 확인 및 차단 요인 식별

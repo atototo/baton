@@ -124,7 +124,7 @@ import {
     {
       marker: "4",
       title: "Invite link",
-      description: "Creates a link for other operators to join the company workspace.",
+      description: "Creates a link that can be used to request access to the company workspace, including human operators and agent joins.",
       tone: "success",
     },
   ]}

@@ -1,6 +1,6 @@
 ---
 title: 핵심 개념
-description: 회사, 에이전트, 이슈, heartbeat, 거버넌스
+description: 회사, 에이전트, 이슈, 하트비트, 거버넌스
 ---
 
 import {
@@ -54,7 +54,7 @@ import {
     { title: "이슈", description: "추적되는 작업 단위입니다.", tone: "success" },
   ]}
   bottom={[
-    { title: "Heartbeat", description: "에이전트가 깨어나 행동하는 짧은 실행 구간입니다.", tone: "neutral" },
+    { title: "하트비트", description: "에이전트가 깨어나 행동하는 짧은 실행 구간입니다.", tone: "neutral" },
     { title: "승인", description: "민감하거나 거버넌스가 필요한 행동에 대한 사람의 게이트입니다.", tone: "warning" },
     { title: "예산", description: "무한한 지출을 막아주는 비용 안전장치입니다.", tone: "neutral" },
   ]}
@@ -100,9 +100,9 @@ import {
 
 ## Heartbeat
 
-에이전트는 계속 실행되지 않습니다. Baton이 트리거하는 짧은 실행 창인 **heartbeat**에서 깨어납니다.
+에이전트는 계속 실행되지 않습니다. Baton이 트리거하는 짧은 실행 창인 **하트비트**에서 깨어납니다.
 
-Heartbeat 트리거는 다음과 같습니다.
+하트비트 트리거는 다음과 같습니다.
 
 - **스케줄** - 주기적 타이머
 - **할당** - 새 태스크가 에이전트에 할당됨
@@ -110,24 +110,24 @@ Heartbeat 트리거는 다음과 같습니다.
 - **수동** - 사람이 UI에서 Invoke를 클릭함
 - **승인 처리** - 대기 중인 승인이 승인 또는 거부됨
 
-각 heartbeat는 신원 확인, 할당 검토, 작업 선택, 태스크 체크아웃, 작업 수행, 상태 업데이트라는 같은 순서를 따릅니다.
+각 하트비트는 신원 확인, 할당 검토, 작업 선택, 태스크 체크아웃, 작업 수행, 상태 업데이트라는 같은 순서를 따릅니다.
 
 ## 거버넌스
 
-일부 작업에는 Board 승인(사람의 승인)이 필요합니다.
+일부 작업에는 보드 운영자의 승인(사람의 승인)이 필요합니다.
 
-- **에이전트 채용** - 에이전트가 부하 직원 채용을 요청할 수 있지만 Board가 승인해야 합니다
-- **CEO 전략** - CEO의 초기 전략 계획에는 Board 승인이 필요합니다
+- **에이전트 채용** - 에이전트가 부하 직원 채용을 요청할 수 있지만 보드 운영자가 승인해야 합니다
+- **CEO 전략** - CEO의 초기 전략 계획에는 보드 운영자의 승인이 필요합니다
 - **이슈 계획** - delegated implementation이 execution workspace로 들어가기 전에 승인이 필요합니다
 - **Pull request** - 최종 PR 승인이 실제 commit, push, GitHub PR 생성을 게이트합니다
-- **Board 개입** - Board는 모든 에이전트를 일시 중지, 재개, 종료하거나 모든 태스크를 재할당할 수 있습니다
+- **보드 개입** - 보드 운영자는 모든 에이전트를 일시 중지, 재개, 종료하거나 모든 태스크를 재할당할 수 있습니다
 
-Board Operator는 웹 UI를 통해 완전한 가시성과 제어 권한을 갖습니다. 모든 변경 사항은 activity audit trail에 기록됩니다.
+보드 운영자는 웹 UI를 통해 완전한 가시성과 제어 권한을 갖습니다. 모든 변경 사항은 활동 감사 추적에 기록됩니다.
 
 <GovernedFlowTimeline
   stages={[
     { title: "계획", description: "리더가 해야 할 일을 정의합니다.", state: "warning" },
-    { title: "승인", description: "Board가 계획을 확인한 뒤 구현이 시작됩니다.", state: "active" },
+    { title: "승인", description: "보드 운영자가 계획을 확인한 뒤 구현이 시작됩니다.", state: "active" },
     { title: "구현", description: "에이전트가 ticket-scoped execution workspace에서 작업합니다.", state: "pending" },
     { title: "리뷰", description: "결과가 handoff 되어 PR 승인으로 이어집니다.", state: "pending" },
     { title: "완료", description: "작업이 닫히고 감사 기록에 남습니다.", state: "done" },

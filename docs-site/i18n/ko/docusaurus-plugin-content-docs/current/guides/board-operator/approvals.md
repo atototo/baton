@@ -5,13 +5,13 @@ description: 계획, 리뷰, PR에 대한 거버넌스 흐름
 
 import { AnnotatedScreenshot } from "@site/src/components/docs";
 
-Baton에는 인간 Board Operator가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
+Baton에는 사람 보드 운영자가 주요 의사 결정을 통제할 수 있도록 하는 승인 게이트가 포함되어 있습니다.
 
 ## 승인 흐름 한눈에 보기
 
 ```mermaid
 flowchart TD
-  A["승인 요청 생성"] --> B["Board가 페이로드와 연결된 이슈를 검토"]
+  A["승인 요청 생성"] --> B["보드 운영자가 페이로드와 연결된 이슈를 검토"]
   B --> C{"결정"}
   C -->|승인| D["작업 진행"]
   C -->|거부| E["요청 중단"]
@@ -48,16 +48,16 @@ flowchart TD
 
 | 승인 | 언제 보이는가 | 승인 시 무엇이 열리는가 | 메모 |
 |------|---------------|-------------------------|------|
-| `hire_agent` | 매니저나 CEO가 부하 직원 채용을 원할 때 | 요청된 에이전트가 생성되거나 활성화됨 | 이름, 역할, capabilities, adapter config, budget가 payload에 포함됨 |
-| `approve_ceo_strategy` | CEO가 첫 전략 계획을 제출할 때 | CEO가 거버넌스 기반 실행을 계속할 수 있음 | 회사 방향에 대한 첫 board 승인 |
-| `approve_issue_plan` | 리더가 위임된 구현을 티켓 workspace로 옮기려 할 때 | Baton이 ticket execution workspace를 준비하고 child 구현을 열어줌 | source checkout이 dirty일 때만 의도적으로 강제 승인할 수 있음 |
+| `hire_agent` | 매니저나 CEO가 부하 직원 채용을 원할 때 | 요청된 에이전트가 생성되거나 활성화됨 | 이름, 역할, 역량, 어댑터 설정, 예산이 payload에 포함됨 |
+| `approve_ceo_strategy` | CEO가 첫 전략 계획을 제출할 때 | CEO가 거버넌스 기반 실행을 계속할 수 있음 | 회사 방향에 대한 첫 보드 승인 |
+| `approve_issue_plan` | 리더가 위임된 구현을 티켓 작업공간으로 옮기려 할 때 | Baton이 티켓 실행 작업공간을 준비하고 child 구현을 열어줌 | source checkout이 dirty일 때만 의도적으로 강제 승인할 수 있음 |
 | `approve_pull_request` | child 리뷰가 끝났을 때 | Baton이 commit, push, PR 생성, parent 마감을 수행함 | 완료된 parent 아래 아직 열려 있는 child 이슈도 함께 닫힘 |
 
 ## 승인 검토
 
-1. **Approvals** 페이지에서 승인을 엽니다.
+1. **승인** 페이지에서 승인을 엽니다.
 2. payload와 연결된 이슈를 검토합니다.
-3. 코멘트와 decision note를 읽은 뒤 행동합니다.
+3. 코멘트와 결정 메모를 읽은 뒤 행동합니다.
 4. 다음 중 하나를 선택합니다:
    - **승인** — 작업이 진행됩니다
    - **거부** — 작업이 중단됩니다
@@ -83,7 +83,7 @@ revision_requested -> resubmitted -> pending
 
 source repository가 clean하지 않으면 승인 UI에 **강제 승인**이 표시될 수 있습니다.
 
-이 옵션은 신중하게 사용해야 합니다. clean-source guard를 우회하므로 dirty checkout에서 실행 workspace를 준비하는 위험을 의도적으로 감수할 때만 사용하십시오.
+이 옵션은 신중하게 사용해야 합니다. clean-source guard를 우회하므로 dirty checkout에서 실행 작업공간을 준비하는 위험을 의도적으로 감수할 때만 사용하십시오.
 
 강제 승인은 `approve_issue_plan`에만 해당합니다.
 
@@ -91,12 +91,12 @@ source repository가 clean하지 않으면 승인 UI에 **강제 승인**이 표
 
 ## 승인 검토 화면
 
-Approvals 페이지에서 모든 대기 중인 승인을 확인할 수 있습니다. 각 승인에는 다음이 표시됩니다:
+승인 페이지에서 모든 대기 중인 승인을 확인할 수 있습니다. 각 승인에는 다음이 표시됩니다:
 
 - 누가 요청했으며 왜 요청했는지
 - 연결된 이슈 (요청에 대한 맥락)
 - 전체 payload (예: 채용에 대한 제안된 에이전트 설정)
-- 코멘트와 board 피드백
+- 코멘트와 보드 피드백
 
 승인 상세 페이지에서는 다음도 지원합니다:
 
@@ -106,7 +106,7 @@ Approvals 페이지에서 모든 대기 중인 승인을 확인할 수 있습니
 
 ## Board 재정 권한
 
-Board Operator로서 다음 작업도 수행할 수 있습니다:
+보드 운영자로서 다음 작업도 수행할 수 있습니다:
 
 - 언제든지 에이전트를 일시 중지하거나 재개
 - 에이전트를 종료 (되돌릴 수 없음)

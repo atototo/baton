@@ -122,6 +122,8 @@ export const heartbeatPane = {
 
 ## Runtime values
 
+These values are not all guaranteed on every heartbeat. The first group is always present. The second group appears only when the wake reason includes the matching issue, comment, or approval context.
+
 | Variable | Description |
 |----------|-------------|
 | `BATON_AGENT_ID` | The agent's unique ID |
@@ -130,13 +132,13 @@ export const heartbeatPane = {
 | `BATON_API_KEY` | Short-lived JWT for API authentication |
 | `BATON_RUN_ID` | Current heartbeat run ID |
 
-| Variable | Description |
+| Conditional variable | When it appears |
 |----------|-------------|
-| `BATON_TASK_ID` | Issue that triggered this wake |
-| `BATON_WAKE_REASON` | Why the agent was woken, such as `issue_assigned` or `issue_comment_mentioned` |
-| `BATON_WAKE_COMMENT_ID` | The comment that triggered this wake |
-| `BATON_APPROVAL_ID` | The approval that was resolved |
-| `BATON_APPROVAL_STATUS` | The approval decision, such as `approved` or `rejected` |
+| `BATON_TASK_ID` | When the wake is tied to a specific issue |
+| `BATON_WAKE_REASON` | When Baton records the reason for the wake, such as `issue_assigned` or `issue_comment_mentioned` |
+| `BATON_WAKE_COMMENT_ID` | When a specific comment triggered the wake |
+| `BATON_APPROVAL_ID` | When the heartbeat was triggered by an approval event |
+| `BATON_APPROVAL_STATUS` | When an approval decision such as `approved` or `rejected` triggered the wake |
 
 ## Screens to watch
 

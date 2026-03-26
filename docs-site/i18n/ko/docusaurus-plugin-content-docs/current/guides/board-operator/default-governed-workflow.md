@@ -27,27 +27,27 @@ flowchart LR
 
 ## 기본 흐름
 
-1. Board Operator가 최상위 이슈를 만들고 리더 에이전트에게 할당합니다.
+1. 보드 운영자가 최상위 이슈를 만들고 리더 에이전트에게 할당합니다.
 2. 리더는 fallback workspace에서 계획을 수립합니다.
 3. 리더가 **이슈 계획 승인**을 요청합니다.
 4. Baton이 parent 이슈를 `blocked`로 전환합니다.
-5. Board가 계획을 승인하면 Baton이 티켓당 execution workspace 하나를 준비합니다.
+5. 보드 운영자가 계획을 승인하면 Baton이 티켓당 실행 작업공간 하나를 준비합니다.
    - 브랜치: `feature/<TICKET>`
    - 베이스 브랜치: 프로젝트 workspace의 기본 베이스 브랜치
    - 실행 경로: Baton이 관리하는 git worktree
 6. parent 이슈가 재개되고 리더가 child 구현 이슈를 만듭니다.
-7. 구현 에이전트는 티켓 execution workspace 안에서 작업합니다.
+7. 구현 에이전트는 티켓 실행 작업공간 안에서 작업합니다.
 8. 구현이 끝나면 Baton은 child를 `in_review`로 바꾸고 리뷰어에게 넘깁니다.
 9. 모든 child 리뷰가 끝나면 Baton이 parent를 `in_review`로 전환하고 **PR 승인**을 생성합니다.
-10. Board가 PR 요청을 승인하면 Baton이 commit, push, 실제 PR 생성과 함께 그 parent에 남아 있는 child 이슈들을 cascade completion 처리한 뒤 parent를 `done`으로 마감합니다.
+10. 보드 운영자가 PR 요청을 승인하면 Baton이 commit, push, 실제 PR 생성과 함께 그 parent에 남아 있는 child 이슈들을 cascade completion 처리한 뒤 parent를 `done`으로 마감합니다.
 
 ## 누가 무엇을 하는가
 
 | 역할 | 책임 |
 |------|------|
-| Board Operator | 계획과 최종 PR을 승인하고, 필요할 때 위험한 실행을 override |
+| 보드 운영자 | 계획과 최종 PR을 승인하고, 필요할 때 위험한 실행을 override |
 | 리더 | 작업을 계획하고 child 이슈를 만들고 child 작업을 리뷰 |
-| Baton | 티켓 workspace를 준비하고, 상태를 옮기고, child 이슈를 dedupe하고, PR 흐름을 마무리 |
+| Baton | 티켓 작업공간을 준비하고, 상태를 옮기고, child 이슈를 dedupe하고, PR 흐름을 마무리 |
 
 ## 핵심 규칙
 
@@ -62,7 +62,7 @@ flowchart LR
 - `todo`: 시작 준비 완료
 - `in_progress`: 실제 작업 진행 중
 - `blocked`: 승인, 입력, 외부 의존성 등을 기다리는 상태
-- `in_review`: 구현은 리뷰어나 board에 넘길 만큼 완료됐지만 워크플로우는 아직 끝나지 않은 상태
+- `in_review`: 구현은 리뷰어나 보드 운영자에게 넘길 만큼 완료됐지만 워크플로우는 아직 끝나지 않은 상태
 - `done`: PR 승인까지 포함한 거버넌스 기반 워크플로우가 실제로 완료된 상태
 
 ## 병렬 티켓 예시
@@ -102,7 +102,7 @@ AZAK-011 -> execution workspace -> feature/AZAK-011 -> child work -> review -> P
 - 리더가 계획 수립 및 위임
 - 구현 에이전트가 child 작업 수행
 - 리더가 child 리뷰
-- Board가 PR 승인
+- 보드 운영자가 PR 승인
 
 ### 리더 + 전용 리뷰어
 

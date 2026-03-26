@@ -40,7 +40,7 @@ export const executionAdapterPane = {
   description="The UI, API, database, and adapters are separate layers. Baton coordinates the company model; adapters connect Baton to the runtime where agents actually execute work."
   bullets={[
     "The control plane decides what is allowed, records what happened, and keeps the company model in sync.",
-    "Adapters connect Baton to Claude, Codex, Gemini, Pi, shell processes, and HTTP runtimes.",
+    "Adapters connect Baton to Claude, Codex, Cursor, OpenCode, Gemini, Pi, shell processes, and HTTP runtimes.",
     "The product stays consistent even when the agent runtime changes.",
   ]}
   stats={[
@@ -75,7 +75,7 @@ export const executionAdapterPane = {
   right={[
     {
       title: "Adapters",
-      description: "Built-in integrations for Claude Code, Codex, Gemini, Pi, process, and HTTP runtimes.",
+      description: "Built-in integrations for Claude Code, Codex, Cursor, OpenCode, Gemini, Pi, process, and HTTP runtimes.",
       tone: "warning",
     },
   ]}
@@ -106,7 +106,7 @@ export const executionAdapterPane = {
 | Backend | Node.js 20+, Express.js 5, TypeScript |
 | Database | PostgreSQL 17 or embedded PGlite, Drizzle ORM |
 | Auth | Better Auth, sessions, and agent API keys |
-| Adapters | Claude Code CLI, Codex CLI, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
+| Adapters | Claude Code CLI, Codex CLI, Cursor CLI, OpenCode, Gemini CLI, Pi local runtime, shell process, HTTP webhook |
 | Package manager | pnpm 9 with workspaces |
 
 ## Repository structure
@@ -132,7 +132,9 @@ baton/
 │   └── adapters/
 │       ├── claude-local/        # Claude Code adapter
 │       ├── codex-local/         # OpenAI Codex adapter
+│       ├── cursor-local/        # Cursor CLI adapter
 │       ├── gemini-local/        # Gemini CLI adapter
+│       ├── opencode-local/      # OpenCode adapter
 │       └── pi-local/            # Pi local adapter
 │
 ├── skills/
@@ -165,7 +167,7 @@ Heartbeat execution moves through the stack in a predictable sequence.
   right={executionAdapterPane}
 />
 
-Built-in adapters currently include `claude_local`, `codex_local`, `gemini_local`, `pi_local`, `process`, and `http`.
+Built-in adapters currently include `claude_local`, `codex_local`, `cursor_local`, `opencode_local`, `gemini_local`, `pi_local`, `process`, and `http`.
 
 ## Key design decisions
 

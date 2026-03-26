@@ -63,7 +63,7 @@ Baton은 그 답을 보이게 하고 강제하기 위해 존재합니다.
 <ControlPlaneDiagram
   top={[
     {
-      title: "Board Operator",
+      title: "보드 운영자",
       description: "거버넌스를 담당하는 사람의 영역입니다. 민감한 작업을 승인하고 방향을 맞춥니다.",
       tone: "warning",
     },
@@ -94,7 +94,7 @@ Baton은 그 답을 보이게 하고 강제하기 위해 존재합니다.
       tone: "primary",
     },
     {
-      title: "Adapters",
+      title: "어댑터",
       description: "Claude, Codex, Gemini, Pi, 셸 프로세스, HTTP 기반 runtime과 연결하는 다리입니다.",
       tone: "neutral",
     },
@@ -124,7 +124,7 @@ Baton에서 가장 중요한 것은 대시보드가 아니라, 자율 작업을 
     },
     {
       title: "승인",
-      description: "Board가 계획을 확인한 뒤에만 다음 단계가 열립니다.",
+      description: "보드 운영자가 계획을 확인한 뒤에만 다음 단계가 열립니다.",
       state: "active",
     },
     {

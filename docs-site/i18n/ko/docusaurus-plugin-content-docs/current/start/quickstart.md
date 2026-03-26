@@ -62,7 +62,7 @@ export const localDevPane = {
   steps={[
     {
       title: "온보딩",
-      description: "`npx baton onboard --yes`를 실행하면 설정을 안내받고 초기 구성이 만들어집니다.",
+      description: "`pnpm baton onboard --yes`를 실행하면 설정을 안내받고 초기 구성이 만들어집니다.",
       meta: "제품을 먼저 체험하고 싶을 때 가장 좋은 첫 단계입니다.",
       state: "active",
     },
@@ -75,12 +75,12 @@ export const localDevPane = {
     {
       title: "회사 화면 열기",
       description: "첫 회사를 만들고 회사 페이지를 열면 에이전트, 목표, 예산, 작업이 한곳에 보입니다.",
-      meta: "UI는 단순한 대시보드가 아니라 control surface입니다.",
+      meta: "UI는 단순한 대시보드가 아니라 운영 화면입니다.",
       state: "pending",
     },
     {
       title: "첫 에이전트 만들기",
-      description: "CEO 에이전트를 추가하고 adapter를 연결하면 Baton이 heartbeat 실행을 조정하기 시작합니다.",
+      description: "CEO 에이전트를 추가하고 어댑터를 연결하면 Baton이 하트비트 실행을 조정하기 시작합니다.",
       meta: "이후 조직도를 확장하고 작업을 할당할 수 있습니다.",
       state: "pending",
     },
@@ -102,9 +102,9 @@ export const localDevPane = {
     },
     {
       title: "에이전트 상세",
-      description: "선택한 에이전트의 adapter, instructions, 현재 상태를 한 화면에 보여줍니다.",
-      badge: "managed / external",
-      caption: "선택한 entry file이 managed mode에서 Baton이 무엇을 남길지 결정합니다.",
+      description: "선택한 에이전트의 어댑터, 지시문, 현재 상태를 한 화면에 보여줍니다.",
+      badge: "관리형 / 외부",
+      caption: "선택한 진입 파일이 관리형 모드에서 Baton이 무엇을 남길지 결정합니다.",
       imageSrc: "/img/screenshots/agent-instructions.png",
       imageAlt: "지시문 탭이 열린 에이전트 상세 화면",
       layout: "right",
@@ -113,7 +113,7 @@ export const localDevPane = {
       title: "프로젝트 컨벤션",
       description: "프로젝트 수준의 맥락이 지원되는 에이전트 실행에 어떻게 합성되는지 보여줍니다.",
       badge: "공유 프로젝트 컨텍스트",
-      caption: "여기서 backstory, coding conventions, compact context를 함께 관리합니다.",
+      caption: "여기서 배경 설명, 코딩 규칙, 압축 컨텍스트를 함께 관리합니다.",
       imageSrc: "/img/screenshots/project-conventions.png",
       imageAlt: "컨벤션 탭이 열린 프로젝트 상세 화면",
       layout: "left",
@@ -178,4 +178,4 @@ Baton이 실행되면 다음이 가장 유용합니다.
 3. CEO 에이전트를 만들고 adapter를 설정합니다
 4. 더 많은 에이전트를 추가하고 조직도를 구성합니다
 5. 예산을 설정하고 초기 태스크를 할당합니다
-6. 첫 heartbeat가 돌아가도록 두어 control plane이 실제로 움직이는지 확인합니다
+6. 첫 하트비트가 돌아가도록 두어 운영 레이어가 실제로 움직이는지 확인합니다
