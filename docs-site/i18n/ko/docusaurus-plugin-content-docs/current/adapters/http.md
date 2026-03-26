@@ -1,9 +1,9 @@
 ---
-title: HTTP Adapter
-description: HTTP webhook adapter
+title: HTTP 어댑터
+description: HTTP webhook 어댑터
 ---
 
-`http` adapter는 외부 에이전트 서비스에 webhook 요청을 전송합니다. 에이전트는 외부에서 실행되며 Baton은 이를 트리거하기만 합니다.
+`http` 어댑터는 외부 에이전트 서비스에 webhook 요청을 전송합니다. 에이전트는 외부에서 실행되며 Baton은 이를 트리거하기만 합니다.
 
 ## 사용해야 하는 경우
 

@@ -1,9 +1,9 @@
 ---
 title: Pi Local
-description: Pi 로컬 adapter 설정 및 구성
+description: Pi 로컬 어댑터 설정 및 구성
 ---
 
-`pi_local` adapter는 Pi coding agent를 로컬에서 실행합니다. provider/model 라우팅, 세션 재개, bundle 기반 instructions, Baton이 관리하는 프로젝트 컨텍스트 주입을 지원합니다.
+`pi_local` 어댑터는 Pi coding agent를 로컬에서 실행합니다. provider/model 라우팅, 세션 재개, 번들 기반 지시문, Baton이 관리하는 프로젝트 컨텍스트 주입을 지원합니다.
 
 ## 사전 요구 사항
 
@@ -16,7 +16,7 @@ description: Pi 로컬 adapter 설정 및 구성
 |------|------|------|------|
 | `cwd` | string | Yes | 에이전트 프로세스의 작업 디렉터리 (절대 경로; 권한이 허용되면 없을 경우 자동 생성) |
 | `model` | string | Yes | `provider/model` 형식의 Pi 모델 ID |
-| `instructionsFilePath` | string | No | Pi system prompt 뒤에 붙는 bundle entry file의 절대 경로 |
+| `instructionsFilePath` | string | No | Pi system prompt 뒤에 붙는 번들 진입 파일의 절대 경로 |
 | `promptTemplate` | string | No | Pi에 전달되는 사용자 프롬프트 템플릿 |
 | `thinking` | string | No | Thinking level (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`) |
 | `command` | string | No | CLI 실행 파일 이름 (`pi` 기본값) |
@@ -26,7 +26,7 @@ description: Pi 로컬 adapter 설정 및 구성
 
 ## 세션 지속성
 
-Pi local은 Baton이 관리하는 세션을 저장하고 heartbeat 간에 `--session`으로 재개합니다.
+Pi local은 Baton이 관리하는 세션을 저장하고 하트비트 간에 `--session`으로 재개합니다.
 
 ## 도구 모델
 
@@ -36,8 +36,8 @@ Pi는 파일과 셸 작업을 위한 자체 로컬 도구 세트를 제공합니
 
 Pi local은 다음을 받습니다:
 
-- `instructionsFilePath`를 통한 bundle entry file
-- project conventions와 governance reminders에서 생성된 composed project instructions
+- `instructionsFilePath`를 통한 번들 진입 파일
+- 프로젝트 컨벤션과 거버넌스 알림에서 생성된 조합 프로젝트 지시문
 
 이 구조로 재사용 가능한 역할 동작과 프로젝트별 컨텍스트를 분리할 수 있습니다.
 

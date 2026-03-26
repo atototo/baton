@@ -132,7 +132,7 @@ GET /api/projects/{projectId}/conventions
 
 반환 필드:
 
-- `backstory`
+- `backstory` — 프로젝트의 배경 설명과 도메인 맥락
 - `conventionsMd`
 - `compactContext`
 - `extraReferences`
@@ -162,4 +162,4 @@ PATCH /api/projects/{projectId}/conventions
 POST /api/projects/{projectId}/conventions/compact
 ```
 
-Baton이 heartbeat 실행 때 우선적으로 주입하는 짧은 compact-context 요약을 생성하고 저장합니다.
+Baton이 하트비트 실행 때 우선적으로 주입하는 짧은 압축 컨텍스트 요약을 생성하고 저장합니다.

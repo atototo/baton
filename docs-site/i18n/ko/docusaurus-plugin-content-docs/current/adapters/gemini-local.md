@@ -1,9 +1,9 @@
 ---
 title: Gemini Local
-description: Gemini CLI 로컬 adapter 설정 및 구성
+description: Gemini CLI 로컬 어댑터 설정 및 구성
 ---
 
-`gemini_local` adapter는 Gemini CLI를 로컬에서 실행합니다. 재개 가능한 세션, Baton 스킬 주입, instructions bundle 연동, 보조 프로젝트 컨텍스트 주입을 지원합니다.
+`gemini_local` 어댑터는 Gemini CLI를 로컬에서 실행합니다. 재개 가능한 세션, Baton 스킬 주입, 지시문 번들 연동, 보조 프로젝트 컨텍스트 주입을 지원합니다.
 
 ## 사전 요구 사항
 
@@ -16,7 +16,7 @@ description: Gemini CLI 로컬 adapter 설정 및 구성
 |------|------|------|------|
 | `cwd` | string | Yes | 에이전트 프로세스의 작업 디렉터리 (절대 경로; 권한이 허용되면 없을 경우 자동 생성) |
 | `model` | string | No | Gemini 모델 ID (`auto` 기본값) |
-| `instructionsFilePath` | string | No | Baton이 실행 프롬프트 앞에 붙이는 bundle entry file의 절대 경로 |
+| `instructionsFilePath` | string | No | Baton이 실행 프롬프트 앞에 붙이는 번들 진입 파일의 절대 경로 |
 | `promptTemplate` | string | No | 사용자 태스크용 프롬프트 템플릿 |
 | `sandbox` | boolean | No | sandbox 모드 토글 |
 | `command` | string | No | CLI 실행 파일 이름 (`gemini` 기본값) |
@@ -27,7 +27,7 @@ description: Gemini CLI 로컬 adapter 설정 및 구성
 
 ## 세션 지속성
 
-Gemini local은 저장된 세션이 현재 작업 디렉터리와 여전히 일치하면 heartbeat 사이에서 세션을 재개합니다.
+Gemini local은 저장된 세션이 현재 작업 디렉터리와 여전히 일치하면 하트비트 사이에서 세션을 재개합니다.
 
 ## 스킬 주입
 
@@ -37,8 +37,8 @@ Baton은 Gemini skills 디렉터리에 스킬을 주입하여 프로젝트 check
 
 Gemini local은 다음 둘 다 받을 수 있습니다:
 
-- 에이전트 instructions bundle entry file
-- backstory, conventions, compact context, governance reminders에서 생성된 composed project instructions
+- 에이전트 지시문 번들 진입 파일
+- 배경 설명, 규칙, 압축 컨텍스트, 거버넌스 알림에서 생성된 조합 프로젝트 지시문
 
 ## 환경 테스트
 

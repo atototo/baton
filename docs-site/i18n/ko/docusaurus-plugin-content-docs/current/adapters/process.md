@@ -1,9 +1,9 @@
 ---
-title: Process Adapter
-description: 범용 셸 프로세스 adapter
+title: Process 어댑터
+description: 범용 셸 프로세스 어댑터
 ---
 
-`process` adapter는 임의의 셸 명령을 실행합니다. 간단한 스크립트, 일회성 태스크, 또는 커스텀 프레임워크로 구축된 에이전트에 사용할 수 있습니다.
+`process` 어댑터는 임의의 셸 명령을 실행합니다. 간단한 스크립트, 일회성 태스크, 또는 커스텀 프레임워크로 구축된 에이전트에 사용할 수 있습니다.
 
 ## 사용해야 하는 경우
 

@@ -1,12 +1,12 @@
 ---
-title: Adapter 만들기
-description: 커스텀 adapter 구축 가이드
+title: 어댑터 만들기
+description: 커스텀 어댑터 구축 가이드
 ---
 
-커스텀 adapter를 만들어 Baton을 원하는 에이전트 런타임에 연결할 수 있습니다.
+커스텀 어댑터를 만들어 Baton을 원하는 에이전트 런타임에 연결할 수 있습니다.
 
 :::tip
-Claude Code를 사용하고 계신다면, `create-agent-adapter` 스킬이 전체 adapter 생성 과정을 대화형으로 안내해 드립니다. Claude에게 새 adapter를 만들어 달라고 요청하시면 각 단계를 안내받으실 수 있습니다.
+Claude Code를 사용하고 계신다면, `create-agent-adapter` 스킬이 전체 어댑터 생성 과정을 대화형으로 안내해 드립니다. Claude에게 새 어댑터를 만들어 달라고 요청하시면 각 단계를 안내받으실 수 있습니다.
 :::
 
 ## 패키지 구조
@@ -64,7 +64,7 @@ Core fields: ...
 
 ## Step 3: 환경 테스트
 
-`src/server/test.ts`는 실행 전에 adapter 설정을 검증합니다.
+`src/server/test.ts`는 실행 전에 어댑터 설정을 검증합니다.
 
 구조화된 진단 결과를 반환합니다:
 
@@ -84,7 +84,7 @@ Core fields: ...
 
 ## Step 6: 등록
 
-세 개의 레지스트리 모두에 adapter를 추가합니다:
+세 개의 레지스트리 모두에 어댑터를 추가합니다:
 
 1. `server/src/adapters/registry.ts`
 2. `ui/src/adapters/registry.ts`
