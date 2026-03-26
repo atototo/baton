@@ -790,15 +790,15 @@ export function NewIssueDialog() {
         )}
 
         {/* Description */}
-        <div className={cn("px-4 pb-2 overflow-y-auto min-h-0 border-t border-border/60 pt-3", expanded ? "flex-1" : "")}>
+        <div className="px-4 pb-2 overflow-y-auto min-h-0 border-t border-border/60 pt-3 flex-1 flex flex-col">
           <MarkdownEditor
             ref={descriptionEditorRef}
             value={description}
             onChange={setDescription}
             placeholder={t("newIssue.addDescription")}
             bordered
-            mentions={mentionOptions}
-            contentClassName={cn("text-sm text-muted-foreground", expanded ? "min-h-[220px]" : "min-h-[120px]")}
+            className="flex-1 flex flex-col"
+            contentClassName={cn("text-sm text-muted-foreground flex-1", expanded ? "min-h-[220px]" : "min-h-[120px]")}
             imageUploadHandler={async (file) => {
               const asset = await uploadDescriptionImage.mutateAsync(file);
               return asset.contentPath;

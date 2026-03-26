@@ -734,7 +734,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       )}
 
       {/* Write mode */}
-      <div className={mode === "write" ? "block" : "hidden"}>
+      <div className={cn(mode === "write" ? "flex flex-col" : "hidden", "flex-1 min-h-0")}>
         {bordered ? (
           /* Plain textarea for comment composer — raw markdown input */
           <textarea
@@ -785,7 +785,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               }
             }}
             className={cn(
-              "w-full resize-y bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px] max-h-[50vh]",
+              "w-full resize-y bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px] flex-1",
               contentClassName,
             )}
             rows={3}

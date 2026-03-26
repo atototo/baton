@@ -170,6 +170,17 @@ export function ApprovalDetail() {
   const payload = approval.payload as Record<string, unknown>;
   const linkedAgentId = typeof payload.agentId === "string" ? payload.agentId : null;
   const isActionable = approval.status === "pending" || approval.status === "revision_requested";
+
+  // Extract <plan> content from linked issue descriptions
+  const planContent = useMemo(() => {
+    if (!linkedIssues?.length) return null;
+    for (const issue of linkedIssues) {
+      if (!issue.description) continue;
+      const match = issue.description.match(/<plan[^>]*>([\s\S]*?)<\/plan>/i);
+      if (match?.[1]?.trim()) return match[1].trim();
+    }
+    return null;
+  }, [linkedIssues]);
   const TypeIcon = typeIcon[approval.type] ?? defaultTypeIcon;
   const showApprovedBanner = searchParams.get("resolved") === "approved" && approval.status === "approved";
   const primaryLinkedIssue = linkedIssues?.[0] ?? null;
@@ -280,6 +291,18 @@ export function ApprovalDetail() {
             <p className="text-[11px] text-muted-foreground mt-2">
               {t("approval.linkedIssuesNote")}
             </p>
+          </div>
+        )}
+        {planContent && (
+          <div className="pt-2 border-t border-border/60">
+            <details open>
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none mb-2">
+                {t("approval.implementationPlan", "구현 계획")}
+              </summary>
+              <div className="rounded-md border border-border/70 bg-muted/20 p-3 max-h-[400px] overflow-y-auto">
+                <MarkdownBody className="text-sm">{planContent}</MarkdownBody>
+              </div>
+            </details>
           </div>
         )}
         <div className="space-y-3">
