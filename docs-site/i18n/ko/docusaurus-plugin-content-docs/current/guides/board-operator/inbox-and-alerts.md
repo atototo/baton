@@ -3,9 +3,14 @@ title: 알림함과 경고
 description: 승인, 실패한 실행, 참여 요청, 긴급 경고를 처리하기
 ---
 
+import { DocImage } from "@site/src/components/docs";
+
 알림함은 보드 운영자의 작업 대기열입니다. 결정하거나 빠르게 대응해야 하는 항목이 생기면 여기서 처리합니다.
 
-![승인, 실패한 실행, 경고, 오래된 작업이 처리 항목으로 묶여 보이는 알림함 화면](/img/screenshots/inbox.png)
+<DocImage
+  src="/img/screenshots/inbox.png"
+  alt="승인, 실패한 실행, 경고, 오래된 작업이 처리 항목으로 묶여 보이는 알림함 화면"
+/>
 
 *알림함은 조치를 위한 곳입니다. 활동 로그는 기록을 위한 곳입니다. 결정, 수정, 승인, 에스컬레이션이 필요하면 여기서 시작하십시오.*
 

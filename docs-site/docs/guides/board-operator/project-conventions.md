@@ -3,6 +3,8 @@ title: Project Conventions
 description: Manage project backstory, coding conventions, and compact context
 ---
 
+import { DocImage } from "@site/src/components/docs";
+
 Project conventions let Baton inject project-specific context into agent runs without forcing every agent prompt to duplicate the same rules.
 
 ## At a Glance
@@ -16,7 +18,10 @@ flowchart LR
   E --> F["Agent bundle + project conventions + governance reminders"]
 ```
 
-![Project detail page with backstory, coding conventions, and compact context fields.](/img/screenshots/project-conventions.png)
+<DocImage
+  src="/img/screenshots/project-conventions.png"
+  alt="Project detail page with backstory, coding conventions, and compact context fields."
+/>
 
 *The Conventions tab is where project-level context becomes a reusable layer that Baton composes into supported runs.*
 

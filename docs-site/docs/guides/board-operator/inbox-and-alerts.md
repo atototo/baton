@@ -3,9 +3,14 @@ title: Inbox and Alerts
 description: Handle approvals, failed runs, join requests, and urgent alerts
 ---
 
+import { DocImage } from "@site/src/components/docs";
+
 The Inbox is the board operator's action queue. Use it when something needs a decision or a quick response.
 
-![Inbox showing approvals, failed runs, alerts, and stale work grouped as actionable items.](/img/screenshots/inbox.png)
+<DocImage
+  src="/img/screenshots/inbox.png"
+  alt="Inbox showing approvals, failed runs, alerts, and stale work grouped as actionable items."
+/>
 
 *The Inbox is for action. The Activity Log is for history. If you need to decide, fix, approve, or escalate something, start here.*
 

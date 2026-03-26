@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import clsx from "clsx";
 
 import styles from "./docs.module.css";
@@ -305,7 +306,7 @@ export function ScreenTour({ steps, className }: ScreenTourProps) {
       <div className={styles.screenTourList}>
         {steps.map((step, index) => {
           const media = step.imageSrc ? (
-            <img className={styles.screenTourImage} src={step.imageSrc} alt={step.imageAlt ?? ""} />
+            <DocImage className={styles.screenTourImage} src={step.imageSrc} alt={step.imageAlt ?? ""} />
           ) : (
             <div className={styles.screenTourPlaceholder}>Visual placeholder</div>
           );
@@ -437,7 +438,7 @@ export function AnnotatedScreenshot({
       <div className={styles.annotatedScreenshotBody}>
         <figure className={styles.annotatedScreenshotFigure}>
           <div className={styles.annotatedScreenshotMedia}>
-            <img className={styles.annotatedScreenshotImage} src={imageSrc} alt={imageAlt} />
+            <DocImage className={styles.annotatedScreenshotImage} src={imageSrc} alt={imageAlt} />
             {imageBadge ? (
               <div className={styles.annotatedScreenshotBadgeRow} aria-hidden="true">
                 <span className={styles.annotatedScreenshotBadge}>{imageBadge}</span>
@@ -463,6 +464,17 @@ export function AnnotatedScreenshot({
       </div>
     </section>
   );
+}
+
+export type DocImageProps = {
+  src: string;
+  alt: string;
+  className?: string;
+};
+
+export function DocImage({ src, alt, className }: DocImageProps) {
+  const resolvedSrc = useBaseUrl(src);
+  return <img className={className} src={resolvedSrc} alt={alt} />;
 }
 
 export type { Tone, StepState };

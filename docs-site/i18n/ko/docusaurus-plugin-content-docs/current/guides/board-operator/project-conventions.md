@@ -3,6 +3,8 @@ title: 프로젝트 컨벤션
 description: 프로젝트 배경 설명, 코딩 규칙, 압축 컨텍스트 관리
 ---
 
+import { DocImage } from "@site/src/components/docs";
+
 프로젝트 컨벤션은 모든 에이전트 프롬프트에 같은 규칙을 중복해서 넣지 않고도 Baton이 프로젝트별 컨텍스트를 실행 시 주입할 수 있게 합니다.
 
 ## 한눈에 보기
@@ -16,7 +18,10 @@ flowchart LR
   E --> F["에이전트 번들 + 프로젝트 규칙 + 거버넌스 알림"]
 ```
 
-![프로젝트 상세에서 배경 설명, 코딩 규칙, 압축 컨텍스트를 편집하는 화면](/img/screenshots/project-conventions.png)
+<DocImage
+  src="/img/screenshots/project-conventions.png"
+  alt="프로젝트 상세에서 배경 설명, 코딩 규칙, 압축 컨텍스트를 편집하는 화면"
+/>
 
 *컨벤션 탭은 프로젝트 수준의 컨텍스트를 Baton이 지원되는 실행에 재사용 가능한 레이어로 합성하는 지점입니다.*
 
