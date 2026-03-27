@@ -452,6 +452,40 @@ export function issueService(db: Db) {
           .where(and(eq(issues.companyId, companyId), eq(issues.id, issueData.parentId)))
           .then((rows) => rows[0]?.executionWorkspaceId ?? null);
       }
+
+      // Delegation-based workspace matching: if child is assigned to an agent
+      // that has a specific workspace via delegation plan, use that instead of parent's.
+      if (issueData.parentId && issueData.assigneeAgentId && !issueData.executionWorkspaceId) {
+        const parentApproval = await db
+          .select({ payload: approvals.payload })
+          .from(approvals)
+          .innerJoin(issueApprovals, eq(issueApprovals.approvalId, approvals.id))
+          .where(
+            and(
+              eq(issueApprovals.issueId, issueData.parentId),
+              eq(approvals.type, "approve_issue_plan"),
+            ),
+          )
+          .then((rows) => rows[0] ?? null);
+
+        if (parentApproval?.payload) {
+          const delegationMap = (parentApproval.payload as Record<string, unknown>)._delegationWorkspaceMap;
+          if (delegationMap && typeof delegationMap === "object") {
+            // Look up agent name to match against delegation map
+            const assignedAgent = await db
+              .select({ name: agents.name })
+              .from(agents)
+              .where(eq(agents.id, issueData.assigneeAgentId))
+              .then((rows) => rows[0] ?? null);
+            if (assignedAgent?.name) {
+              const mappedWorkspaceId = (delegationMap as Record<string, string>)[assignedAgent.name];
+              if (mappedWorkspaceId) {
+                inheritedExecutionWorkspaceId = mappedWorkspaceId;
+              }
+            }
+          }
+        }
+      }
       return db.transaction(async (tx) => {
         const [company] = await tx
           .update(companies)

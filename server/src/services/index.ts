@@ -12,9 +12,11 @@ export { costService } from "./costs.js";
 export { heartbeatService } from "./heartbeat.js";
 export {
   buildExecutionWorkspacePlanForIssue,
+  buildExecutionWorkspacePlansForDelegations,
   executionWorkspaceService,
   extractExplicitBranch,
   extractJiraTicketKey,
+  parseDelegationPlan,
   parseExecutionWorkspacePlan,
   normalizeExecutionTicketKey,
   deriveExecutionBranch,

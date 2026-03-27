@@ -13,11 +13,13 @@ import { logger } from "../middleware/logger.js";
 import {
   approvalService,
   buildExecutionWorkspacePlanForIssue,
+  buildExecutionWorkspacePlansForDelegations,
   executionWorkspaceService,
   heartbeatService,
   issueApprovalService,
   issueService,
   logActivity,
+  parseDelegationPlan,
   parseExecutionWorkspacePlan,
   projectService,
   pullRequestService,
@@ -56,8 +58,34 @@ function buildPullRequestTitle(args: {
   return `${prefix}${issueTitle}`;
 }
 
+/**
+ * Strip Baton-internal issue references (e.g. "(DOB-115)", "[DOB-116]", "DOB-115")
+ * from text destined for external systems like GitHub PRs.
+ * Preserves the surrounding text structure.
+ */
+function stripBatonIssueRefs(text: string, identifiers: string[]): string {
+  if (identifiers.length === 0) return text;
+  // Escape identifiers for regex and remove them in common wrapper patterns:
+  //   (DOB-115)  [DOB-115]  DOB-115  /DOB/issues/DOB-115
+  for (const id of identifiers) {
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Remove markdown links like [DOB-115](/DOB/issues/DOB-115)
+    text = text.replace(new RegExp(`\\[${escaped}\\]\\([^)]*\\)`, "g"), "");
+    // Remove parenthesized/bracketed references
+    text = text.replace(new RegExp(`\\s*[\\(\\[]${escaped}[\\)\\]]`, "g"), "");
+    // Remove standalone references (preceded by whitespace or start)
+    text = text.replace(new RegExp(`(?<=^|\\s)${escaped}(?=\\s|$|[,;.])`, "gm"), "");
+  }
+  // Clean up leftover empty list items and blank lines
+  text = text.replace(/^-\s*$/gm, "");
+  text = text.replace(/\n{3,}/g, "\n\n");
+  return text.trim();
+}
+
 function buildPullRequestBody(args: {
   issueIdentifier: string | null;
+  issueTitle: string;
+  issueDescription: string | null;
   ticketKey: string;
   branch: string;
   baseBranch: string;
@@ -65,20 +93,48 @@ function buildPullRequestBody(args: {
   childIssues: Array<{ identifier: string | null; title: string }>;
   approvalSummary?: string | null;
 }) {
-  const { ticketKey, changedPaths, childIssues, approvalSummary } = args;
+  const { issueTitle, issueDescription, ticketKey, changedPaths, childIssues, approvalSummary } = args;
+
+  // Collect all Baton identifiers to strip from PR body
+  const batonIdentifiers = childIssues
+    .map((c) => c.identifier)
+    .filter((id): id is string => id != null);
+  if (args.issueIdentifier) batonIdentifiers.push(args.issueIdentifier);
 
   const sections: string[] = [];
 
-  // Summary — use approval summary if available, otherwise list child work
+  // Summary — always start with issue title for context
   sections.push("## Summary");
-  if (approvalSummary) {
-    sections.push(approvalSummary);
-  } else if (childIssues.length > 0) {
+  sections.push(issueTitle);
+
+  // Include approval summary if it contains substantive content (not just status messages)
+  const statusPatterns = /^(리뷰 완료|보드 승인|PR 승인|작업 완료|구현 완료)/;
+  if (approvalSummary && !statusPatterns.test(approvalSummary.trim())) {
+    sections.push("", stripBatonIssueRefs(approvalSummary, batonIdentifiers));
+  }
+
+  // Child issues as work items (always include if available)
+  if (childIssues.length > 0) {
+    sections.push("", "### Work Items");
     for (const child of childIssues) {
-      sections.push(`- ${child.title}`);
+      sections.push(`- ${stripBatonIssueRefs(child.title, batonIdentifiers)}`);
     }
-  } else {
-    sections.push(`- ${ticketKey} 작업 완료`);
+  }
+
+  // Extract structured requirements from issue description (numbered lists, bullet points)
+  if (issueDescription) {
+    const cleanDesc = stripBatonIssueRefs(issueDescription, batonIdentifiers);
+    // Extract lines that look like requirements (numbered items or bullet points)
+    const requirementLines = cleanDesc
+      .split("\n")
+      .filter((line) => /^\s*(\d+\.|[-*])\s+/.test(line))
+      .map((line) => line.trim());
+    if (requirementLines.length > 0) {
+      sections.push("", "### Requirements");
+      for (const line of requirementLines) {
+        sections.push(line);
+      }
+    }
   }
 
   // Changed files
@@ -228,7 +284,46 @@ export function approvalRoutes(db: Db) {
     let enrichedPayload = normalizedPayload;
     if (approvalInput.type === "approve_issue_plan" && primaryIssue) {
       const existingWorkspacePlan = parseExecutionWorkspacePlan(normalizedPayload);
-      if (!existingWorkspacePlan) {
+      const existingDelegations = parseDelegationPlan(normalizedPayload);
+
+      // Multi-workspace project: validate and correct workspace selection
+      if (primaryIssue.projectId) {
+        const projectWorkspaces = await projectsSvc.listWorkspaces(primaryIssue.projectId);
+        console.log(`[approve_issue_plan] projectId=${primaryIssue.projectId} workspaces=${projectWorkspaces.length} hasDelegations=${!!existingDelegations} hasWorkspacePlan=${!!existingWorkspacePlan}`);
+
+        // If delegations provided, rebuild workspace plan from delegations (overrides any manually-set workspace)
+        if (existingDelegations && existingDelegations.length > 0) {
+          const plans = buildExecutionWorkspacePlansForDelegations({
+            issue: primaryIssue,
+            delegations: existingDelegations,
+            projectWorkspaces,
+          });
+          const firstPlan = plans.values().next().value;
+          if (firstPlan) {
+            enrichedPayload = {
+              ...normalizedPayload,
+              workspace: firstPlan,
+            };
+          }
+        } else if (projectWorkspaces.length > 1 && existingWorkspacePlan) {
+          // Agent set workspace directly without delegations — infer correct workspace from issue content
+          const inferred = buildExecutionWorkspacePlanForIssue({
+            issue: primaryIssue,
+            projectWorkspaces,
+          });
+          if (inferred.projectWorkspaceId !== existingWorkspacePlan.projectWorkspaceId) {
+            console.log(
+              `[approve_issue_plan] Workspace corrected: agent sent "${existingWorkspacePlan.projectWorkspaceName}" but issue content matches "${inferred.projectWorkspaceName}"`,
+            );
+          }
+          enrichedPayload = {
+            ...normalizedPayload,
+            workspace: inferred,
+          };
+        }
+      }
+
+      if (!existingWorkspacePlan && !existingDelegations?.length) {
         if (!primaryIssue.projectId) {
           throw conflict("Issue plan approval requires a linked project issue.");
         }
@@ -381,17 +476,61 @@ export function approvalRoutes(db: Db) {
       existingApproval.type === "approve_issue_plan"
         ? parseExecutionWorkspacePlan(existingApproval.payload)
         : null;
+    const delegations =
+      existingApproval.type === "approve_issue_plan"
+        ? parseDelegationPlan(existingApproval.payload)
+        : null;
     // workspace is optional for issue plans — analysis/research plans
     // may only create child issues without provisioning a branch.
 
-    const provisionedWorkspace =
-      existingApproval.type === "approve_issue_plan" && workspacePlan
-        ? await executionWorkspacesSvc.provisionExecutionWorkspace({
-            companyId: existingApproval.companyId,
-            plan: workspacePlan,
-            force: req.body.force === true,
-          })
-        : null;
+    // Provision workspace(s): delegation-based multi-workspace or single workspace
+    let provisionedWorkspace: Awaited<ReturnType<typeof executionWorkspacesSvc.provisionExecutionWorkspace>> | null = null;
+    const provisionedWorkspacesByProjectWsId = new Map<string, Awaited<ReturnType<typeof executionWorkspacesSvc.provisionExecutionWorkspace>>>();
+
+    if (existingApproval.type === "approve_issue_plan") {
+      if (delegations && delegations.length > 0 && primaryIssueId) {
+        // Multi-workspace: provision per unique projectWorkspaceId in delegations
+        const primaryIssue = await issuesSvc.getById(primaryIssueId);
+        if (primaryIssue?.projectId) {
+          const projectWorkspaces = await projectsSvc.listWorkspaces(primaryIssue.projectId);
+          const plans = buildExecutionWorkspacePlansForDelegations({
+            issue: primaryIssue,
+            delegations,
+            projectWorkspaces,
+          });
+          for (const [pwsId, plan] of plans) {
+            const provisioned = await executionWorkspacesSvc.provisionExecutionWorkspace({
+              companyId: existingApproval.companyId,
+              plan,
+              force: req.body.force === true,
+            });
+            provisionedWorkspacesByProjectWsId.set(pwsId, provisioned);
+            if (!provisionedWorkspace) provisionedWorkspace = provisioned; // first as default
+          }
+        }
+      } else if (workspacePlan) {
+        // Single workspace (existing behavior)
+        provisionedWorkspace = await executionWorkspacesSvc.provisionExecutionWorkspace({
+          companyId: existingApproval.companyId,
+          plan: workspacePlan,
+          force: req.body.force === true,
+        });
+      }
+    }
+
+    // Store delegation→workspace mapping in approval payload for child issue resolution
+    if (delegations && provisionedWorkspacesByProjectWsId.size > 0) {
+      const delegationWorkspaceMap: Record<string, string> = {};
+      for (const delegation of delegations) {
+        if (!delegation.projectWorkspaceId) continue;
+        const ews = provisionedWorkspacesByProjectWsId.get(delegation.projectWorkspaceId);
+        if (ews) delegationWorkspaceMap[delegation.agentName] = ews.id;
+      }
+      await svc.updatePayload(existingApproval.id, {
+        ...existingApproval.payload,
+        _delegationWorkspaceMap: delegationWorkspaceMap,
+      });
+    }
 
     const primaryIssue =
       primaryIssueId != null
@@ -445,11 +584,14 @@ export function approvalRoutes(db: Db) {
             });
             const pullRequestBody = buildPullRequestBody({
               issueIdentifier: primaryIssue.identifier,
+              issueTitle: primaryIssue.title,
+              issueDescription: primaryIssue.description,
               ticketKey: executionWorkspace.ticketKey,
               branch: pullRequestBranch,
               baseBranch: pullRequestBaseBranch,
               changedPaths,
               childIssues,
+              approvalSummary: (existingApproval.payload?.summary as string) ?? null,
             });
 
             return pullRequestsSvc.openForExecutionWorkspace({
@@ -712,6 +854,38 @@ export function approvalRoutes(db: Db) {
       },
     });
 
+    // Post the answer as an issue comment so the agent can read it from the
+    // issue timeline (the wakeup payload also carries the answer, but agents
+    // that inspect comments need a persisted record).
+    if (approval.type === "agent_question" && req.body.decisionNote) {
+      const question =
+        typeof approval.payload.question === "string" ? approval.payload.question : "에이전트 질문";
+      const answerComment =
+        `## 에이전트 질문 답변\n\n` +
+        `**질문**: ${question}\n\n` +
+        `**답변**: ${req.body.decisionNote}`;
+      for (const linkedIssue of linkedIssues) {
+        const comment = await issuesSvc.addComment(linkedIssue.id, answerComment, {
+          userId: req.actor.userId ?? "board",
+        });
+        await logActivity(db, {
+          companyId: approval.companyId,
+          actorType: "user",
+          actorId: req.actor.userId ?? "board",
+          action: "issue.comment_added",
+          entityType: "issue",
+          entityId: linkedIssue.id,
+          details: {
+            commentId: comment.id,
+            bodySnippet: comment.body.slice(0, 120),
+            identifier: linkedIssue.identifier,
+            issueTitle: linkedIssue.title,
+            source: "agent_question_answer",
+          },
+        });
+      }
+    }
+
     if (approval.requestedByAgentId) {
       try {
         const wakeRun = await heartbeat.wakeup(approval.requestedByAgentId, {
@@ -725,6 +899,15 @@ export function approvalRoutes(db: Db) {
             issueIds: linkedIssueIds,
             hasExecutionWorkspace: provisionedWorkspace != null,
             executionWorkspaceId: provisionedWorkspace?.id ?? null,
+            ...(approval.type === "agent_question"
+              ? {
+                  answer: req.body.decisionNote ?? null,
+                  question:
+                    typeof approval.payload.question === "string"
+                      ? approval.payload.question
+                      : null,
+                }
+              : {}),
           },
           requestedByActorType: "user",
           requestedByActorId: req.actor.userId ?? "board",
@@ -798,17 +981,22 @@ export function approvalRoutes(db: Db) {
     // Post rejection reason as comment on linked issues and wake agent
     const linkedIssues = await issueApprovalsSvc.listIssuesForApproval(id);
     const note = req.body.decisionNote || "승인이 거절되었습니다.";
-    for (const linked of linkedIssues) {
-      await issuesSvc.addComment(
-        linked.id,
-        `**거절** (${approval.type})\n\n${note}`,
-        { userId: req.actor.userId ?? "board" },
-      );
 
-      // Unblock issue so agent can reassess
-      const issue = await issuesSvc.getById(linked.id);
-      if (issue && issue.status === "blocked") {
-        await issuesSvc.update(linked.id, { status: "in_progress" });
+    for (const linked of linkedIssues) {
+      const commentBody =
+        approval.type === "agent_question"
+          ? `## 에이전트 질문 거절\n\n${note}`
+          : `**거절** (${approval.type})\n\n${note}`;
+      await issuesSvc.addComment(linked.id, commentBody, {
+        userId: req.actor.userId ?? "board",
+      });
+
+      // Unblock issue so agent can reassess (not applicable for agent_question)
+      if (approval.type !== "agent_question") {
+        const issue = await issuesSvc.getById(linked.id);
+        if (issue && issue.status === "blocked") {
+          await issuesSvc.update(linked.id, { status: "in_progress" });
+        }
       }
     }
 
@@ -901,7 +1089,7 @@ export function approvalRoutes(db: Db) {
       return;
     }
 
-    const normalizedPayload = req.body.payload
+    let normalizedPayload = req.body.payload
       ? existing.type === "hire_agent"
         ? await secretsSvc.normalizeHireApprovalPayloadForPersistence(
             existing.companyId,
@@ -910,6 +1098,54 @@ export function approvalRoutes(db: Db) {
           )
         : req.body.payload
       : undefined;
+
+    // For approve_issue_plan resubmissions: validate delegations and rebuild workspace plan
+    // Check BOTH new payload and existing payload — even if agent sends no payload, enforce delegation rules
+    if (existing.type === "approve_issue_plan") {
+      const effectivePayload = normalizedPayload ?? (existing.payload as Record<string, unknown>);
+      const linkedIssues = await issueApprovalsSvc.listIssuesForApproval(id);
+      const primaryIssue = linkedIssues[0] ?? null;
+      console.log(`[resubmit] type=${existing.type} hasNewPayload=${!!normalizedPayload} primaryIssue=${primaryIssue?.id} projectId=${primaryIssue?.projectId}`);
+      if (primaryIssue?.projectId) {
+        const projectWorkspaces = await projectsSvc.listWorkspaces(primaryIssue.projectId);
+        const delegations = parseDelegationPlan(effectivePayload);
+        console.log(`[resubmit] workspaces=${projectWorkspaces.length} hasDelegations=${!!delegations} effectivePayloadKeys=${Object.keys(effectivePayload ?? {}).join(",")}`);
+
+        if (projectWorkspaces.length > 1) {
+
+          // Multi-workspace: ALWAYS require delegations
+          if (!delegations || delegations.length === 0) {
+            const workspaceList = projectWorkspaces
+              .map((ws) => `- ${ws.name} (id: ${ws.id}, cwd: ${ws.cwd})`)
+              .join("\n");
+            throw conflict(
+              `This project has ${projectWorkspaces.length} workspaces. You must include a "delegations" array in the resubmit payload to specify which agent works in which workspace. Do NOT set "workspace" directly.\n\n` +
+              `Available workspaces:\n${workspaceList}\n\n` +
+              `Example resubmit payload:\n` +
+              `{"payload": {"delegations": [{"agentName": "scorpio-fe-dev", "projectWorkspaceId": "<id>", "workspaceName": "shopping_md_fe", "tasks": ["UI implementation"]}], ...existing fields...}}\n\n` +
+              `Use GET /api/projects/${primaryIssue.projectId}/workspaces to list workspaces and their IDs.`,
+            );
+          }
+
+          // Delegations provided: rebuild workspace plan from delegations
+          const plans = buildExecutionWorkspacePlansForDelegations({
+            issue: primaryIssue,
+            delegations,
+            projectWorkspaces,
+          });
+          const firstPlan = plans.values().next().value;
+          if (firstPlan) {
+            // Merge delegations workspace into payload (override any manually-set workspace)
+            normalizedPayload = {
+              ...effectivePayload,
+              ...(normalizedPayload ?? {}),
+              workspace: firstPlan,
+            };
+          }
+        }
+      }
+    }
+
     const approval = await svc.resubmit(id, normalizedPayload);
     const actor = getActorInfo(req);
     await logActivity(db, {

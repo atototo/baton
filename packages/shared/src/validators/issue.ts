@@ -45,9 +45,19 @@ export const createIssueLabelSchema = z.object({
 
 export type CreateIssueLabel = z.infer<typeof createIssueLabelSchema>;
 
+/** Schema for delegation entries passed during issue PATCH to route approve_issue_plan to the correct workspace. */
+const approvalDelegationEntrySchema = z.object({
+  agentName: z.string().min(1),
+  projectWorkspaceId: z.string().uuid().optional(),
+  workspaceName: z.string().min(1).optional(),
+  tasks: z.array(z.string().min(1)),
+});
+
 export const updateIssueSchema = createIssueSchema.partial().extend({
   comment: z.string().min(1).optional(),
   hiddenAt: z.string().datetime().nullable().optional(),
+  /** Pass-through field: used only for approve_issue_plan payload, not persisted to the issue. */
+  delegations: z.array(approvalDelegationEntrySchema).optional(),
 });
 
 export type UpdateIssue = z.infer<typeof updateIssueSchema>;

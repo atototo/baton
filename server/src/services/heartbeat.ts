@@ -7,11 +7,13 @@ import {
   agentRuntimeState,
   agentTaskSessions,
   agentWakeupRequests,
+  approvals,
   companies,
   executionWorkspaces,
   heartbeatRunEvents,
   heartbeatRuns,
   costEvents,
+  issueApprovals,
   issues,
   projectWorkspaces,
 } from "@atototo/db";
@@ -1967,6 +1969,29 @@ export function heartbeatService(db: Db) {
     const bypassIssueExecutionLock =
       reason === "issue_comment_mentioned" ||
       readNonEmptyString(enrichedContextSnapshot.wakeReason) === "issue_comment_mentioned";
+
+    // Block wakeup if the issue has a pending agent_question — the agent must wait for the answer.
+    // Exception: approval_approved wakeups (the answer itself arriving).
+    const isApprovalAnswer =
+      reason === "approval_approved" ||
+      readNonEmptyString(enrichedContextSnapshot.wakeReason) === "approval_approved";
+    if (issueId && !isApprovalAnswer) {
+      const pendingAgentQuestions = await db
+        .select({ approvalId: issueApprovals.approvalId })
+        .from(issueApprovals)
+        .innerJoin(approvals, eq(approvals.id, issueApprovals.approvalId))
+        .where(
+          and(
+            eq(issueApprovals.issueId, issueId),
+            eq(approvals.type, "agent_question"),
+            eq(approvals.status, "pending"),
+          ),
+        );
+      if (pendingAgentQuestions.length > 0) {
+        await writeSkippedRequest("agent_question_pending");
+        return null;
+      }
+    }
 
     if (issueId && !bypassIssueExecutionLock) {
       const agentNameKey = normalizeAgentNameKey(agent.name);

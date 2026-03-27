@@ -171,6 +171,145 @@ export function parseExecutionWorkspacePlan(
   };
 }
 
+/** Parse delegations array from approval payload. */
+export function parseDelegationPlan(
+  payload: Record<string, unknown> | null | undefined,
+): Array<{ agentName: string; projectWorkspaceId?: string; workspaceName?: string; tasks: string[] }> | null {
+  if (!payload || !Array.isArray(payload.delegations)) return null;
+  const entries: Array<{ agentName: string; projectWorkspaceId?: string; workspaceName?: string; tasks: string[] }> = [];
+  for (const entry of payload.delegations) {
+    if (!entry || typeof entry !== "object") continue;
+    const agentName = readNonEmptyString((entry as Record<string, unknown>).agentName);
+    if (!agentName) continue;
+    const raw = entry as Record<string, unknown>;
+    entries.push({
+      agentName,
+      projectWorkspaceId: readNonEmptyString(raw.projectWorkspaceId) ?? undefined,
+      workspaceName: readNonEmptyString(raw.workspaceName) ?? undefined,
+      tasks: Array.isArray(raw.tasks) ? raw.tasks.filter((t: unknown) => typeof t === "string") : [],
+    });
+  }
+  return entries.length > 0 ? entries : null;
+}
+
+/**
+ * Build workspace plans for each unique projectWorkspaceId found in delegations.
+ * Returns a map: projectWorkspaceId → ExecutionWorkspacePlan
+ */
+export function buildExecutionWorkspacePlansForDelegations(input: {
+  issue: ExecutionWorkspacePlanIssueInput;
+  delegations: Array<{ agentName: string; projectWorkspaceId?: string; workspaceName?: string; tasks: string[] }>;
+  projectWorkspaces: ExecutionWorkspacePlanProjectWorkspaceInput[];
+}): Map<string, ExecutionWorkspacePlan> {
+  const { issue, delegations, projectWorkspaces } = input;
+  if (!issue.projectId) {
+    throw conflict("Issue must belong to a project before requesting implementation approval.");
+  }
+  const ticketKey = normalizeExecutionTicketKey(
+    extractJiraTicketKey(issue.billingCode, issue.title, issue.description, issue.identifier),
+  );
+  if (!ticketKey) {
+    throw conflict("Implementation approval requires a Jira ticket key on the parent issue.");
+  }
+
+  const plans = new Map<string, ExecutionWorkspacePlan>();
+  const workspaceById = new Map(projectWorkspaces.map((ws) => [ws.id, ws]));
+
+  for (const delegation of delegations) {
+    if (!delegation.projectWorkspaceId) continue;
+    if (plans.has(delegation.projectWorkspaceId)) continue;
+
+    const ws = workspaceById.get(delegation.projectWorkspaceId);
+    if (!ws?.cwd || ws.cwd === REPO_ONLY_CWD_SENTINEL) continue;
+
+    plans.set(delegation.projectWorkspaceId, {
+      ownerIssueId: issue.id,
+      projectId: issue.projectId,
+      projectWorkspaceId: ws.id,
+      projectWorkspaceName: ws.name,
+      sourceRepoCwd: ws.cwd,
+      ticketKey,
+      baseBranch: ws.defaultBaseBranch ?? "main",
+      branch: deriveExecutionBranch({
+        ticketKey,
+        explicitBranch: extractExplicitBranch(issue.description),
+      }),
+    });
+  }
+
+  return plans;
+}
+
+/**
+ * Infer the best workspace for an issue by matching issue content against
+ * workspace names/paths.  Returns the matched workspace or null.
+ *
+ * Heuristics (checked against title + description, case-insensitive):
+ *   - Explicit tags: "[FE]", "[BE]", "[Frontend]", "[Backend]", "[Ops]"
+ *   - Domain keywords mapped to common repo name suffixes (_fe, _be, _ops, etc.)
+ */
+function inferWorkspaceFromIssue(
+  issue: ExecutionWorkspacePlanIssueInput,
+  workspaces: ExecutionWorkspacePlanProjectWorkspaceInput[],
+): ExecutionWorkspacePlanProjectWorkspaceInput | null {
+  if (workspaces.length <= 1) return null;
+
+  const text = `${issue.title}\n${issue.description ?? ""}`.toLowerCase();
+
+  // Explicit tag patterns → workspace path/name substring
+  const tagRules: Array<{ patterns: RegExp[]; wsKeywords: string[] }> = [
+    {
+      patterns: [/\[fe\]/, /\[frontend\]/, /\[front[ -]?end\]/],
+      wsKeywords: ["_fe", "-fe", "frontend", "front-end"],
+    },
+    {
+      patterns: [/\[be\]/, /\[backend\]/, /\[back[ -]?end\]/],
+      wsKeywords: ["_be", "-be", "backend", "back-end"],
+    },
+    {
+      patterns: [/\[ops\]/, /\[infra\]/, /\[devops\]/],
+      wsKeywords: ["_ops", "-ops", "infra", "devops"],
+    },
+  ];
+
+  for (const rule of tagRules) {
+    if (rule.patterns.some((p) => p.test(text))) {
+      const match = workspaces.find((ws) => {
+        const id = `${ws.name}\n${ws.cwd ?? ""}`.toLowerCase();
+        return rule.wsKeywords.some((kw) => id.includes(kw));
+      });
+      if (match) return match;
+    }
+  }
+
+  // Keyword-based inference (no explicit tag)
+  const feKeywords =
+    /\b(ui|ux|컴포넌트|component|페이지|page|프론트|front|vue|react|nuxt|next|css|scss|레이아웃|layout|탭|tab|버튼|button|모달|modal|폼|form)\b/;
+  const beKeywords =
+    /\b(api|서버|server|엔드포인트|endpoint|컨트롤러|controller|서비스|service|리포지토리|repository|db|database|마이그레이션|migration|스프링|spring|webflux)\b/;
+
+  const feScore = (text.match(feKeywords) ?? []).length;
+  const beScore = (text.match(beKeywords) ?? []).length;
+
+  if (feScore > 0 && feScore > beScore) {
+    const match = workspaces.find((ws) => {
+      const id = `${ws.name}\n${ws.cwd ?? ""}`.toLowerCase();
+      return ["_fe", "-fe", "frontend", "front-end"].some((kw) => id.includes(kw));
+    });
+    if (match) return match;
+  }
+
+  if (beScore > 0 && beScore > feScore) {
+    const match = workspaces.find((ws) => {
+      const id = `${ws.name}\n${ws.cwd ?? ""}`.toLowerCase();
+      return ["_be", "-be", "backend", "back-end"].some((kw) => id.includes(kw));
+    });
+    if (match) return match;
+  }
+
+  return null;
+}
+
 export function buildExecutionWorkspacePlanForIssue(input: {
   issue: ExecutionWorkspacePlanIssueInput;
   projectWorkspaces: ExecutionWorkspacePlanProjectWorkspaceInput[];
@@ -187,13 +326,14 @@ export function buildExecutionWorkspacePlanForIssue(input: {
     throw conflict("Implementation approval requires a Jira ticket key on the parent issue.");
   }
 
-  const provisionableWorkspace =
-    projectWorkspaces.find(
-      (workspace) =>
-        typeof workspace.cwd === "string" &&
-        workspace.cwd.trim().length > 0 &&
-        workspace.cwd !== REPO_ONLY_CWD_SENTINEL,
-    ) ?? null;
+  const provisionable = projectWorkspaces.filter(
+    (workspace) =>
+      typeof workspace.cwd === "string" &&
+      workspace.cwd.trim().length > 0 &&
+      workspace.cwd !== REPO_ONLY_CWD_SENTINEL,
+  );
+  // Infer best workspace from issue content; fall back to first provisionable
+  const provisionableWorkspace = inferWorkspaceFromIssue(issue, provisionable) ?? provisionable[0] ?? null;
   if (!provisionableWorkspace?.cwd) {
     throw conflict("Implementation approval requires a project workspace with a local source repository path.");
   }
