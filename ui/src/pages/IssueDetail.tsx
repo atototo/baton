@@ -451,6 +451,15 @@ export function IssueDetail() {
         action: issueId ? { label: `View ${issueRef}`, href: `/issues/${issue?.identifier ?? issueId}` } : undefined,
       });
     },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : t("issueDetail.commentFailed");
+      pushToast({
+        dedupeKey: `error:issue.comment_reassign:${issueId}`,
+        title: t("issueDetail.commentFailedTitle"),
+        body: message,
+        tone: "error",
+      });
+    },
   });
 
   const uploadAttachment = useMutation({
@@ -774,6 +783,17 @@ export function IssueDetail() {
             mentions={mentionOptions}
             onAdd={async (body, reopen, reassignment) => {
               if (reassignment) {
+                // Skip the PATCH path when the reassignment doesn't actually
+                // change the assignee — just post a plain comment so it isn't
+                // blocked by pending approval guards.
+                const sameAgent =
+                  reassignment.assigneeAgentId === (issue.assigneeAgentId ?? null);
+                const sameUser =
+                  reassignment.assigneeUserId === (issue.assigneeUserId ?? null);
+                if (sameAgent && sameUser) {
+                  await addComment.mutateAsync({ body, reopen });
+                  return;
+                }
                 await addCommentAndReassign.mutateAsync({ body, reopen, reassignment });
                 return;
               }

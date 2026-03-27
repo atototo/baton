@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type DragEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   CodeMirrorEditor,
   MDXEditor,
@@ -744,6 +745,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             onChange={(e) => {
               latestValueRef.current = e.target.value;
               onChange(e.target.value);
+              // Auto-resize textarea to fit content
+              const ta = e.target;
+              ta.style.height = "auto";
+              ta.style.height = `${Math.max(120, ta.scrollHeight)}px`;
               requestAnimationFrame(checkMentionTextarea);
             }}
             onSelect={checkMentionTextarea}
@@ -785,10 +790,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
               }
             }}
             className={cn(
-              "w-full resize-y bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[80px] flex-1",
+              "w-full resize-none bg-transparent px-3.5 py-3 text-sm focus:outline-none min-h-[120px] max-h-[400px] overflow-y-auto flex-1",
               contentClassName,
             )}
-            rows={3}
+            rows={5}
           />
         ) : (
           /* WYSIWYG MDXEditor for description fields */
@@ -811,43 +816,50 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
           />
         )}
 
-        {/* Mention dropdown */}
-        {mentionActive && filteredMentions.length > 0 && (
-          <div
-            className="absolute z-50 min-w-[180px] max-h-[200px] overflow-y-auto rounded-md border border-border bg-popover shadow-md"
-            style={{ top: mentionState.top + 4, left: mentionState.left }}
-          >
-            {filteredMentions.map((option, i) => (
-              <button
-                key={option.id}
-                className={cn(
-                  "flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left hover:bg-accent/50 transition-colors",
-                  i === mentionIndex && "bg-accent",
-                )}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectMention(option);
-                }}
-                onMouseEnter={() => setMentionIndex(i)}
-              >
-                {option.kind === "project" && option.projectId ? (
-                  <span
-                    className="inline-flex h-2 w-2 rounded-full border border-border/50"
-                    style={{ backgroundColor: option.projectColor ?? "#64748b" }}
-                  />
-                ) : (
-                  <span className="text-muted-foreground">@</span>
-                )}
-                <span>{option.name}</span>
-                {option.kind === "project" && option.projectId && (
-                  <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Project
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Mention dropdown — rendered via portal to escape overflow-hidden */}
+        {mentionActive && filteredMentions.length > 0 && (() => {
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          if (!containerRect) return null;
+          const fixedTop = containerRect.top + mentionState.top + 4;
+          const fixedLeft = containerRect.left + mentionState.left;
+          return createPortal(
+            <div
+              className="fixed z-[9999] min-w-[200px] max-h-[240px] overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
+              style={{ top: fixedTop, left: fixedLeft }}
+            >
+              {filteredMentions.map((option, i) => (
+                <button
+                  key={option.id}
+                  className={cn(
+                    "flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent/50 transition-colors",
+                    i === mentionIndex && "bg-accent",
+                  )}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectMention(option);
+                  }}
+                  onMouseEnter={() => setMentionIndex(i)}
+                >
+                  {option.kind === "project" && option.projectId ? (
+                    <span
+                      className="inline-flex h-2 w-2 rounded-full border border-border/50"
+                      style={{ backgroundColor: option.projectColor ?? "#64748b" }}
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">@</span>
+                  )}
+                  <span>{option.name}</span>
+                  {option.kind === "project" && option.projectId && (
+                    <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Project
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          );
+        })()}
 
         {isDragOver && canDropImage && (
           <div
@@ -863,7 +875,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
 
       {/* Preview mode */}
       {mode === "preview" && (
-        <div className={cn("px-3.5 py-3", contentClassName)}>
+        <div className={cn("px-3.5 py-3 overflow-y-auto flex-1 min-h-0", contentClassName)}>
           {value.trim() ? (
             <MarkdownBody className="text-sm">{value}</MarkdownBody>
           ) : (

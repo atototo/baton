@@ -12,6 +12,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import { ShieldCheck } from "lucide-react";
 import { ApprovalCard } from "../components/ApprovalCard";
+import { AgentQuestionCard } from "../components/AgentQuestionCard";
 import { PageSkeleton } from "../components/PageSkeleton";
 
 type StatusFilter = "pending" | "all";
@@ -26,6 +27,7 @@ export function Approvals() {
   const pathSegment = location.pathname.split("/").pop() ?? "pending";
   const statusFilter: StatusFilter = pathSegment === "all" ? "all" : "pending";
   const [actionError, setActionError] = useState<string | null>(null);
+  const [approveErrorMap, setApproveErrorMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setBreadcrumbs([{ label: t("approval.approvals") }]);
@@ -44,14 +46,20 @@ export function Approvals() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => approvalsApi.approve(id),
-    onSuccess: (_approval, id) => {
+    mutationFn: ({ id, force, decisionNote }: { id: string; force?: boolean; decisionNote?: string }) => approvalsApi.approve(id, decisionNote, force),
+    onSuccess: (_approval, { id }) => {
       setActionError(null);
+      setApproveErrorMap((prev) => { const next = { ...prev }; delete next[id]; return next; });
       queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(selectedCompanyId!) });
       navigate(`/approvals/${id}?resolved=approved`);
     },
-    onError: (err) => {
-      setActionError(err instanceof Error ? err.message : t("inbox.failedToApprove"));
+    onError: (err, { id }) => {
+      const msg = err instanceof Error ? err.message : t("inbox.failedToApprove");
+      if (msg.includes("uncommitted changes") || msg.includes("clean source")) {
+        setApproveErrorMap((prev) => ({ ...prev, [id]: msg }));
+      } else {
+        setActionError(msg);
+      }
     },
   });
 
@@ -141,17 +149,32 @@ export function Approvals() {
 
       {filtered.length > 0 && (
         <div className="grid gap-2.5">
-          {filtered.map((approval) => (
-            <ApprovalCard
-              key={approval.id}
-              approval={approval}
-              requesterAgent={approval.requestedByAgentId ? (agents ?? []).find((a) => a.id === approval.requestedByAgentId) ?? null : null}
-              onApprove={() => approveMutation.mutate(approval.id)}
-              onReject={() => rejectMutation.mutate(approval.id)}
-              detailLink={`/approvals/${approval.id}`}
-              isPending={approveMutation.isPending || rejectMutation.isPending}
-            />
-          ))}
+          {filtered.map((approval) =>
+            approval.type === "agent_question" ? (
+              <AgentQuestionCard
+                key={approval.id}
+                approval={approval}
+                requesterAgent={approval.requestedByAgentId ? (agents ?? []).find((a) => a.id === approval.requestedByAgentId) ?? null : null}
+                onAnswer={(answer) => approveMutation.mutate({ id: approval.id, decisionNote: answer })}
+                onDismiss={() => rejectMutation.mutate(approval.id)}
+                detailLink={`/approvals/${approval.id}`}
+                isPending={approveMutation.isPending || rejectMutation.isPending}
+              />
+            ) : (
+              <ApprovalCard
+                key={approval.id}
+                approval={approval}
+                requesterAgent={approval.requestedByAgentId ? (agents ?? []).find((a) => a.id === approval.requestedByAgentId) ?? null : null}
+                onApprove={() => approveMutation.mutate({ id: approval.id })}
+                onForceApprove={() => approveMutation.mutate({ id: approval.id, force: true })}
+                onDismissError={() => setApproveErrorMap((prev) => { const next = { ...prev }; delete next[approval.id]; return next; })}
+                onReject={() => rejectMutation.mutate(approval.id)}
+                detailLink={`/approvals/${approval.id}`}
+                isPending={approveMutation.isPending || rejectMutation.isPending}
+                approveError={approveErrorMap[approval.id] ?? null}
+              />
+            ),
+          )}
         </div>
       )}
     </div>

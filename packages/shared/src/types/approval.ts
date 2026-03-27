@@ -15,6 +15,14 @@ export interface Approval {
   updatedAt: Date;
 }
 
+/** Per-agent workspace delegation inside an approve_issue_plan payload. */
+export interface DelegationPlanEntry {
+  agentName: string;
+  projectWorkspaceId?: string;
+  workspaceName?: string;
+  tasks: string[];
+}
+
 export interface ApprovalComment {
   id: string;
   companyId: string;

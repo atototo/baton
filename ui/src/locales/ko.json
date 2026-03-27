@@ -212,7 +212,9 @@
     "assignedIssue": "이슈를 배정했습니다",
     "unassignedIssue": "이슈 배정을 해제했습니다",
     "updatedTitle": "제목을 수정했습니다",
-    "updatedDescription": "설명을 수정했습니다"
+    "updatedDescription": "설명을 수정했습니다",
+    "commentFailed": "댓글 게시에 실패했습니다",
+    "commentFailedTitle": "댓글 실패"
   },
   "propertiesPanel": {
     "title": "실시간 활동",
@@ -1201,6 +1203,12 @@
     "typeIssuePlan": "이슈 계획 승인",
     "typePullRequest": "PR 승인",
     "typeCompletion": "완료 승인",
+    "typeAgentQuestion": "에이전트 질문",
+    "questionAnswer": "답변",
+    "questionDismiss": "무시",
+    "questionAnswered": "답변 완료",
+    "questionPlaceholder": "답변을 입력하세요...",
+    "questionSend": "보내기",
     "name": "이름",
     "role": "역할",
     "title": "직함",

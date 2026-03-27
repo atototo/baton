@@ -212,7 +212,9 @@
     "assignedIssue": "assigned the issue",
     "unassignedIssue": "unassigned the issue",
     "updatedTitle": "updated the title",
-    "updatedDescription": "updated the description"
+    "updatedDescription": "updated the description",
+    "commentFailed": "Failed to post comment",
+    "commentFailedTitle": "Comment failed"
   },
   "propertiesPanel": {
     "title": "Live Activity",
@@ -1202,6 +1204,12 @@
     "typeIssuePlan": "Issue Plan",
     "typePullRequest": "Pull Request",
     "typeCompletion": "Completion",
+    "typeAgentQuestion": "Agent Question",
+    "questionAnswer": "Answer",
+    "questionDismiss": "Dismiss",
+    "questionAnswered": "Answered",
+    "questionPlaceholder": "Type your answer...",
+    "questionSend": "Send",
     "name": "Name",
     "role": "Role",
     "title": "Title",

@@ -1,4 +1,4 @@
-import { CheckCircle, GitPullRequest, Lightbulb, ListChecks, ShieldCheck, UserPlus } from "lucide-react";
+import { CheckCircle, GitPullRequest, Lightbulb, ListChecks, MessageCircleQuestion, ShieldCheck, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export const typeIcon: Record<string, typeof UserPlus> = {
@@ -7,6 +7,7 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   approve_issue_plan: ListChecks,
   approve_pull_request: GitPullRequest,
   approve_completion: CheckCircle,
+  agent_question: MessageCircleQuestion,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -19,6 +20,7 @@ export function useTypeLabel(): Record<string, string> {
     approve_issue_plan: t("approval.typeIssuePlan"),
     approve_pull_request: t("approval.typePullRequest"),
     approve_completion: t("approval.typeCompletion"),
+    agent_question: t("approval.typeAgentQuestion"),
   };
 }
 
@@ -29,6 +31,7 @@ export const typeLabel: Record<string, string> = {
   approve_issue_plan: "Issue Plan",
   approve_pull_request: "Pull Request",
   approve_completion: "Completion",
+  agent_question: "Agent Question",
 };
 
 function PayloadField({ label, value }: { label: string; value: unknown }) {
@@ -134,8 +137,38 @@ export function GenericApprovalPayload({ payload }: { payload: Record<string, un
   );
 }
 
+export function AgentQuestionPayload({ payload }: { payload: Record<string, unknown> }) {
+  const question = String(payload.question ?? "");
+  const context = payload.context ? String(payload.context) : null;
+  const options = Array.isArray(payload.options) ? payload.options.map(String) : null;
+
+  return (
+    <div className="mt-3 space-y-2 text-sm">
+      <p className="font-medium text-foreground text-base">{question}</p>
+      {context && (
+        <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap">
+          {context}
+        </div>
+      )}
+      {options && options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {options.map((opt, i) => (
+            <span
+              key={i}
+              className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs text-indigo-300"
+            >
+              {opt}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({ type, payload }: { type: string; payload: Record<string, unknown> }) {
   if (type === "hire_agent") return <HireAgentPayload payload={payload} />;
   if (type === "approve_ceo_strategy") return <CeoStrategyPayload payload={payload} />;
+  if (type === "agent_question") return <AgentQuestionPayload payload={payload} />;
   return <GenericApprovalPayload payload={payload} />;
 }

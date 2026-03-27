@@ -13,7 +13,7 @@ import { useTypeLabel, typeIcon, defaultTypeIcon, ApprovalPayloadRenderer } from
 import { PageSkeleton } from "../components/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
 import type { ApprovalComment } from "@atototo/shared";
 import { MarkdownBody } from "../components/MarkdownBody";
 
@@ -66,6 +66,25 @@ export function ApprovalDetail() {
     return map;
   }, [agents]);
 
+  // Extract <plan> content from linked issue descriptions
+  const planContent = useMemo(() => {
+    if (!linkedIssues?.length) return null;
+    for (const issue of linkedIssues) {
+      if (!issue.description) continue;
+      const match = issue.description.match(/<plan[^>]*>([\s\S]*?)<\/plan>/i);
+      if (match?.[1]?.trim()) return match[1].trim();
+    }
+    return null;
+  }, [linkedIssues]);
+
+  // Extract delegation plan from approval payload
+  const delegations = useMemo(() => {
+    if (!approval?.payload) return null;
+    const raw = (approval.payload as Record<string, unknown>).delegations;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw as Array<{ agentName: string; projectWorkspaceId?: string; workspaceName?: string; tasks: string[] }>;
+  }, [approval?.payload]);
+
   useEffect(() => {
     setBreadcrumbs([
       { label: t("approval.approvals"), href: "/approvals" },
@@ -90,8 +109,12 @@ export function ApprovalDetail() {
   const [showForceConfirm, setShowForceConfirm] = useState(false);
   const [forceError, setForceError] = useState<string | null>(null);
 
+  const [questionAnswer, setQuestionAnswer] = useState("");
+  const isQuestion = approval?.type === "agent_question";
+
   const approveMutation = useMutation({
-    mutationFn: (force?: boolean) => approvalsApi.approve(approvalId!, undefined, force),
+    mutationFn: ({ force, answer }: { force?: boolean; answer?: string } = {}) =>
+      approvalsApi.approve(approvalId!, answer, force),
     onSuccess: () => {
       setError(null);
       setShowForceConfirm(false);
@@ -170,17 +193,6 @@ export function ApprovalDetail() {
   const payload = approval.payload as Record<string, unknown>;
   const linkedAgentId = typeof payload.agentId === "string" ? payload.agentId : null;
   const isActionable = approval.status === "pending" || approval.status === "revision_requested";
-
-  // Extract <plan> content from linked issue descriptions
-  const planContent = useMemo(() => {
-    if (!linkedIssues?.length) return null;
-    for (const issue of linkedIssues) {
-      if (!issue.description) continue;
-      const match = issue.description.match(/<plan[^>]*>([\s\S]*?)<\/plan>/i);
-      if (match?.[1]?.trim()) return match[1].trim();
-    }
-    return null;
-  }, [linkedIssues]);
   const TypeIcon = typeIcon[approval.type] ?? defaultTypeIcon;
   const showApprovedBanner = searchParams.get("resolved") === "approved" && approval.status === "approved";
   const primaryLinkedIssue = linkedIssues?.[0] ?? null;
@@ -305,14 +317,45 @@ export function ApprovalDetail() {
             </details>
           </div>
         )}
+        {delegations && delegations.length > 0 && (
+          <div className="pt-2 border-t border-border/60">
+            <p className="text-xs text-muted-foreground mb-2">{t("approval.delegationPlan", "위임 계획")}</p>
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3 space-y-2">
+              {(() => {
+                const grouped = new Map<string, typeof delegations>();
+                for (const d of delegations) {
+                  const key = d.workspaceName ?? d.projectWorkspaceId ?? "_none";
+                  const arr = grouped.get(key) ?? [];
+                  arr.push(d);
+                  grouped.set(key, arr);
+                }
+                return Array.from(grouped.entries()).map(([wsKey, entries]) => (
+                  <div key={wsKey}>
+                    {wsKey !== "_none" && (
+                      <p className="text-xs font-medium text-foreground/80 mb-1">📁 {wsKey}</p>
+                    )}
+                    {entries.map((d) => (
+                      <div key={d.agentName} className={`text-xs text-muted-foreground ${wsKey !== "_none" ? "ml-4" : ""}`}>
+                        <span className="font-medium text-foreground/70">{d.agentName}</span>
+                        {d.tasks.length > 0 && (
+                          <span className="ml-1">— {d.tasks.join(", ")}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            {isActionable && (
+            {isActionable && !isQuestion && (
               <>
                 <Button
                   size="sm"
                   className="bg-green-700 hover:bg-green-600 text-white"
-                  onClick={() => approveMutation.mutate(false)}
+                  onClick={() => approveMutation.mutate({})}
                   disabled={approveMutation.isPending}
                 >
                   {t("approval.approve")}
@@ -333,6 +376,64 @@ export function ApprovalDetail() {
                   {t("approval.reject")}
                 </Button>
               </>
+            )}
+            {isActionable && isQuestion && (
+              <div className="w-full space-y-2">
+                {Array.isArray(approval.payload.options) && approval.payload.options.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {(approval.payload.options as string[]).map((opt, i) => (
+                      <Button
+                        key={i}
+                        size="sm"
+                        variant="outline"
+                        className="border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10"
+                        onClick={() => approveMutation.mutate({ answer: opt })}
+                        disabled={approveMutation.isPending}
+                      >
+                        {opt}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={questionAnswer}
+                    onChange={(e) => setQuestionAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && questionAnswer.trim()) {
+                        approveMutation.mutate({ answer: questionAnswer.trim() });
+                        setQuestionAnswer("");
+                      }
+                    }}
+                    placeholder={t("approval.questionPlaceholder")}
+                    className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    disabled={approveMutation.isPending}
+                  />
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 text-white hover:bg-indigo-500"
+                    onClick={() => {
+                      if (questionAnswer.trim()) {
+                        approveMutation.mutate({ answer: questionAnswer.trim() });
+                        setQuestionAnswer("");
+                      }
+                    }}
+                    disabled={approveMutation.isPending || !questionAnswer.trim()}
+                  >
+                    {t("approval.questionSend")}
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={rejectMutation.isPending}
+                >
+                  {t("approval.questionDismiss")}
+                </Button>
+              </div>
             )}
             {approval.status === "pending" && (
               <Button
@@ -406,16 +507,21 @@ export function ApprovalDetail() {
           )}
         </div>
         {showForceConfirm && (
-          <div className="border border-yellow-500/40 bg-yellow-500/10 rounded-md p-3 space-y-2">
-            <p className="text-sm text-yellow-200">{forceError}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("approval.forceApproveDescription")}
-            </p>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-950/40 p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div>
+                <p className="text-sm font-medium text-amber-200">{forceError}</p>
+                <p className="mt-1 text-xs text-amber-200/70">
+                  {t("approval.forceApproveDescription")}
+                </p>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                className="bg-yellow-600 hover:bg-yellow-500 text-white"
-                onClick={() => approveMutation.mutate(true)}
+                className="bg-amber-600 hover:bg-amber-500 text-white"
+                onClick={() => approveMutation.mutate({ force: true })}
                 disabled={approveMutation.isPending}
               >
                 {t("approval.forceApprove")}
