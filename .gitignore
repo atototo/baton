@@ -40,3 +40,5 @@ tmp/
 .vscode/
 .claude/settings.local.json
 .baton-local/
+/.claude/prompts/
+/findings/
