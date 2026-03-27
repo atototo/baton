@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeProjectWorkspacePaths } from "../routes/issue-response.js";
+import { sanitizeProjectWorkspacePaths } from "../routes/issues/response.js";
 
 describe("sanitizeProjectWorkspacePaths", () => {
   it("removes cwd from project workspaces while preserving other fields", () => {
