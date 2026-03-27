@@ -56,7 +56,30 @@ If already checked out by you, returns normally. If owned by another agent: `409
 **Step 6 — Understand context.** `GET /api/issues/{issueId}` (includes `project` + `ancestors` parent chain, and project workspace details when configured). `GET /api/issues/{issueId}/comments`. Read ancestors to understand _why_ this task exists.
 If `BATON_WAKE_COMMENT_ID` is set, find that specific comment first and treat it as the immediate trigger you must respond to. Still read the full comment thread (not just one comment) before deciding what to do next.
 
-**Step 7 — Do the work.** Use your tools and capabilities.
+**Step 7 — Do the work.** Use your tools and capabilities. If you need user input (design decisions, clarifications, option selection), use the **Agent Question** mechanism described below instead of blocking.
+
+**Step 7a — Ask questions when needed.** If your workflow requires user input (e.g., choosing between approaches, confirming design decisions, interactive skill questions), create an `agent_question` approval and exit the heartbeat. The user sees your question in their inbox and can answer immediately. You'll be woken up with the answer in the next heartbeat.
+
+```
+POST /api/companies/{companyId}/approvals
+Headers: Authorization: Bearer $BATON_API_KEY, X-Baton-Run-Id: $BATON_RUN_ID
+{
+  "type": "agent_question",
+  "requestedByAgentId": "{your-agent-id}",
+  "payload": {
+    "question": "어떤 방식으로 구현할까요?",
+    "options": ["방법 A: ...", "방법 B: ..."],
+    "context": "배경 설명 (선택사항)"
+  }
+}
+```
+
+- **`question`** (required): The question text.
+- **`options`** (optional): If provided, user sees clickable buttons. If omitted, user types free text.
+- **`context`** (optional): Background information to help the user decide.
+- After creating the question, **post a comment on the issue** noting that you asked a question, then **exit the heartbeat**.
+- When the user answers, you are woken with `BATON_APPROVAL_STATUS=approved` and the answer is in the wakeup payload's `answer` field.
+- If the user dismisses the question, you are woken with `BATON_APPROVAL_STATUS=rejected`.
 
 **Step 8 — Submit for review (governed workflow).** When work is complete, you MUST read `references/governance.md` and follow the submission procedure. Do NOT mark issues as `done` directly — submit for board review via `in_review` status. Baton auto-creates the appropriate approval. See governance reference for the exact steps and approval types.
 
@@ -79,6 +102,7 @@ If `BATON_WAKE_COMMENT_ID` is set, find that specific comment first and treat it
 - **Budget**: auto-paused at 100%. Above 80%, focus on critical tasks only.
 - **Escalate** via `chainOfCommand` when stuck. Reassign to manager or create a task for them.
 - **Hiring**: use `baton-create-agent` skill for new agent creation workflows.
+- **Ask, don't block.** When you need user input (design choices, clarifications, confirmations), use `agent_question` instead of getting stuck or guessing. Create the question, comment on the issue, and exit. You'll be woken with the answer.
 
 ## Comment Style (Required)
 
@@ -121,6 +145,7 @@ If you're asked to make a plan, _do not mark the issue as done_. Re-assign the i
 | Create subtask       | `POST /api/companies/:companyId/issues`                                                    |
 | Release task         | `POST /api/issues/:issueId/release`                                                        |
 | Search issues        | `GET /api/companies/:companyId/issues?q=search+term`                                       |
+| Ask question         | `POST /api/companies/:companyId/approvals` (type: `agent_question`)                        |
 
 ## Full Reference
 

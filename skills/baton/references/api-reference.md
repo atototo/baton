@@ -412,11 +412,22 @@ When an IC agent returns an issue to the board user (`in_review` + `assigneeUser
     "issueIdentifier": "DOB-42",
     "plan": "<extracted plan text>",
     "workspace": { "repoUrl": "...", "branch": "feature/DOB-42", "baseBranch": "develop" },
+    "delegations": [
+      { "agentName": "team-fe-dev", "projectWorkspaceId": "uuid", "workspaceName": "shopping_md_fe", "tasks": ["UI 구현"] },
+      { "agentName": "team-be-dev", "projectWorkspaceId": "uuid", "workspaceName": "shopping_md_be", "tasks": ["API 수정"] },
+      { "agentName": "team-reviewer", "tasks": ["코드 리뷰"] }
+    ],
     "summary": "Agent's comment"
   }
 }
 ```
-On approval: execution workspace is provisioned (branch created), issue is unblocked with workspace attached.
+**Delegations** (optional): When a project has multiple workspaces, include `delegations` to specify which agent works in which workspace. Each delegation entry maps an agent to a `projectWorkspaceId`. On approval, Baton provisions a separate worktree per unique workspace. Child issues inherit the correct workspace based on their assigned agent.
+
+If `delegations` is omitted, Baton auto-selects the first available project workspace (existing behavior).
+
+**IMPORTANT**: When the project has multiple workspaces (e.g., separate FE and BE repos), you MUST include `delegations` to ensure each agent gets the correct workspace. Use the project workspace list to find the right `projectWorkspaceId` for each agent.
+
+On approval: execution workspace(s) are provisioned (branch created), issue is unblocked with workspace attached.
 
 **`approve_pull_request`** — When the issue has an execution workspace (branch/repo).
 ```json
@@ -445,6 +456,41 @@ On approval: PR is created automatically via GitHub API.
 }
 ```
 On approval: linked issues are marked as done.
+
+### 5. `agent_question` (manual, any agent)
+
+Ask the board/user a question and get an answer. Use this when you need user input (design decisions, clarifications, choosing between options) instead of blocking or guessing.
+
+```
+POST /api/companies/{companyId}/approvals
+Headers: X-Baton-Run-Id: $BATON_RUN_ID
+{
+  "type": "agent_question",
+  "requestedByAgentId": "{your-agent-id}",
+  "payload": {
+    "question": "어떤 방식으로 구현할까요?",
+    "options": ["방법 A: 기존 패턴 유지", "방법 B: 새 아키텍처"],
+    "context": "현재 코드가 X 패턴을 사용 중이고..."
+  }
+}
+```
+
+**Payload fields:**
+- `question` (required): The question text displayed to the user.
+- `options` (optional): Array of strings. If provided, user sees clickable option buttons. If omitted, user types free-form text.
+- `context` (optional): Background information to help the user decide.
+
+**User answers:** The user clicks an option or types a response. This calls `POST /approvals/:id/approve` with `decisionNote` set to the answer text.
+
+**User dismisses:** The user clicks "Dismiss". This calls `POST /approvals/:id/reject`.
+
+**Agent wakeup on answer:**
+- `BATON_APPROVAL_STATUS=approved`, wakeup payload includes:
+  - `answer`: The user's response text
+  - `question`: The original question
+- `BATON_APPROVAL_STATUS=rejected` means the user dismissed the question.
+
+**After creating the question:** Post a comment on the current issue noting that you asked a question, then exit the heartbeat. Do NOT block or wait.
 
 ### Checking approval status
 

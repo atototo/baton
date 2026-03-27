@@ -22,6 +22,7 @@ POST /api/companies/{companyId}/approvals
 - Baton auto-creates this approval when you set status to `in_review` and assign back to board user.
 - Issue is automatically set to `blocked` until board approves.
 - On approval: execution workspace is provisioned (branch created), issue is unblocked.
+- **Multi-workspace projects**: When the project has multiple workspaces (e.g., separate FE/BE repos), include `delegations` in the payload to map each agent to the correct workspace. Each delegation entry specifies `agentName`, `projectWorkspaceId`, `workspaceName`, and `tasks`. On approval, Baton provisions a separate worktree per workspace.
 
 ```json
 // Auto-created payload (you don't send this)
@@ -32,10 +33,16 @@ POST /api/companies/{companyId}/approvals
     "issueIdentifier": "DOB-42",
     "plan": "<extracted plan text>",
     "workspace": { "repoUrl": "...", "branch": "feature/DOB-42", "baseBranch": "develop" },
+    "delegations": [
+      { "agentName": "fe-dev", "projectWorkspaceId": "uuid-fe", "workspaceName": "shopping_md_fe", "tasks": ["UI work"] },
+      { "agentName": "be-dev", "projectWorkspaceId": "uuid-be", "workspaceName": "shopping_md_be", "tasks": ["API work"] }
+    ],
     "summary": "Agent's comment"
   }
 }
 ```
+
+**CRITICAL for leaders**: When your project has multiple workspaces, you MUST include `delegations` in your `approve_issue_plan` payload. Use `GET /api/projects/{projectId}/workspaces` to list available workspaces and their IDs, then match each agent to the correct workspace based on their work domain (FE/BE/etc).
 
 ### 3. `approve_pull_request` (auto-created)
 
