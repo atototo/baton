@@ -82,18 +82,36 @@ POST /api/companies/{companyId}/approvals
 }
 ```
 
-## Mandatory Code Review by Reviewer Agent
+## Leader Orchestration Rules
 
-**⚠️ MANDATORY**: If a `qa` or `reviewer` role agent exists in your team (check `GET /api/companies/{companyId}/agents`), you MUST delegate code review to them before submitting for board review.
+**⚠️ MANDATORY for leaders/managers**: These rules govern how you coordinate subtasks within a parent issue.
 
-**Leaders/managers MUST NOT review code themselves.** The review flow is:
+### Subtask Lifecycle Sequence
 
-1. Developer completes work and submits to leader (in_review).
-2. Leader creates a review subtask and assigns to the reviewer agent.
-3. Reviewer inspects the code, leaves comments, and marks the review subtask done.
-4. Only AFTER reviewer approves, leader submits the parent issue for board review (PR approval).
+Within a single parent issue, follow this strict sequence:
+
+```
+Phase 1: Implementation
+  Create dev subtasks (BE, FE, etc.) → assign to developers → wait for ALL to complete
+
+Phase 2: Review (only after ALL dev subtasks are done/cancelled)
+  Create review subtask → assign to reviewer agent → wait for review to complete
+
+Phase 3: Submission (only after review is done)
+  Submit parent issue for board review (in_review)
+```
+
+**DO NOT create review subtasks while dev subtasks are still active.** The server will block `in_review` on the parent if children are active, but you must also sequence subtask creation correctly.
+
+### Mandatory Code Review
+
+If a `qa` or `reviewer` role agent exists in your team (`GET /api/companies/{companyId}/agents`), you MUST delegate code review to them. Leaders/managers MUST NOT review code themselves.
 
 **Skipping the reviewer is a governance violation.** If no reviewer agent exists, the leader may review directly.
+
+### Parallel Across Issues
+
+Different parent issues (e.g., P2-1 and P2-2) CAN run in parallel — they are independent feature branches. The sequence rules above apply only WITHIN each parent issue's subtask tree.
 
 ## How to Submit Work for Review
 
