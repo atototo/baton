@@ -24,11 +24,12 @@ import { getRunLogStore, type RunLogHandle } from "./run-log-store.js";
 import { getServerAdapter, runningProcesses } from "../adapters/index.js";
 import type { AdapterExecutionResult, AdapterInvocationMeta, AdapterSessionCodec } from "../adapters/index.js";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
-import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
+import { parseObject, asString, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import { executionWorkspaceService } from "./execution-workspaces.js";
 import { promptCompositionService } from "./prompt-composition.js";
+import { agentInstructionsService } from "./agent-instructions.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -497,6 +498,7 @@ export function heartbeatService(db: Db) {
   const secretsSvc = secretService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const promptComposition = promptCompositionService(db);
+  const agentInstructions = agentInstructionsService(db);
 
   async function getAgent(agentId: string) {
     return db
@@ -1525,6 +1527,23 @@ export function heartbeatService(db: Db) {
           "local agent jwt secret missing or invalid; running without injected BATON_API_KEY",
         );
       }
+      // External 모드 동기화 (heartbeat 시작 시)
+      const agentConfig = parseObject(agent.adapterConfig);
+      const bundleMode = asString(agentConfig.instructionsBundleMode, "");
+      if (bundleMode === "external") {
+        try {
+          await agentInstructions.syncExternalFiles(agent);
+        } catch (err) {
+          logger.warn(
+            { companyId: agent.companyId, agentId: agent.id, runId: run.id },
+            `Failed to sync external instructions: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      // DB(캐시)에서 지시문 번들 로드
+      const instructionsBundle = await agentInstructions.loadBundleForExecution(agent.id);
+
       // Compose project conventions into supplementary instructions
       const resolvedProjectIdForPrompt = readNonEmptyString(context.projectId);
       let composedInstructions: string | undefined;
@@ -1560,6 +1579,7 @@ export function heartbeatService(db: Db) {
         onMeta: onAdapterMeta,
         authToken: authToken ?? undefined,
         composedInstructions,
+        instructionsBundle,
       });
       const nextSessionState = resolveNextSessionState({
         codec: sessionCodec,
