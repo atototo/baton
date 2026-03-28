@@ -841,6 +841,18 @@ export function issueRoutes(db: Db, storage: StorageService) {
             "Cannot submit for review while an agent question is pending. Answer the question first.",
           );
         }
+        // Block in_review transition if there are active (non-terminal) child issues
+        const childIssues = await db
+          .select({ id: issueTable.id, identifier: issueTable.identifier, status: issueTable.status })
+          .from(issueTable)
+          .where(and(eq(issueTable.parentId, existing.id), eq(issueTable.companyId, existing.companyId)));
+        const activeChildren = childIssues.filter((c) => !TERMINAL_ISSUE_STATUSES.has(c.status));
+        if (activeChildren.length > 0) {
+          const childList = activeChildren.map((c) => `${c.identifier ?? c.id} (${c.status})`).join(", ");
+          throw forbidden(
+            `Cannot submit for review while child issues are still active: ${childList}. Complete or cancel all child issues first.`,
+          );
+        }
       }
       if (updateFields.status === "done") {
         await assertIssueCompletionAllowed(existing.id);
