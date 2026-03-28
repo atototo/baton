@@ -27,7 +27,8 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate:instructions": "tsx src/scripts/migrate-instructions-to-db.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",

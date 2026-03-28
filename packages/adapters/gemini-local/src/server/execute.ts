@@ -70,7 +70,7 @@ function renderApiAccessNote(env: Record<string, string>): string {
 // and re-enable ensureGeminiSkillsInjected() below.
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions, instructionsBundle } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -181,37 +181,46 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     );
   }
 
-  const instructionsFilePath = asString(config.instructionsFilePath, "").trim();
-  const instructionsDir = instructionsFilePath ? `${path.dirname(instructionsFilePath)}/` : "";
+  const legacyInstructionsFilePath = asString(config.instructionsFilePath, "").trim();
+  const instructionsDir = legacyInstructionsFilePath ? `${path.dirname(legacyInstructionsFilePath)}/` : "";
   let instructionsPrefix = "";
-  if (instructionsFilePath) {
+  if (instructionsBundle && instructionsBundle.files.size > 0) {
+    const entryContent = instructionsBundle.files.get(instructionsBundle.entryFile) ?? "";
+    instructionsPrefix = entryContent + "\n\n";
+  } else if (legacyInstructionsFilePath) {
     try {
-      const instructionsContents = await fs.readFile(instructionsFilePath, "utf8");
+      const instructionsContents = await fs.readFile(legacyInstructionsFilePath, "utf8");
       instructionsPrefix =
         `${instructionsContents}\n\n` +
-        `The above agent instructions were loaded from ${instructionsFilePath}. ` +
+        `The above agent instructions were loaded from ${legacyInstructionsFilePath}. ` +
         `Resolve any relative file references from ${instructionsDir}.\n\n`;
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       await onLog(
         "stdout",
-        `[baton] Warning: could not read agent instructions file "${instructionsFilePath}": ${reason}\n`,
+        `[baton] Warning: could not read agent instructions file "${legacyInstructionsFilePath}": ${reason}\n`,
       );
     }
   }
   const commandNotes = (() => {
     const notes: string[] = ["Prompt is passed to Gemini via --prompt for non-interactive execution."];
     notes.push("Added --approval-mode yolo for unattended execution.");
-    if (!instructionsFilePath) return notes;
+    if (instructionsBundle && instructionsBundle.files.size > 0) {
+      notes.push(
+        `Injected agent instructions from DB (entry: ${instructionsBundle.entryFile}, ${instructionsBundle.files.size} files)`,
+      );
+      return notes;
+    }
+    if (!legacyInstructionsFilePath) return notes;
     if (instructionsPrefix.length > 0) {
       notes.push(
-        `Loaded agent instructions from ${instructionsFilePath}`,
+        `Loaded agent instructions from ${legacyInstructionsFilePath}`,
         `Prepended instructions + path directive to prompt (relative references from ${instructionsDir}).`,
       );
       return notes;
     }
     notes.push(
-      `Configured instructionsFilePath ${instructionsFilePath}, but file could not be read; continuing without injected instructions.`,
+      `Configured instructionsFilePath ${legacyInstructionsFilePath}, but file could not be read; continuing without injected instructions.`,
     );
     return notes;
   })();

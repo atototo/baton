@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 
 export interface CachedBundle {
-  files: Map<string, string>;  // path → content
+  files: Map<string, string>; // path → content
   entryFile: string;
   hash: string;
   loadedAt: Date;
 }
 
 const cache = new Map<string, CachedBundle>();
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5分
+const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5분
 
 export function instructionsCache(ttlMs: number = DEFAULT_TTL_MS) {
   function get(agentId: string): CachedBundle | null {

@@ -197,6 +197,13 @@
       "when": 1774442549821,
       "tag": "0027_sweet_marvex",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774694890074,
+      "tag": "0028_chilly_brood",
+      "breakpoints": true
     }
   ]
 }
