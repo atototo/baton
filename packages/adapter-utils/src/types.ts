@@ -83,6 +83,11 @@ export interface AdapterExecutionContext {
   authToken?: string;
   /** Supplementary instructions composed from project conventions, injected into the agent prompt. */
   composedInstructions?: string;
+  /** Agent instructions bundle loaded from DB. Takes precedence over config.instructionsFilePath. */
+  instructionsBundle?: {
+    files: Map<string, string>;
+    entryFile: string;
+  } | null;
 }
 
 export interface AdapterModel {

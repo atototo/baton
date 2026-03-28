@@ -277,7 +277,7 @@ export async function runClaudeLogin(input: {
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken, composedInstructions, instructionsBundle } = ctx;
 
   const promptTemplate = asString(
     config.promptTemplate,
@@ -288,13 +288,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const chrome = asBoolean(config.chrome, false);
   const maxTurns = asNumber(config.maxTurnsPerRun, 0);
   const dangerouslySkipPermissions = asBoolean(config.dangerouslySkipPermissions, false);
-  const instructionsFilePath = asString(config.instructionsFilePath, "").trim();
-  const instructionsFileDir = instructionsFilePath ? `${path.dirname(instructionsFilePath)}/` : "";
-  const commandNotes = instructionsFilePath
-    ? [
-        `Injected agent instructions via --append-system-prompt-file ${instructionsFilePath} (with path directive appended)`,
-      ]
-    : [];
+  const legacyInstructionsFilePath = asString(config.instructionsFilePath, "").trim();
+  const instructionsFileDir = legacyInstructionsFilePath ? `${path.dirname(legacyInstructionsFilePath)}/` : "";
+  const commandNotes: string[] = [];
 
   const runtimeConfig = await buildClaudeRuntimeConfig({
     runId,
@@ -317,16 +313,28 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const billingType = resolveClaudeBillingType(env);
   const skillsDir = await buildSkillsDir();
 
-  // When instructionsFilePath is configured, create a combined temp file that
-  // includes both the file content and the path directive, so we only need
-  // --append-system-prompt-file (Claude CLI forbids using both flags together).
-  let effectiveInstructionsFilePath = instructionsFilePath;
-  if (instructionsFilePath) {
-    const instructionsContent = await fs.readFile(instructionsFilePath, "utf-8");
-    const pathDirective = `\nThe above agent instructions were loaded from ${instructionsFilePath}. Resolve any relative file references from ${instructionsFileDir}.`;
+  // When instructionsBundle (from DB) or legacy instructionsFilePath is configured, create a combined
+  // temp file so we only need --append-system-prompt-file (Claude CLI forbids using both flags together).
+  let effectiveInstructionsFilePath = "";
+  if (instructionsBundle && instructionsBundle.files.size > 0) {
+    const entryContent = instructionsBundle.files.get(instructionsBundle.entryFile) ?? "";
     const combinedPath = path.join(skillsDir, "agent-instructions.md");
-    await fs.writeFile(combinedPath, instructionsContent + pathDirective, "utf-8");
+    await fs.writeFile(combinedPath, entryContent, "utf-8");
     effectiveInstructionsFilePath = combinedPath;
+    commandNotes.push(
+      `Injected agent instructions from DB (entry: ${instructionsBundle.entryFile}, ${instructionsBundle.files.size} files)`,
+    );
+  } else if (legacyInstructionsFilePath) {
+    try {
+      const instructionsContent = await fs.readFile(legacyInstructionsFilePath, "utf-8");
+      const pathDirective = `\nThe above agent instructions were loaded from ${legacyInstructionsFilePath}. Resolve any relative file references from ${instructionsFileDir}.`;
+      const combinedPath = path.join(skillsDir, "agent-instructions.md");
+      await fs.writeFile(combinedPath, instructionsContent + pathDirective, "utf-8");
+      effectiveInstructionsFilePath = combinedPath;
+      commandNotes.push(`Injected agent instructions via file ${legacyInstructionsFilePath}`);
+    } catch {
+      commandNotes.push(`Warning: instructions file not found: ${legacyInstructionsFilePath}`);
+    }
   }
 
   // Append project conventions if available
