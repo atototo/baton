@@ -4,11 +4,12 @@ export const DEFAULT_GEMINI_LOCAL_MODEL = "auto";
 
 export const models = [
   { id: DEFAULT_GEMINI_LOCAL_MODEL, label: "Auto" },
+  { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro" },
+  { id: "gemini-3-flash", label: "Gemini 3 Flash" },
+  { id: "gemini-3-flash-lite", label: "Gemini 3 Flash Lite" },
   { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-  { id: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
 ];
 
 export const agentConfigurationDoc = `# gemini_local agent configuration

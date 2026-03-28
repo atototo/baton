@@ -1036,6 +1036,10 @@
           "description": "Process 어댑터는 임의의 명령과 인자를 실행하므로, 커스텀 스크립트나 래퍼를 붙일 때 유용합니다.",
           "recommendation": "이미 유지 중인 스크립트, 바이너리, 셸 엔트리포인트를 그대로 실행 진입점으로 쓰고 싶을 때 권장됩니다."
         },
+        "gemini_local": {
+          "description": "Gemini local은 이 머신에서 Gemini CLI를 직접 실행하며, 직접 코딩하는 엔지니어 에이전트에 잘 맞습니다.",
+          "recommendation": "실제 로컬 체크아웃을 붙인 Baton 관리형 코딩 세션이 필요할 때 권장됩니다."
+        },
         "http": {
           "description": "HTTP 어댑터는 로컬 프로세스를 띄우는 대신 웹훅을 호출합니다.",
           "recommendation": "에이전트가 외부에 호스팅되어 있고 Baton은 깨우기 신호만 보내면 될 때 권장됩니다."
@@ -1347,7 +1351,11 @@
     "cleanManagedConfirm": "현재 진입 파일만 남기고 나머지 관리형 지시문 파일을 모두 제거합니다. 계속하시겠습니까?",
     "setAsEntryFile": "이 파일을 진입 파일로 설정 (heartbeat 시 주입)",
     "importFiles": "파일 가져오기",
-    "filesImported": "파일을 가져왔습니다."
+    "filesImported": "파일을 가져왔습니다.",
+    "initManaged": "지시문 초기화",
+    "emptyTitle": "등록된 지시문이 없습니다",
+    "emptyDescription": "에이전트가 작업 시 참고할 지시문(AGENTS.md)을 작성하거나 기존 파일을 업로드하세요.",
+    "createNew": "새 지시문 작성"
   },
   "projectConventions": {
     "backstory": "프로젝트 맥락 설명",

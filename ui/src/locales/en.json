@@ -1037,6 +1037,10 @@
           "description": "Process adapters run an arbitrary command plus args, which is useful for custom scripts or wrappers.",
           "recommendation": "Recommended when you already have a script, binary, or shim that should stay as the execution entrypoint."
         },
+        "gemini_local": {
+          "description": "Gemini local runs the Gemini CLI on this machine, well-suited for engineer agents that code directly.",
+          "recommendation": "Recommended when you need a Baton-managed coding session with a real local checkout."
+        },
         "http": {
           "description": "HTTP adapters call a webhook instead of starting a local process.",
           "recommendation": "Recommended when the agent is hosted elsewhere and Baton only needs to signal it to wake up."
@@ -1348,7 +1352,11 @@
     "cleanManagedConfirm": "This will remove every managed instructions file except the current entry file. Continue?",
     "setAsEntryFile": "Set as entry file (injected during heartbeat)",
     "importFiles": "Import files",
-    "filesImported": "Files imported successfully."
+    "filesImported": "Files imported successfully.",
+    "initManaged": "Initialize instructions",
+    "emptyTitle": "No instructions registered",
+    "emptyDescription": "Write instructions (AGENTS.md) for the agent to reference during tasks, or upload existing files.",
+    "createNew": "Create new instructions"
   },
   "projectConventions": {
     "backstory": "Project Backstory",

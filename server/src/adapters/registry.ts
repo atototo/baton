@@ -38,6 +38,7 @@ import { agentConfigurationDoc as piAgentConfigurationDoc, models as piModels } 
 import { listPiModels } from "@atototo/adapter-pi-local/server";
 import { listCodexModels } from "./codex-models.js";
 import { listCursorModels } from "./cursor-models.js";
+import { listGeminiModels } from "./gemini-models.js";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -89,6 +90,7 @@ const geminiLocalAdapter: ServerAdapterModule = {
   testEnvironment: geminiTestEnvironment,
   sessionCodec: geminiSessionCodec,
   models: geminiModels,
+  listModels: listGeminiModels,
   supportsLocalAgentJwt: true,
   agentConfigurationDoc: geminiAgentConfigurationDoc,
 };

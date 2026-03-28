@@ -248,7 +248,49 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
         </div>
       )}
 
-      {/* Main layout: sidebar + editor */}
+      {/* Empty state: no mode configured yet */}
+      {!bundle.mode && bundle.files.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-16 min-h-[28rem]">
+          <div className="rounded-full bg-muted p-4">
+            <FileText className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm font-medium">{t("agentInstructions.emptyTitle")}</p>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              {t("agentInstructions.emptyDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => updateBundle.mutate({ mode: "managed" })}
+              disabled={updateBundle.isPending}
+            >
+              {updateBundle.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {t("agentInstructions.createNew")}
+            </Button>
+            <label>
+              <Button variant="outline" asChild>
+                <span className="cursor-pointer">
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t("agentInstructions.importFiles")}
+                </span>
+              </Button>
+              <input
+                type="file"
+                accept=".md,.txt,.yaml,.yml"
+                multiple
+                className="hidden"
+                onChange={handleImportFiles}
+              />
+            </label>
+          </div>
+        </div>
+      ) : (
+      /* Main layout: sidebar + editor */
       <div className="flex gap-4 min-h-[28rem]">
         {/* File tree sidebar */}
         <div className="w-56 shrink-0 space-y-2">
@@ -412,6 +454,7 @@ export function AgentInstructionsTab({ agentId, companyId }: AgentInstructionsTa
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

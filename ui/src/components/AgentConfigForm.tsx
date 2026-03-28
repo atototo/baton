@@ -384,6 +384,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const isLocal =
     adapterType === "claude_local" ||
     adapterType === "codex_local" ||
+    adapterType === "gemini_local" ||
     adapterType === "opencode_local" ||
     adapterType === "cursor";
   const uiAdapter = useMemo(() => getUIAdapter(adapterType), [adapterType]);
@@ -820,6 +821,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 placeholder={
                   adapterType === "codex_local"
                     ? "codex"
+                    : adapterType === "gemini_local"
+                    ? "gemini"
                     : adapterType === "cursor"
                     ? "agent"
                     : adapterType === "opencode_local"
