@@ -1,5 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { eq, and } from "drizzle-orm";
+import type { Db } from "@atototo/db";
+import { agentInstructions, agentInstructionRevisions } from "@atototo/db";
+import { instructionsCache, computeContentHash, type CachedBundle } from "./instructions-cache.js";
 import { notFound, unprocessable } from "../errors.js";
 import { resolveHomeAwarePath, resolveBatonInstanceRoot } from "../home-paths.js";
 
@@ -193,21 +197,6 @@ async function listFilesRecursive(rootPath: string): Promise<string[]> {
   return output.sort((left, right) => left.localeCompare(right));
 }
 
-async function readFileSummary(rootPath: string, relativePath: string, entryFile: string): Promise<AgentInstructionsFileSummary> {
-  const absolutePath = resolvePathWithinRoot(rootPath, relativePath);
-  const stat = await fs.stat(absolutePath);
-  return {
-    path: relativePath,
-    size: stat.size,
-    language: inferLanguage(relativePath),
-    markdown: isMarkdown(relativePath),
-    isEntryFile: relativePath === entryFile,
-    editable: true,
-    deprecated: false,
-    virtual: false,
-  };
-}
-
 async function readLegacyInstructions(agent: AgentLike, config: Record<string, unknown>): Promise<string> {
   const instructionsFilePath = asString(config[FILE_KEY]);
   if (instructionsFilePath) {
@@ -269,62 +258,6 @@ function deriveBundleState(agent: AgentLike): BundleState {
     warnings,
     legacyPromptTemplateActive: Boolean(asString(config[PROMPT_KEY])),
     legacyBootstrapPromptTemplateActive: Boolean(asString(config[BOOTSTRAP_PROMPT_KEY])),
-  };
-}
-
-async function recoverManagedBundleState(agent: AgentLike, state: BundleState): Promise<BundleState> {
-  const managedRootPath = resolveManagedInstructionsRoot(agent);
-  const stat = await statIfExists(managedRootPath);
-  if (!stat?.isDirectory()) return state;
-
-  const files = await listFilesRecursive(managedRootPath);
-  if (files.length === 0) return state;
-
-  const recoveredEntryFile = files.includes(state.entryFile)
-    ? state.entryFile
-    : files.includes(ENTRY_FILE_DEFAULT)
-      ? ENTRY_FILE_DEFAULT
-      : files[0]!;
-
-  if (!state.rootPath) {
-    return {
-      ...state,
-      mode: "managed",
-      rootPath: managedRootPath,
-      entryFile: recoveredEntryFile,
-      resolvedEntryPath: path.resolve(managedRootPath, recoveredEntryFile),
-    };
-  }
-
-  if (state.mode === "external") return state;
-
-  const resolvedConfiguredRoot = path.resolve(state.rootPath);
-  const configuredRootMatchesManaged = resolvedConfiguredRoot === managedRootPath;
-  const hasEntryMismatch = recoveredEntryFile !== state.entryFile;
-
-  if (configuredRootMatchesManaged && !hasEntryMismatch) {
-    return state;
-  }
-
-  const warnings = [...state.warnings];
-  if (!configuredRootMatchesManaged) {
-    warnings.push(
-      `Recovered managed instructions from disk at ${managedRootPath}; ignoring stale configured root ${state.rootPath}.`,
-    );
-  }
-  if (hasEntryMismatch) {
-    warnings.push(
-      `Recovered managed instructions entry file from disk as ${recoveredEntryFile}; previous entry ${state.entryFile} was missing.`,
-    );
-  }
-
-  return {
-    ...state,
-    mode: "managed",
-    rootPath: managedRootPath,
-    entryFile: recoveredEntryFile,
-    resolvedEntryPath: path.resolve(managedRootPath, recoveredEntryFile),
-    warnings,
   };
 }
 
@@ -413,21 +346,6 @@ function buildPersistedBundleConfig(
   });
 }
 
-async function writeBundleFiles(
-  rootPath: string,
-  files: Record<string, string>,
-  options?: { overwriteExisting?: boolean },
-) {
-  for (const [relativePath, content] of Object.entries(files)) {
-    const normalizedPath = normalizeRelativeFilePath(relativePath);
-    const absolutePath = resolvePathWithinRoot(rootPath, normalizedPath);
-    const existingStat = await statIfExists(absolutePath);
-    if (existingStat?.isFile() && !options?.overwriteExisting) continue;
-    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-    await fs.writeFile(absolutePath, content, "utf8");
-  }
-}
-
 export function syncInstructionsBundleConfigFromFilePath(
   agent: AgentLike,
   adapterConfig: Record<string, unknown>,
@@ -450,9 +368,50 @@ export function syncInstructionsBundleConfigFromFilePath(
   return applyBundleConfig(next, { mode, rootPath, entryFile });
 }
 
-export function agentInstructionsService() {
+// ---------------------------------------------------------------------------
+// DB-backed service factory
+// ---------------------------------------------------------------------------
+
+export function agentInstructionsService(db: Db) {
+  const cache = instructionsCache();
+
+  // -- helpers to convert DB rows to file summaries/details --
+
+  function rowToSummary(row: { path: string; content: string; isEntryFile: boolean }): AgentInstructionsFileSummary {
+    return {
+      path: row.path,
+      size: Buffer.byteLength(row.content, "utf8"),
+      language: inferLanguage(row.path),
+      markdown: isMarkdown(row.path),
+      isEntryFile: row.isEntryFile,
+      editable: true,
+      deprecated: false,
+      virtual: false,
+    };
+  }
+
+  function rowToDetail(row: { path: string; content: string; isEntryFile: boolean }): AgentInstructionsFileDetail {
+    return {
+      ...rowToSummary(row),
+      content: row.content,
+    };
+  }
+
+  // -- core CRUD --
+
   async function getBundle(agent: AgentLike): Promise<AgentInstructionsBundle> {
-    const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
+    const state = deriveBundleState(agent);
+
+    // Query DB rows for this agent
+    const rows = await db.select().from(agentInstructions).where(eq(agentInstructions.agentId, agent.id));
+
+    if (rows.length > 0) {
+      // DB has instructions — build bundle from DB rows
+      const summaries = rows.map(rowToSummary);
+      return toBundle(agent, state, summaries);
+    }
+
+    // No DB rows: fall back to filesystem recovery (backward compat during migration)
     if (!state.rootPath) return toBundle(agent, state, []);
     const stat = await statIfExists(state.rootPath);
     if (!stat?.isDirectory()) {
@@ -462,15 +421,49 @@ export function agentInstructionsService() {
       }, []);
     }
     // External mode: only show the entry file to avoid exposing entire project directory
-    const files = state.mode === "external"
-      ? (state.entryFile ? [state.entryFile] : [])
-      : await listFilesRecursive(state.rootPath);
-    const summaries = await Promise.all(files.map((relativePath) => readFileSummary(state.rootPath!, relativePath, state.entryFile)));
+    if (state.mode === "external") {
+      const entryPath = state.entryFile ? resolvePathWithinRoot(state.rootPath, state.entryFile) : null;
+      if (entryPath) {
+        const entryStat = await statIfExists(entryPath);
+        if (entryStat?.isFile()) {
+          const content = await fs.readFile(entryPath, "utf8");
+          return toBundle(agent, state, [{
+            path: state.entryFile,
+            size: entryStat.size,
+            language: inferLanguage(state.entryFile),
+            markdown: isMarkdown(state.entryFile),
+            isEntryFile: true,
+            editable: true,
+            deprecated: false,
+            virtual: false,
+          }]);
+        }
+      }
+      return toBundle(agent, state, []);
+    }
+    // Managed mode fs fallback
+    const filePaths = await listFilesRecursive(state.rootPath);
+    const summaries = await Promise.all(filePaths.map(async (relativePath) => {
+      const absolutePath = resolvePathWithinRoot(state.rootPath!, relativePath);
+      const fsStat = await fs.stat(absolutePath);
+      return {
+        path: relativePath,
+        size: fsStat.size,
+        language: inferLanguage(relativePath),
+        markdown: isMarkdown(relativePath),
+        isEntryFile: relativePath === state.entryFile,
+        editable: true,
+        deprecated: false,
+        virtual: false,
+      } satisfies AgentInstructionsFileSummary;
+    }));
     return toBundle(agent, state, summaries);
   }
 
   async function readFile(agent: AgentLike, relativePath: string): Promise<AgentInstructionsFileDetail> {
-    const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
+    const state = deriveBundleState(agent);
+
+    // Legacy promptTemplate pseudo-file
     if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
       const content = asString(state.config[PROMPT_KEY]);
       if (content === null) throw notFound("Instructions file not found");
@@ -486,17 +479,29 @@ export function agentInstructionsService() {
         content,
       };
     }
-    if (!state.rootPath) throw notFound("Agent instructions bundle is not configured");
-    const absolutePath = resolvePathWithinRoot(state.rootPath, relativePath);
-    const [content, stat] = await Promise.all([
+
+    const normalizedPath = normalizeRelativeFilePath(relativePath);
+
+    // Query DB first
+    const row = await db.select().from(agentInstructions)
+      .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.path, normalizedPath)))
+      .limit(1).then(r => r[0]);
+
+    if (row) {
+      return rowToDetail(row);
+    }
+
+    // Filesystem fallback for migration
+    if (!state.rootPath) throw notFound("Instructions file not found");
+    const absolutePath = resolvePathWithinRoot(state.rootPath, normalizedPath);
+    const [content, fsStat] = await Promise.all([
       fs.readFile(absolutePath, "utf8").catch(() => null),
       fs.stat(absolutePath).catch(() => null),
     ]);
-    if (content === null || !stat?.isFile()) throw notFound("Instructions file not found");
-    const normalizedPath = normalizeRelativeFilePath(relativePath);
+    if (content === null || !fsStat?.isFile()) throw notFound("Instructions file not found");
     return {
       path: normalizedPath,
-      size: stat.size,
+      size: fsStat.size,
       language: inferLanguage(normalizedPath),
       markdown: isMarkdown(normalizedPath),
       isEntryFile: normalizedPath === state.entryFile,
@@ -512,32 +517,48 @@ export function agentInstructionsService() {
     options?: { clearLegacyPromptTemplate?: boolean },
   ): Promise<{ adapterConfig: Record<string, unknown>; state: BundleState }> {
     const derived = deriveBundleState(agent);
-    const current = await recoverManagedBundleState(agent, derived);
-    if (current.rootPath && current.mode) {
-      const adapterConfig = buildPersistedBundleConfig(derived, current, options);
+
+    // Check if DB already has rows for this agent
+    const existingRows = await db.select({ id: agentInstructions.id }).from(agentInstructions)
+      .where(eq(agentInstructions.agentId, agent.id)).limit(1);
+
+    if (existingRows.length > 0 && derived.rootPath && derived.mode) {
+      // DB rows exist, bundle is already writable
+      const adapterConfig = buildPersistedBundleConfig(derived, derived, options);
       return {
         adapterConfig,
         state: deriveBundleState({ ...agent, adapterConfig }),
       };
     }
 
+    // No DB rows yet — create managed bundle entry from legacy content
     const managedRoot = resolveManagedInstructionsRoot(agent);
-    const entryFile = current.entryFile || ENTRY_FILE_DEFAULT;
-    const nextConfig = applyBundleConfig(current.config, {
+    const entryFile = derived.entryFile || ENTRY_FILE_DEFAULT;
+    const nextConfig = applyBundleConfig(derived.config, {
       mode: "managed",
       rootPath: managedRoot,
       entryFile,
       clearLegacyPromptTemplate: options?.clearLegacyPromptTemplate,
     });
-    await fs.mkdir(managedRoot, { recursive: true });
 
-    const entryPath = resolvePathWithinRoot(managedRoot, entryFile);
-    const entryStat = await statIfExists(entryPath);
-    if (!entryStat?.isFile()) {
-      const legacyInstructions = await readLegacyInstructions(agent, current.config);
-      if (legacyInstructions.trim().length > 0) {
-        await fs.mkdir(path.dirname(entryPath), { recursive: true });
-        await fs.writeFile(entryPath, legacyInstructions, "utf8");
+    // Seed the DB with legacy content if no rows exist
+    if (existingRows.length === 0) {
+      const legacyInstructions = await readLegacyInstructions(agent, derived.config);
+      const content = legacyInstructions.trim().length > 0 ? legacyInstructions : "";
+      if (content.length > 0) {
+        await db.insert(agentInstructions).values({
+          companyId: agent.companyId,
+          agentId: agent.id,
+          path: entryFile,
+          content,
+          isEntryFile: true,
+          source: "managed",
+          contentHash: computeContentHash(content),
+        }).onConflictDoUpdate({
+          target: [agentInstructions.agentId, agentInstructions.path],
+          set: { content, contentHash: computeContentHash(content), isEntryFile: true, updatedAt: new Date() },
+        });
+        cache.invalidate(agent.id);
       }
     }
 
@@ -557,7 +578,7 @@ export function agentInstructionsService() {
       replaceExisting?: boolean;
     },
   ): Promise<{ bundle: AgentInstructionsBundle; adapterConfig: Record<string, unknown> }> {
-    const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
+    const state = deriveBundleState(agent);
     const nextMode = input.mode ?? state.mode ?? "managed";
     const nextEntryFile = input.entryFile ? normalizeRelativeFilePath(input.entryFile) : state.entryFile;
     let nextRootPath: string;
@@ -577,31 +598,96 @@ export function agentInstructionsService() {
     }
 
     const replaceExisting = input.replaceExisting === true;
-    let replacementEntryContent: string | null = null;
+
     if (replaceExisting && nextMode === "managed") {
-      const currentEntryPath = state.rootPath ? resolvePathWithinRoot(state.rootPath, state.entryFile) : null;
-      replacementEntryContent = currentEntryPath
-        ? await fs.readFile(currentEntryPath, "utf8").catch(() => null)
-        : null;
-      if (replacementEntryContent === null) {
-        replacementEntryContent = await readLegacyInstructions(agent, state.config);
+      // Read current entry content before clearing
+      let replacementContent: string | null = null;
+      const currentEntryRow = await db.select().from(agentInstructions)
+        .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.isEntryFile, true)))
+        .limit(1).then(r => r[0]);
+      replacementContent = currentEntryRow?.content ?? null;
+
+      if (replacementContent === null && state.rootPath) {
+        try {
+          const entryPath = resolvePathWithinRoot(state.rootPath, state.entryFile);
+          replacementContent = await fs.readFile(entryPath, "utf8");
+        } catch { /* ignore */ }
       }
-      await fs.rm(nextRootPath, { recursive: true, force: true });
+      if (replacementContent === null) {
+        replacementContent = await readLegacyInstructions(agent, state.config);
+      }
+
+      // Clear all DB rows for this agent
+      await db.delete(agentInstructions).where(eq(agentInstructions.agentId, agent.id));
+
+      // Insert new entry file
+      const content = replacementContent || "";
+      await db.insert(agentInstructions).values({
+        companyId: agent.companyId,
+        agentId: agent.id,
+        path: nextEntryFile,
+        content,
+        isEntryFile: true,
+        source: "managed",
+        contentHash: computeContentHash(content),
+      });
+    } else {
+      // Ensure at least the entry file exists in DB
+      const existingRows = await db.select().from(agentInstructions)
+        .where(eq(agentInstructions.agentId, agent.id));
+
+      if (existingRows.length === 0) {
+        // Seed from export/legacy
+        const exported = await exportFiles(agent);
+        const entryContent = exported.files[nextEntryFile] ?? exported.files[exported.entryFile] ?? "";
+        await db.insert(agentInstructions).values({
+          companyId: agent.companyId,
+          agentId: agent.id,
+          path: nextEntryFile,
+          content: entryContent,
+          isEntryFile: true,
+          source: "managed",
+          contentHash: computeContentHash(entryContent),
+        });
+      } else if (!existingRows.some(r => r.path === nextEntryFile)) {
+        // Entry file doesn't exist in DB yet — create it
+        const exported = await exportFiles(agent);
+        const entryContent = exported.files[nextEntryFile] ?? exported.files[exported.entryFile] ?? "";
+        await db.insert(agentInstructions).values({
+          companyId: agent.companyId,
+          agentId: agent.id,
+          path: nextEntryFile,
+          content: entryContent,
+          isEntryFile: true,
+          source: "managed",
+          contentHash: computeContentHash(entryContent),
+        }).onConflictDoUpdate({
+          target: [agentInstructions.agentId, agentInstructions.path],
+          set: { content: entryContent, contentHash: computeContentHash(entryContent), isEntryFile: true, updatedAt: new Date() },
+        });
+      }
+
+      // Update isEntryFile flags
+      if (existingRows.length > 0) {
+        // Clear old entry file flags
+        for (const row of existingRows) {
+          if (row.isEntryFile && row.path !== nextEntryFile) {
+            await db.update(agentInstructions)
+              .set({ isEntryFile: false, updatedAt: new Date() })
+              .where(eq(agentInstructions.id, row.id));
+          }
+        }
+        // Set new entry file flag
+        const newEntryRow = existingRows.find(r => r.path === nextEntryFile);
+        if (newEntryRow && !newEntryRow.isEntryFile) {
+          await db.update(agentInstructions)
+            .set({ isEntryFile: true, updatedAt: new Date() })
+            .where(eq(agentInstructions.id, newEntryRow.id));
+        }
+      }
     }
 
-    await fs.mkdir(nextRootPath, { recursive: true });
-
-    const existingFiles = await listFilesRecursive(nextRootPath);
-    const exported = await exportFiles(agent);
-    if (existingFiles.length === 0) {
-      const entryContent = replacementEntryContent ?? exported.files[exported.entryFile] ?? "";
-      await writeBundleFiles(nextRootPath, { [nextEntryFile]: entryContent });
-    }
-    const refreshedFiles = existingFiles.length === 0 ? await listFilesRecursive(nextRootPath) : existingFiles;
-    if (!refreshedFiles.includes(nextEntryFile)) {
-      const nextEntryContent = exported.files[nextEntryFile] ?? exported.files[exported.entryFile] ?? "";
-      await writeBundleFiles(nextRootPath, { [nextEntryFile]: nextEntryContent });
-    }
+    cache.invalidate(agent.id);
 
     const nextConfig = applyBundleConfig(state.config, {
       mode: nextMode,
@@ -624,6 +710,8 @@ export function agentInstructionsService() {
     adapterConfig: Record<string, unknown>;
   }> {
     const current = deriveBundleState(agent);
+
+    // Legacy promptTemplate pseudo-file
     if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
       const adapterConfig: Record<string, unknown> = {
         ...current.config,
@@ -638,9 +726,42 @@ export function agentInstructionsService() {
     }
 
     const prepared = await ensureWritableBundle(agent, options);
-    const absolutePath = resolvePathWithinRoot(prepared.state.rootPath!, relativePath);
-    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-    await fs.writeFile(absolutePath, content, "utf8");
+    const normalizedPath = normalizeRelativeFilePath(relativePath);
+    const contentHash = computeContentHash(content);
+
+    // Get existing row for revision tracking
+    const existingRow = await db.select().from(agentInstructions)
+      .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.path, normalizedPath)))
+      .limit(1).then(r => r[0]);
+
+    const isEntryFile = normalizedPath === prepared.state.entryFile;
+
+    // Upsert to DB
+    await db.insert(agentInstructions).values({
+      companyId: agent.companyId,
+      agentId: agent.id,
+      path: normalizedPath,
+      content,
+      isEntryFile,
+      source: "managed",
+      contentHash,
+    }).onConflictDoUpdate({
+      target: [agentInstructions.agentId, agentInstructions.path],
+      set: { content, contentHash, isEntryFile, updatedAt: new Date() },
+    });
+
+    // Record revision
+    await db.insert(agentInstructionRevisions).values({
+      companyId: agent.companyId,
+      agentId: agent.id,
+      path: normalizedPath,
+      beforeContent: existingRow?.content ?? null,
+      afterContent: content,
+      changedBy: "user",
+    });
+
+    cache.invalidate(agent.id);
+
     const nextAgent = { ...agent, adapterConfig: prepared.adapterConfig };
     const [bundle, file] = await Promise.all([
       getBundle(nextAgent),
@@ -653,19 +774,43 @@ export function agentInstructionsService() {
     bundle: AgentInstructionsBundle;
     adapterConfig: Record<string, unknown>;
   }> {
-    const derived = deriveBundleState(agent);
-    const state = await recoverManagedBundleState(agent, derived);
+    const state = deriveBundleState(agent);
+
     if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
       throw unprocessable("Cannot delete the legacy promptTemplate pseudo-file");
     }
-    if (!state.rootPath) throw notFound("Agent instructions bundle is not configured");
+
     const normalizedPath = normalizeRelativeFilePath(relativePath);
     if (normalizedPath === state.entryFile) {
       throw unprocessable("Cannot delete the bundle entry file");
     }
-    const absolutePath = resolvePathWithinRoot(state.rootPath, normalizedPath);
-    await fs.rm(absolutePath, { force: true });
-    const adapterConfig = buildPersistedBundleConfig(derived, state);
+
+    // Get existing row for revision tracking
+    const existingRow = await db.select().from(agentInstructions)
+      .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.path, normalizedPath)))
+      .limit(1).then(r => r[0]);
+
+    if (!existingRow) {
+      throw notFound("Instructions file not found");
+    }
+
+    // Delete from DB
+    await db.delete(agentInstructions)
+      .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.path, normalizedPath)));
+
+    // Record revision
+    await db.insert(agentInstructionRevisions).values({
+      companyId: agent.companyId,
+      agentId: agent.id,
+      path: normalizedPath,
+      beforeContent: existingRow.content,
+      afterContent: null,
+      changedBy: "user",
+    });
+
+    cache.invalidate(agent.id);
+
+    const adapterConfig = buildPersistedBundleConfig(state, state);
     const bundle = await getBundle({ ...agent, adapterConfig });
     return { bundle, adapterConfig };
   }
@@ -675,7 +820,22 @@ export function agentInstructionsService() {
     entryFile: string;
     warnings: string[];
   }> {
-    const state = await recoverManagedBundleState(agent, deriveBundleState(agent));
+    const state = deriveBundleState(agent);
+
+    // Query DB first
+    const rows = await db.select().from(agentInstructions).where(eq(agentInstructions.agentId, agent.id));
+
+    if (rows.length > 0) {
+      const files = Object.fromEntries(rows.map(r => [r.path, r.content]));
+      const entryRow = rows.find(r => r.isEntryFile);
+      return {
+        files,
+        entryFile: entryRow?.path ?? state.entryFile,
+        warnings: state.warnings,
+      };
+    }
+
+    // Filesystem fallback
     if (state.rootPath) {
       const stat = await statIfExists(state.rootPath);
       if (stat?.isDirectory()) {
@@ -712,22 +872,49 @@ export function agentInstructionsService() {
     const entryFile = options?.entryFile ? normalizeRelativeFilePath(options.entryFile) : ENTRY_FILE_DEFAULT;
 
     if (options?.replaceExisting) {
-      await fs.rm(rootPath, { recursive: true, force: true });
+      // Clear all existing DB rows for this agent
+      await db.delete(agentInstructions).where(eq(agentInstructions.agentId, agent.id));
     }
-    await fs.mkdir(rootPath, { recursive: true });
 
+    // Batch upsert all files to DB
     const normalizedEntries = Object.entries(files).map(([relativePath, content]) => [
       normalizeRelativeFilePath(relativePath),
       content,
     ] as const);
-    for (const [relativePath, content] of normalizedEntries) {
-      const absolutePath = resolvePathWithinRoot(rootPath, relativePath);
-      await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-      await fs.writeFile(absolutePath, content, "utf8");
+
+    for (const [normalizedPath, content] of normalizedEntries) {
+      const contentHash = computeContentHash(content);
+      await db.insert(agentInstructions).values({
+        companyId: agent.companyId,
+        agentId: agent.id,
+        path: normalizedPath,
+        content,
+        isEntryFile: normalizedPath === entryFile,
+        source: "managed",
+        contentHash,
+      }).onConflictDoUpdate({
+        target: [agentInstructions.agentId, agentInstructions.path],
+        set: { content, contentHash, isEntryFile: normalizedPath === entryFile, updatedAt: new Date() },
+      });
     }
-    if (!normalizedEntries.some(([relativePath]) => relativePath === entryFile)) {
-      await fs.writeFile(resolvePathWithinRoot(rootPath, entryFile), "", "utf8");
+
+    // Ensure entry file exists
+    if (!normalizedEntries.some(([p]) => p === entryFile)) {
+      await db.insert(agentInstructions).values({
+        companyId: agent.companyId,
+        agentId: agent.id,
+        path: entryFile,
+        content: "",
+        isEntryFile: true,
+        source: "managed",
+        contentHash: computeContentHash(""),
+      }).onConflictDoUpdate({
+        target: [agentInstructions.agentId, agentInstructions.path],
+        set: { content: "", contentHash: computeContentHash(""), isEntryFile: true, updatedAt: new Date() },
+      });
     }
+
+    cache.invalidate(agent.id);
 
     const adapterConfig = applyBundleConfig(asRecord(agent.adapterConfig), {
       mode: "managed",
@@ -739,6 +926,108 @@ export function agentInstructionsService() {
     return { bundle, adapterConfig };
   }
 
+  // -- New: sync external files to DB --
+
+  async function syncExternalFiles(agent: AgentLike): Promise<{ synced: boolean; path: string | null }> {
+    const state = deriveBundleState(agent);
+    if (state.mode !== "external" || !state.rootPath || !state.entryFile) {
+      return { synced: false, path: null };
+    }
+
+    const entryPath = resolvePathWithinRoot(state.rootPath, state.entryFile);
+    let content: string;
+    try {
+      content = await fs.readFile(entryPath, "utf8");
+    } catch {
+      return { synced: false, path: state.entryFile };
+    }
+
+    const contentHash = computeContentHash(content);
+
+    // Check if DB content is already up to date
+    const existingRow = await db.select().from(agentInstructions)
+      .where(and(eq(agentInstructions.agentId, agent.id), eq(agentInstructions.path, state.entryFile)))
+      .limit(1).then(r => r[0]);
+
+    if (existingRow && existingRow.contentHash === contentHash) {
+      return { synced: false, path: state.entryFile };
+    }
+
+    // Upsert to DB
+    await db.insert(agentInstructions).values({
+      companyId: agent.companyId,
+      agentId: agent.id,
+      path: state.entryFile,
+      content,
+      isEntryFile: true,
+      source: "external_sync",
+      contentHash,
+      syncedFrom: entryPath,
+      syncedAt: new Date(),
+    }).onConflictDoUpdate({
+      target: [agentInstructions.agentId, agentInstructions.path],
+      set: {
+        content,
+        contentHash,
+        isEntryFile: true,
+        source: "external_sync",
+        syncedFrom: entryPath,
+        syncedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    // Record revision
+    await db.insert(agentInstructionRevisions).values({
+      companyId: agent.companyId,
+      agentId: agent.id,
+      path: state.entryFile,
+      beforeContent: existingRow?.content ?? null,
+      afterContent: content,
+      changedBy: "external_sync",
+    });
+
+    cache.invalidate(agent.id);
+    return { synced: true, path: state.entryFile };
+  }
+
+  // -- New: load bundle for adapter execution --
+
+  async function loadBundleForExecution(agentId: string): Promise<CachedBundle | null> {
+    // Check cache first
+    const cached = cache.get(agentId);
+    if (cached) return cached;
+
+    // Query all DB rows for this agent
+    const rows = await db.select().from(agentInstructions).where(eq(agentInstructions.agentId, agentId));
+
+    if (rows.length === 0) return null;
+
+    // Build CachedBundle
+    const files = new Map<string, string>();
+    let entryFile = ENTRY_FILE_DEFAULT;
+    const contentParts: string[] = [];
+
+    for (const row of rows) {
+      files.set(row.path, row.content);
+      contentParts.push(row.content);
+      if (row.isEntryFile) {
+        entryFile = row.path;
+      }
+    }
+
+    const bundleHash = computeContentHash(contentParts.sort().join("\n---\n"));
+    const bundle: CachedBundle = {
+      files,
+      entryFile,
+      hash: bundleHash,
+      loadedAt: new Date(),
+    };
+
+    cache.set(agentId, bundle);
+    return bundle;
+  }
+
   return {
     getBundle,
     readFile,
@@ -748,5 +1037,7 @@ export function agentInstructionsService() {
     exportFiles,
     ensureManagedBundle: ensureWritableBundle,
     materializeManagedBundle,
+    syncExternalFiles,
+    loadBundleForExecution,
   };
 }
