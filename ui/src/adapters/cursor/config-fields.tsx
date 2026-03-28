@@ -18,6 +18,19 @@ export function CursorLocalConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const isManaged = !isCreate && String(config?.instructionsBundleMode ?? "") === "managed";
+
+  if (isManaged) {
+    return (
+      <Field label="Agent instructions file" hint={instructionsFileHint}>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>DB에서 관리 중</span>
+          <span className="text-xs bg-muted px-2 py-0.5 rounded">managed</span>
+        </div>
+      </Field>
+    );
+  }
+
   return (
     <Field label="Agent instructions file" hint={instructionsFileHint}>
       <div className="flex items-center gap-2">

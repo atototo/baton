@@ -20,34 +20,44 @@ export function GeminiLocalConfigFields({
   hideInstructionsFile,
 }: AdapterConfigFieldsProps) {
   const help = useHelpText();
+  const isManaged = !isCreate && String(config?.instructionsBundleMode ?? "") === "managed";
 
   return (
     <>
       {!hideInstructionsFile && (
-        <Field label="Agent instructions file" hint={help.instructionsFilePath}>
-          <div className="flex items-center gap-2">
-            <DraftInput
-              value={
-                isCreate
-                  ? values!.instructionsFilePath ?? ""
-                  : eff(
-                      "adapterConfig",
-                      "instructionsFilePath",
-                      String(config.instructionsFilePath ?? ""),
-                    )
-              }
-              onCommit={(v) =>
-                isCreate
-                  ? set!({ instructionsFilePath: v })
-                  : mark("adapterConfig", "instructionsFilePath", v || undefined)
-              }
-              immediate
-              className={inputClass}
-              placeholder="/absolute/path/to/AGENTS.md"
-            />
-            <ChoosePathButton />
-          </div>
-        </Field>
+        isManaged ? (
+          <Field label="Agent instructions file" hint={help.instructionsFilePath}>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>DB에서 관리 중</span>
+              <span className="text-xs bg-muted px-2 py-0.5 rounded">managed</span>
+            </div>
+          </Field>
+        ) : (
+          <Field label="Agent instructions file" hint={help.instructionsFilePath}>
+            <div className="flex items-center gap-2">
+              <DraftInput
+                value={
+                  isCreate
+                    ? values!.instructionsFilePath ?? ""
+                    : eff(
+                        "adapterConfig",
+                        "instructionsFilePath",
+                        String(config.instructionsFilePath ?? ""),
+                      )
+                }
+                onCommit={(v) =>
+                  isCreate
+                    ? set!({ instructionsFilePath: v })
+                    : mark("adapterConfig", "instructionsFilePath", v || undefined)
+                }
+                immediate
+                className={inputClass}
+                placeholder="/absolute/path/to/AGENTS.md"
+              />
+              <ChoosePathButton />
+            </div>
+          </Field>
+        )
       )}
       <ToggleField
         label="Bypass sandbox"
