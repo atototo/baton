@@ -82,6 +82,19 @@ POST /api/companies/{companyId}/approvals
 }
 ```
 
+## Mandatory Code Review by Reviewer Agent
+
+**⚠️ MANDATORY**: If a `qa` or `reviewer` role agent exists in your team (check `GET /api/companies/{companyId}/agents`), you MUST delegate code review to them before submitting for board review.
+
+**Leaders/managers MUST NOT review code themselves.** The review flow is:
+
+1. Developer completes work and submits to leader (in_review).
+2. Leader creates a review subtask and assigns to the reviewer agent.
+3. Reviewer inspects the code, leaves comments, and marks the review subtask done.
+4. Only AFTER reviewer approves, leader submits the parent issue for board review (PR approval).
+
+**Skipping the reviewer is a governance violation.** If no reviewer agent exists, the leader may review directly.
+
 ## How to Submit Work for Review
 
 **You do NOT create approvals manually.** Follow this exact procedure:
