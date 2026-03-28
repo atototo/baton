@@ -34,3 +34,4 @@ export { companySecretVersions } from "./company_secret_versions.js";
 export { projectConventions } from "./project_conventions.js";
 export { agentInstructions } from "./agent_instructions.js";
 export { agentInstructionRevisions } from "./agent_instruction_revisions.js";
+export { skillFiles } from "./skill_files.js";

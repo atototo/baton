@@ -1569,6 +1569,35 @@ export function heartbeatService(db: Db) {
         }
       }
 
+      // Build prompt snapshot for monitoring
+      const promptSnapshot: Record<string, unknown> = {
+        layers: {
+          agentInstructions: instructionsBundle ? {
+            charCount: [...instructionsBundle.files.values()].join("").length,
+            entryFile: instructionsBundle.entryFile,
+            fileCount: instructionsBundle.files.size,
+            source: bundleMode || "unknown",
+          } : null,
+          batonSkill: { skillName: "baton" },
+          projectConventions: composedInstructions ? {
+            charCount: composedInstructions.length,
+            projectId: resolvedProjectIdForPrompt,
+          } : null,
+          wakeContext: context,
+          promptTemplate: {
+            template: asString((parseObject(resolvedConfig) ?? {}).promptTemplate, ""),
+          },
+        },
+        totalChars: (instructionsBundle ? [...instructionsBundle.files.values()].join("").length : 0)
+          + (composedInstructions?.length ?? 0),
+        composedAt: new Date().toISOString(),
+      };
+
+      // Save snapshot to run record
+      await db.update(heartbeatRuns)
+        .set({ promptSnapshot, updatedAt: new Date() })
+        .where(eq(heartbeatRuns.id, run.id));
+
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
