@@ -24,6 +24,17 @@ export interface ExecutionWorkspacePlan {
   branch: string | null;
 }
 
+export type ExecutionWorkspaceRecord = typeof executionWorkspaces.$inferSelect & {
+  recoveryStatus: string;
+  recoveryReason: string | null;
+  recoveryRequestedAt: Date | null;
+  recoveryStartedAt: Date | null;
+  recoveryFinishedAt: Date | null;
+  recoveryAttemptCount: number;
+  lastRecoveryRunId: string | null;
+  recoveryContext: Record<string, unknown> | null;
+};
+
 interface ExecutionWorkspacePlanIssueInput {
   id: string;
   projectId: string | null;
@@ -355,18 +366,18 @@ export function buildExecutionWorkspacePlanForIssue(input: {
 
 export function executionWorkspaceService(db: Db) {
   return {
-    getById: async (id: string) =>
+    getById: async (id: string): Promise<ExecutionWorkspaceRecord | null> =>
       db
         .select()
         .from(executionWorkspaces)
         .where(eq(executionWorkspaces.id, id))
-        .then((rows) => rows[0] ?? null),
+        .then((rows) => (rows[0] as ExecutionWorkspaceRecord | undefined) ?? null),
 
     getByTicket: async (input: {
       companyId: string;
       projectWorkspaceId: string;
       ticketKey: string;
-    }) =>
+    }): Promise<ExecutionWorkspaceRecord | null> =>
       db
         .select()
         .from(executionWorkspaces)
@@ -377,13 +388,14 @@ export function executionWorkspaceService(db: Db) {
             eq(executionWorkspaces.ticketKey, input.ticketKey),
           ),
         )
-        .then((rows) => rows[0] ?? null),
+        .then((rows) => (rows[0] as ExecutionWorkspaceRecord | undefined) ?? null),
 
-    listPullRequestOpenWorkspaces: async () =>
+    listPullRequestOpenWorkspaces: async (): Promise<ExecutionWorkspaceRecord[]> =>
       db
         .select()
         .from(executionWorkspaces)
-        .where(eq(executionWorkspaces.syncStatus, "pr_open")),
+        .where(eq(executionWorkspaces.syncStatus, "pr_open"))
+        .then((rows) => rows as ExecutionWorkspaceRecord[]),
 
     updateSyncState: async (
       id: string,
@@ -410,7 +422,7 @@ export function executionWorkspaceService(db: Db) {
         lastRecoveryRunId?: string | null;
         recoveryContext?: Record<string, unknown> | null;
       },
-    ) =>
+    ): Promise<ExecutionWorkspaceRecord | null> =>
       db
         .update(executionWorkspaces)
         .set({
@@ -419,7 +431,7 @@ export function executionWorkspaceService(db: Db) {
         })
         .where(eq(executionWorkspaces.id, id))
         .returning()
-        .then((rows) => rows[0] ?? null),
+        .then((rows) => (rows[0] as ExecutionWorkspaceRecord | undefined) ?? null),
 
     updateRecoveryState: async (
       id: string,
@@ -434,7 +446,7 @@ export function executionWorkspaceService(db: Db) {
         recoveryContext?: Record<string, unknown> | null;
         escalationSummary?: string | null;
       },
-    ) =>
+    ): Promise<ExecutionWorkspaceRecord | null> =>
       db
         .update(executionWorkspaces)
         .set({
@@ -443,7 +455,7 @@ export function executionWorkspaceService(db: Db) {
         })
         .where(eq(executionWorkspaces.id, id))
         .returning()
-        .then((rows) => rows[0] ?? null),
+        .then((rows) => (rows[0] as ExecutionWorkspaceRecord | undefined) ?? null),
 
     async provisionExecutionWorkspace(input: {
       companyId: string;

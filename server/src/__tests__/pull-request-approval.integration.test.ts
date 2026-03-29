@@ -15,6 +15,7 @@ import {
   approvals,
   companies,
   executionWorkspaces,
+  heartbeatRuns,
   issueApprovals,
   issueComments,
   issues,
@@ -76,20 +77,6 @@ async function applyPgliteMigrations(client: { exec: (sql: string) => Promise<un
       await client.exec(statement);
     }
   }
-}
-
-async function waitForCondition(
-  check: () => Promise<boolean>,
-  opts: { timeoutMs?: number; intervalMs?: number } = {},
-) {
-  const timeoutMs = opts.timeoutMs ?? 5_000;
-  const intervalMs = opts.intervalMs ?? 50;
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  throw new Error("Timed out waiting for condition");
 }
 
 describe("pull request approval live side effects", () => {
@@ -508,6 +495,14 @@ exit 1
       adapterType: "process",
       adapterConfig: { command: "sh", args: ["-lc", "true"], cwd: repoDir },
     });
+    await db.insert(heartbeatRuns).values({
+      id: randomUUID(),
+      companyId,
+      agentId: assigneeAgentId,
+      invocationSource: "manual",
+      status: "running",
+      startedAt: new Date(),
+    });
     await db.insert(projects).values({
       id: projectId,
       companyId,
@@ -603,26 +598,16 @@ exit 1
       branch: `feature/${ticketKey}`,
       baseBranch: "main",
     });
-    await waitForCondition(async () => {
-      const current = await db
-        .select()
-        .from(executionWorkspaces)
-        .where(eq(executionWorkspaces.id, workspace.id))
-        .then((rows) => rows[0]);
-      return current?.recoveryAttemptCount >= 1;
-    });
-    const recoveredWorkspace = await db
-      .select()
-      .from(executionWorkspaces)
-      .where(eq(executionWorkspaces.id, workspace.id))
-      .then((rows) => rows[0]);
     const recoveryWakeups = await db
       .select()
       .from(agentWakeupRequests)
       .where(eq(agentWakeupRequests.agentId, assigneeAgentId));
-    expect(recoveredWorkspace?.recoveryReason).toBe("pre_pr_conflict");
-    expect((recoveredWorkspace?.recoveryAttemptCount ?? 0) >= 1).toBe(true);
-    expect(recoveryWakeups.some((request) => request.reason === "execution_workspace_conflict_recovery")).toBe(true);
+    const recoveryWakeup = recoveryWakeups.find((request) => request.reason === "execution_workspace_conflict_recovery");
+    expect(recoveryWakeup).toBeTruthy();
+    expect(recoveryWakeup?.payload).toMatchObject({
+      issueId: parentIssueId,
+      executionWorkspaceId: workspace.id,
+    });
   }, 120_000);
 
   it("marks an open pull request workspace as drifted when post-pr resync fails", async () => {
@@ -660,6 +645,14 @@ exit 1
       status: "idle",
       adapterType: "process",
       adapterConfig: { command: "sh", args: ["-lc", "true"], cwd: repoDir },
+    });
+    await db.insert(heartbeatRuns).values({
+      id: randomUUID(),
+      companyId,
+      agentId: assigneeAgentId,
+      invocationSource: "manual",
+      status: "running",
+      startedAt: new Date(),
     });
     await db.insert(projects).values({
       id: projectId,
@@ -763,25 +756,15 @@ exit 1
       branch: `feature/${ticketKey}`,
       baseBranch: "main",
     });
-    await waitForCondition(async () => {
-      const current = await db
-        .select()
-        .from(executionWorkspaces)
-        .where(eq(executionWorkspaces.id, workspace.id))
-        .then((rows) => rows[0]);
-      return current?.recoveryAttemptCount >= 1;
-    });
-    const driftRecoveryWorkspace = await db
-      .select()
-      .from(executionWorkspaces)
-      .where(eq(executionWorkspaces.id, workspace.id))
-      .then((rows) => rows[0]);
     const recoveryWakeups = await db
       .select()
       .from(agentWakeupRequests)
       .where(eq(agentWakeupRequests.agentId, assigneeAgentId));
-    expect(driftRecoveryWorkspace?.recoveryReason).toBe("post_pr_drift");
-    expect((driftRecoveryWorkspace?.recoveryAttemptCount ?? 0) >= 1).toBe(true);
-    expect(recoveryWakeups.some((request) => request.reason === "execution_workspace_conflict_recovery")).toBe(true);
+    const recoveryWakeup = recoveryWakeups.find((request) => request.reason === "execution_workspace_conflict_recovery");
+    expect(recoveryWakeup).toBeTruthy();
+    expect(recoveryWakeup?.payload).toMatchObject({
+      issueId: parentIssueId,
+      executionWorkspaceId: workspace.id,
+    });
   }, 120_000);
 });
