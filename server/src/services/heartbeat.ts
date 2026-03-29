@@ -250,6 +250,68 @@ function deriveCommentId(
   );
 }
 
+const EXECUTION_WORKSPACE_CONFLICT_RECOVERY_REASON = "execution_workspace_conflict_recovery";
+const MAX_EXECUTION_WORKSPACE_RECOVERY_ATTEMPTS = 2;
+
+type ExecutionWorkspaceRecoveryReason = "pre_pr_conflict" | "post_pr_drift";
+
+type ExecutionWorkspaceRecoveryContext = {
+  kind: "execution_workspace_conflict";
+  executionWorkspaceId: string;
+  issueId: string | null;
+  reason: ExecutionWorkspaceRecoveryReason;
+  branch: string | null;
+  baseBranch: string | null;
+  conflictedPaths: string[];
+  lastBaseCommitSha: string | null;
+  lastBranchCommitSha: string | null;
+};
+
+function parseRecoveryContext(
+  contextSnapshot: Record<string, unknown> | null | undefined,
+): ExecutionWorkspaceRecoveryContext | null {
+  const parsed = parseObject(contextSnapshot?.recoveryContext);
+  if (parsed.kind !== "execution_workspace_conflict") return null;
+  const executionWorkspaceId = readNonEmptyString(parsed.executionWorkspaceId);
+  if (!executionWorkspaceId) return null;
+  const conflictedPaths = Array.isArray(parsed.conflictedPaths)
+    ? parsed.conflictedPaths.map((value) => readNonEmptyString(value)).filter((value): value is string => !!value)
+    : [];
+  const reason = readNonEmptyString(parsed.reason);
+  return {
+    kind: "execution_workspace_conflict",
+    executionWorkspaceId,
+    issueId: readNonEmptyString(parsed.issueId),
+    reason: reason === "post_pr_drift" ? "post_pr_drift" : "pre_pr_conflict",
+    branch: readNonEmptyString(parsed.branch),
+    baseBranch: readNonEmptyString(parsed.baseBranch),
+    conflictedPaths,
+    lastBaseCommitSha: readNonEmptyString(parsed.lastBaseCommitSha),
+    lastBranchCommitSha: readNonEmptyString(parsed.lastBranchCommitSha),
+  };
+}
+
+function buildRecoveryEscalationSummary(input: {
+  reason: ExecutionWorkspaceRecoveryReason;
+  attemptCount: number;
+  conflictedPaths: string[];
+  lastRecoveryRunId?: string | null;
+  failureReason: string;
+}) {
+  const lines = [
+    `Baton could not recover the execution workspace after ${input.attemptCount} attempt(s).`,
+    `Trigger: ${input.reason}.`,
+  ];
+  if (input.conflictedPaths.length > 0) {
+    lines.push(`Conflicted paths: ${input.conflictedPaths.join(", ")}.`);
+  }
+  if (input.lastRecoveryRunId) {
+    lines.push(`Last recovery run: ${input.lastRecoveryRunId}.`);
+  }
+  lines.push(`Latest failure: ${input.failureReason}`);
+  return lines.join(" ");
+}
+
 function enrichWakeContextSnapshot(input: {
   contextSnapshot: Record<string, unknown>;
   reason: string | null;
@@ -509,6 +571,112 @@ export function heartbeatService(db: Db) {
       .from(agents)
       .where(eq(agents.id, agentId))
       .then((rows) => rows[0] ?? null);
+  }
+
+  async function queueExecutionWorkspaceRecovery(input: {
+    executionWorkspaceId: string;
+    issueId?: string | null;
+    reason: ExecutionWorkspaceRecoveryReason;
+    conflictSummary?: Record<string, unknown> | null;
+    actorId?: string;
+  }) {
+    const workspace = await executionWorkspacesSvc.getById(input.executionWorkspaceId);
+    if (!workspace) throw notFound("Execution workspace not found");
+    if (workspace.recoveryStatus === "queued" || workspace.recoveryStatus === "running") {
+      return { queued: false, status: workspace.recoveryStatus, reason: "already_in_progress" as const };
+    }
+
+    const issueId = readNonEmptyString(input.issueId) ?? workspace.ownerIssueId;
+    if (!issueId) {
+      await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+        recoveryStatus: "escalated",
+        recoveryReason: input.reason,
+        recoveryFinishedAt: new Date(),
+        escalationSummary: "Baton could not queue conflict recovery because the workspace is not linked to an issue.",
+      });
+      return { queued: false, status: "escalated", reason: "missing_issue" as const };
+    }
+
+    const issue = await db
+      .select({
+        id: issues.id,
+        assigneeAgentId: issues.assigneeAgentId,
+      })
+      .from(issues)
+      .where(and(eq(issues.id, issueId), eq(issues.companyId, workspace.companyId)))
+      .then((rows) => rows[0] ?? null);
+
+    if (!issue?.assigneeAgentId) {
+      await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+        recoveryStatus: "escalated",
+        recoveryReason: input.reason,
+        recoveryFinishedAt: new Date(),
+        escalationSummary: "Baton could not queue conflict recovery because the issue has no assignee agent.",
+      });
+      return { queued: false, status: "escalated", reason: "missing_assignee" as const };
+    }
+
+    const conflictSummary = (input.conflictSummary ?? workspace.conflictSummary ?? null) as Record<string, unknown> | null;
+    const conflictedPaths = Array.isArray(conflictSummary?.conflictedPaths)
+      ? conflictSummary.conflictedPaths.map((value) => readNonEmptyString(value)).filter((value): value is string => !!value)
+      : [];
+    const recoveryContext: ExecutionWorkspaceRecoveryContext = {
+      kind: "execution_workspace_conflict",
+      executionWorkspaceId: workspace.id,
+      issueId,
+      reason: input.reason,
+      branch: readNonEmptyString(workspace.branch),
+      baseBranch: readNonEmptyString(workspace.baseBranch),
+      conflictedPaths,
+      lastBaseCommitSha: readNonEmptyString(workspace.lastBaseCommitSha),
+      lastBranchCommitSha: readNonEmptyString(workspace.lastBranchCommitSha),
+    };
+
+    const requestedAt = new Date();
+    const nextAttemptCount = (workspace.recoveryAttemptCount ?? 0) + 1;
+    await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+      recoveryStatus: "queued",
+      recoveryReason: input.reason,
+      recoveryRequestedAt: requestedAt,
+      recoveryStartedAt: null,
+      recoveryFinishedAt: null,
+      recoveryAttemptCount: nextAttemptCount,
+      recoveryContext,
+      escalationSummary: null,
+    });
+
+    try {
+      const run = await enqueueWakeup(issue.assigneeAgentId, {
+        source: "automation",
+        triggerDetail: "system",
+        reason: EXECUTION_WORKSPACE_CONFLICT_RECOVERY_REASON,
+        payload: {
+          issueId,
+          executionWorkspaceId: workspace.id,
+          recoveryContext,
+        },
+        requestedByActorType: "system",
+        requestedByActorId: input.actorId ?? "heartbeat_scheduler",
+        contextSnapshot: {
+          issueId,
+          executionWorkspaceId: workspace.id,
+          recoveryContext,
+        },
+      });
+      return { queued: true, runId: run?.id ?? null, status: "queued" as const };
+    } catch (error) {
+      await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+        recoveryStatus: "escalated",
+        recoveryReason: input.reason,
+        recoveryFinishedAt: new Date(),
+        recoveryContext,
+        escalationSummary:
+          error instanceof Error
+            ? `Baton could not queue conflict recovery: ${error.message}`
+            : `Baton could not queue conflict recovery: ${String(error)}`,
+      });
+      return { queued: false, status: "escalated", reason: "enqueue_failed" as const };
+    }
   }
 
   async function getRun(runId: string) {
@@ -1080,6 +1248,16 @@ export function heartbeatService(db: Db) {
     });
 
     await setWakeupStatus(claimed.wakeupRequestId, "claimed", { claimedAt });
+    const recoveryContext = parseRecoveryContext(parseObject(claimed.contextSnapshot));
+    if (recoveryContext) {
+      await executionWorkspacesSvc.updateRecoveryState(recoveryContext.executionWorkspaceId, {
+        recoveryStatus: "running",
+        recoveryStartedAt: claimedAt,
+        recoveryFinishedAt: null,
+        lastRecoveryRunId: claimed.id,
+        recoveryContext,
+      });
+    }
     return claimed;
   }
 
@@ -1700,6 +1878,7 @@ export function heartbeatService(db: Db) {
           },
         });
         await releaseIssueExecutionAndPromote(finalizedRun);
+        await reconcileRecoveryRun(finalizedRun.id);
       }
 
       if (finalizedRun) {
@@ -1763,6 +1942,7 @@ export function heartbeatService(db: Db) {
           message,
         });
         await releaseIssueExecutionAndPromote(failedRun);
+        await reconcileRecoveryRun(failedRun.id);
 
         await updateRuntimeState(agent, failedRun, {
           exitCode: null,
@@ -1959,6 +2139,140 @@ export function heartbeatService(db: Db) {
     });
 
     await startNextQueuedRunForAgent(promotedRun.agentId);
+  }
+
+  async function reconcileRecoveryRun(runId: string) {
+    const run = await getRun(runId);
+    if (!run) return null;
+    const recoveryContext = parseRecoveryContext(parseObject(run.contextSnapshot));
+    if (!recoveryContext) return null;
+
+    const workspace = await executionWorkspacesSvc.getById(recoveryContext.executionWorkspaceId);
+    if (!workspace) return null;
+    const now = new Date();
+    const currentAttemptCount = workspace.recoveryAttemptCount ?? 0;
+    const shouldRetry = currentAttemptCount < MAX_EXECUTION_WORKSPACE_RECOVERY_ATTEMPTS;
+
+    const queueRetryOrEscalate = async (failureReason: string, conflictSummary?: Record<string, unknown> | null) => {
+      const conflictedPaths = Array.isArray(conflictSummary?.conflictedPaths)
+        ? conflictSummary.conflictedPaths.map((value) => readNonEmptyString(value)).filter((value): value is string => !!value)
+        : recoveryContext.conflictedPaths;
+
+      if (shouldRetry) {
+        await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+          recoveryStatus: "failed",
+          recoveryReason: recoveryContext.reason,
+          recoveryFinishedAt: now,
+          recoveryContext: {
+            ...recoveryContext,
+            conflictedPaths,
+          },
+          escalationSummary: failureReason,
+        });
+        return queueExecutionWorkspaceRecovery({
+          executionWorkspaceId: workspace.id,
+          issueId: recoveryContext.issueId,
+          reason: recoveryContext.reason,
+          conflictSummary,
+          actorId: "recovery_requeue",
+        });
+      }
+
+      await executionWorkspacesSvc.updateRecoveryState(workspace.id, {
+        recoveryStatus: "escalated",
+        recoveryReason: recoveryContext.reason,
+        recoveryFinishedAt: now,
+        recoveryContext: {
+          ...recoveryContext,
+          conflictedPaths,
+        },
+        escalationSummary: buildRecoveryEscalationSummary({
+          reason: recoveryContext.reason,
+          attemptCount: currentAttemptCount,
+          conflictedPaths,
+          lastRecoveryRunId: run.id,
+          failureReason,
+        }),
+      });
+      return { queued: false, status: "escalated" as const };
+    };
+
+    if (run.status !== "succeeded") {
+      return queueRetryOrEscalate(run.error ?? "Recovery run did not succeed.");
+    }
+
+    const preparation = await pullRequestsSvc.prepareForPullRequest({
+      cwd: workspace.executionCwd,
+      branch: workspace.branch,
+      baseBranch: workspace.baseBranch,
+    });
+
+    if (preparation.syncStatus === "verified") {
+      const nextSyncStatus =
+        workspace.pullRequestUrl || workspace.pullRequestNumber || workspace.prOpenedAt ? "pr_open" : "verified";
+      await executionWorkspacesSvc.updateSyncState(workspace.id, {
+        syncStatus: nextSyncStatus,
+        syncMethod: "merge",
+        lastSyncedAt: now,
+        lastVerifiedAt: now,
+        lastPrCheckedAt: now,
+        lastBaseCommitSha: preparation.baseCommitSha,
+        lastBranchCommitSha: preparation.branchCommitSha,
+        conflictSummary: null,
+        escalationSummary: null,
+        recoveryStatus: "resolved",
+        recoveryReason: recoveryContext.reason,
+        recoveryFinishedAt: now,
+        lastRecoveryRunId: run.id,
+        recoveryContext: {
+          ...recoveryContext,
+          conflictedPaths: [],
+          lastBaseCommitSha: preparation.baseCommitSha,
+          lastBranchCommitSha: preparation.branchCommitSha,
+        },
+      });
+      await logActivity(db, {
+        companyId: workspace.companyId,
+        actorType: "system",
+        actorId: "heartbeat_scheduler",
+        action: "execution_workspace.recovery_resolved",
+        entityType: "execution_workspace",
+        entityId: workspace.id,
+        details: {
+          issueId: recoveryContext.issueId,
+          runId: run.id,
+          reason: recoveryContext.reason,
+          syncStatus: nextSyncStatus,
+        },
+      });
+      return { queued: false, status: "resolved" as const };
+    }
+
+    await executionWorkspacesSvc.updateSyncState(workspace.id, {
+      syncStatus: workspace.pullRequestUrl || workspace.pullRequestNumber || workspace.prOpenedAt ? "drifted" : "conflicted",
+      lastSyncedAt: now,
+      lastPrCheckedAt: now,
+      lastBaseCommitSha: preparation.baseCommitSha,
+      lastBranchCommitSha: preparation.branchCommitSha,
+      conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+      escalationSummary: "Assignee recovery run finished, but the branch is still conflicted.",
+      recoveryStatus: "failed",
+      recoveryFinishedAt: now,
+      recoveryContext: {
+        ...recoveryContext,
+        conflictedPaths: Array.isArray(preparation.conflictSummary?.conflictedPaths)
+          ? preparation.conflictSummary.conflictedPaths.map((value) => readNonEmptyString(value)).filter((value): value is string => !!value)
+          : recoveryContext.conflictedPaths,
+        lastBaseCommitSha: preparation.baseCommitSha,
+        lastBranchCommitSha: preparation.branchCommitSha,
+      },
+      lastRecoveryRunId: run.id,
+    });
+
+    return queueRetryOrEscalate(
+      "Recovery run completed, but Baton still detected merge conflicts while re-verifying the branch.",
+      (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+    );
   }
 
   async function enqueueWakeup(agentId: string, opts: WakeupOptions = {}) {
@@ -2577,6 +2891,8 @@ export function heartbeatService(db: Db) {
     },
 
     getRun,
+    queueExecutionWorkspaceRecovery,
+    reconcileRecoveryRun,
 
     getRuntimeState: async (agentId: string) => {
       const state = await getRuntimeState(agentId);
@@ -2804,6 +3120,13 @@ export function heartbeatService(db: Db) {
             latestBaseCommitSha: inspection.latestBaseCommitSha,
             conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
           },
+        });
+        await queueExecutionWorkspaceRecovery({
+          executionWorkspaceId: workspace.id,
+          issueId: workspace.ownerIssueId,
+          reason: "post_pr_drift",
+          conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+          actorId: "heartbeat_scheduler",
         });
       }
 

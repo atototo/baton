@@ -11,6 +11,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   agents,
+  agentWakeupRequests,
   approvals,
   companies,
   executionWorkspaces,
@@ -75,6 +76,20 @@ async function applyPgliteMigrations(client: { exec: (sql: string) => Promise<un
       await client.exec(statement);
     }
   }
+}
+
+async function waitForCondition(
+  check: () => Promise<boolean>,
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+) {
+  const timeoutMs = opts.timeoutMs ?? 5_000;
+  const intervalMs = opts.intervalMs ?? 50;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error("Timed out waiting for condition");
 }
 
 describe("pull request approval live side effects", () => {
@@ -462,6 +477,7 @@ exit 1
     const projectId = randomUUID();
     const projectWorkspaceId = randomUUID();
     const leaderAgentId = randomUUID();
+    const assigneeAgentId = randomUUID();
     const parentIssueId = randomUUID();
     const ticketKey = "AZAK-PR-3";
 
@@ -481,6 +497,16 @@ exit 1
       status: "paused",
       adapterType: "claude_local",
       adapterConfig: {},
+    });
+    await db.insert(agents).values({
+      id: assigneeAgentId,
+      companyId,
+      name: "craveny-dev-3",
+      role: "engineer",
+      title: "Developer",
+      status: "idle",
+      adapterType: "process",
+      adapterConfig: { command: "sh", args: ["-lc", "true"], cwd: repoDir },
     });
     await db.insert(projects).values({
       id: projectId,
@@ -508,7 +534,7 @@ exit 1
       title: "충돌 발생 시 PR approval 생성 차단",
       status: "in_review",
       priority: "medium",
-      assigneeUserId: "local-board",
+      assigneeAgentId,
       createdByUserId: "local-board",
       issueNumber: 45,
       identifier: "DOB-45",
@@ -577,6 +603,26 @@ exit 1
       branch: `feature/${ticketKey}`,
       baseBranch: "main",
     });
+    await waitForCondition(async () => {
+      const current = await db
+        .select()
+        .from(executionWorkspaces)
+        .where(eq(executionWorkspaces.id, workspace.id))
+        .then((rows) => rows[0]);
+      return current?.recoveryAttemptCount >= 1;
+    });
+    const recoveredWorkspace = await db
+      .select()
+      .from(executionWorkspaces)
+      .where(eq(executionWorkspaces.id, workspace.id))
+      .then((rows) => rows[0]);
+    const recoveryWakeups = await db
+      .select()
+      .from(agentWakeupRequests)
+      .where(eq(agentWakeupRequests.agentId, assigneeAgentId));
+    expect(recoveredWorkspace?.recoveryReason).toBe("pre_pr_conflict");
+    expect((recoveredWorkspace?.recoveryAttemptCount ?? 0) >= 1).toBe(true);
+    expect(recoveryWakeups.some((request) => request.reason === "execution_workspace_conflict_recovery")).toBe(true);
   }, 120_000);
 
   it("marks an open pull request workspace as drifted when post-pr resync fails", async () => {
@@ -584,6 +630,7 @@ exit 1
     const projectId = randomUUID();
     const projectWorkspaceId = randomUUID();
     const leaderAgentId = randomUUID();
+    const assigneeAgentId = randomUUID();
     const parentIssueId = randomUUID();
     const ticketKey = "AZAK-PR-4";
 
@@ -603,6 +650,16 @@ exit 1
       status: "paused",
       adapterType: "claude_local",
       adapterConfig: {},
+    });
+    await db.insert(agents).values({
+      id: assigneeAgentId,
+      companyId,
+      name: "craveny-dev-4",
+      role: "engineer",
+      title: "Developer",
+      status: "idle",
+      adapterType: "process",
+      adapterConfig: { command: "sh", args: ["-lc", "true"], cwd: repoDir },
     });
     await db.insert(projects).values({
       id: projectId,
@@ -630,7 +687,7 @@ exit 1
       title: "post-pr drift detection",
       status: "in_review",
       priority: "medium",
-      assigneeUserId: "local-board",
+      assigneeAgentId,
       createdByUserId: "local-board",
       issueNumber: 46,
       identifier: "DOB-46",
@@ -706,5 +763,25 @@ exit 1
       branch: `feature/${ticketKey}`,
       baseBranch: "main",
     });
+    await waitForCondition(async () => {
+      const current = await db
+        .select()
+        .from(executionWorkspaces)
+        .where(eq(executionWorkspaces.id, workspace.id))
+        .then((rows) => rows[0]);
+      return current?.recoveryAttemptCount >= 1;
+    });
+    const driftRecoveryWorkspace = await db
+      .select()
+      .from(executionWorkspaces)
+      .where(eq(executionWorkspaces.id, workspace.id))
+      .then((rows) => rows[0]);
+    const recoveryWakeups = await db
+      .select()
+      .from(agentWakeupRequests)
+      .where(eq(agentWakeupRequests.agentId, assigneeAgentId));
+    expect(driftRecoveryWorkspace?.recoveryReason).toBe("post_pr_drift");
+    expect((driftRecoveryWorkspace?.recoveryAttemptCount ?? 0) >= 1).toBe(true);
+    expect(recoveryWakeups.some((request) => request.reason === "execution_workspace_conflict_recovery")).toBe(true);
   }, 120_000);
 });

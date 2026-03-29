@@ -401,6 +401,38 @@ export function executionWorkspaceService(db: Db) {
         lastDriftDetectedAt?: Date | null;
         conflictSummary?: Record<string, unknown> | null;
         escalationSummary?: string | null;
+        recoveryStatus?: string;
+        recoveryReason?: string | null;
+        recoveryRequestedAt?: Date | null;
+        recoveryStartedAt?: Date | null;
+        recoveryFinishedAt?: Date | null;
+        recoveryAttemptCount?: number;
+        lastRecoveryRunId?: string | null;
+        recoveryContext?: Record<string, unknown> | null;
+      },
+    ) =>
+      db
+        .update(executionWorkspaces)
+        .set({
+          ...patch,
+          updatedAt: new Date(),
+        })
+        .where(eq(executionWorkspaces.id, id))
+        .returning()
+        .then((rows) => rows[0] ?? null),
+
+    updateRecoveryState: async (
+      id: string,
+      patch: {
+        recoveryStatus?: string;
+        recoveryReason?: string | null;
+        recoveryRequestedAt?: Date | null;
+        recoveryStartedAt?: Date | null;
+        recoveryFinishedAt?: Date | null;
+        recoveryAttemptCount?: number;
+        lastRecoveryRunId?: string | null;
+        recoveryContext?: Record<string, unknown> | null;
+        escalationSummary?: string | null;
       },
     ) =>
       db

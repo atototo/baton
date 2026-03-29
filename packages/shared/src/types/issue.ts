@@ -68,6 +68,18 @@ export interface IssueExecutionWorkspaceConflictSummary {
   lastError: string | null;
 }
 
+export interface IssueExecutionWorkspaceRecoveryContext {
+  kind: string;
+  executionWorkspaceId: string | null;
+  issueId: string | null;
+  reason: string | null;
+  branch: string | null;
+  baseBranch: string | null;
+  conflictedPaths: string[];
+  lastBaseCommitSha: string | null;
+  lastBranchCommitSha: string | null;
+}
+
 export interface IssueExecutionWorkspace {
   id: string;
   cwd: string;
@@ -85,6 +97,14 @@ export interface IssueExecutionWorkspace {
   pullRequestNumber: string | null;
   prOpenedAt: Date | null;
   lastDriftDetectedAt: Date | null;
+  recoveryStatus: string | null;
+  recoveryReason: string | null;
+  recoveryRequestedAt: Date | null;
+  recoveryStartedAt: Date | null;
+  recoveryFinishedAt: Date | null;
+  recoveryAttemptCount: number;
+  lastRecoveryRunId: string | null;
+  recoveryContext: IssueExecutionWorkspaceRecoveryContext | null;
   conflictSummary: IssueExecutionWorkspaceConflictSummary | null;
   escalationSummary: string | null;
 }

@@ -400,6 +400,13 @@ export function approvalRoutes(db: Db) {
       });
 
       if (preparation.syncStatus === "conflicted") {
+        await heartbeat.queueExecutionWorkspaceRecovery({
+          executionWorkspaceId: executionWorkspace.id,
+          issueId: primaryIssue.id,
+          reason: "pre_pr_conflict",
+          conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+          actorId: actor.actorId,
+        });
         throw conflict("Pull request branch sync conflict detected.", preparation.conflictSummary ?? undefined);
       }
 

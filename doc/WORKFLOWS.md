@@ -29,8 +29,9 @@ Review and pull request creation are part of the workflow, not prompt convention
    - reviewer handoff happens automatically
 9. When child reviews complete, Baton moves the parent to `in_review`.
 10. Before opening PR approval, Baton syncs the execution branch with the latest base branch and records whether the branch is merge-ready.
-11. If sync succeeds, Baton creates `approve_pull_request`.
-12. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
+11. If sync conflicts, Baton records the conflict, queues assignee-agent recovery, and retries branch verification before escalating to a human.
+12. If sync succeeds, Baton creates `approve_pull_request`.
+13. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
 
 ### 2. Parallelism Rules
 
@@ -154,8 +155,9 @@ Use this flow unless a project-specific policy explicitly overrides it.
 8. Child completion is rewritten into review handoff.
 9. When child reviews complete, Baton moves the parent to `in_review`.
 10. Baton runs pre-PR branch sync against the latest base branch.
-11. If sync is clean and verification is still valid, Baton creates `approve_pull_request`.
-12. When the board approves the PR request, Baton performs the real git + PR side effects and then closes the parent.
+11. If sync conflicts, Baton queues assignee-agent conflict recovery and rechecks the branch after the recovery run.
+12. If sync is clean and verification is still valid, Baton creates `approve_pull_request`.
+13. When the board approves the PR request, Baton performs the real git + PR side effects and then closes the parent.
 
 ## Workspace Rules
 
@@ -226,9 +228,19 @@ Terminal child issues (`done`, `cancelled`) do not block future work with the sa
 
 - Created after child reviews complete
 - Created only after Baton confirms the execution branch is synchronized with the latest base branch
+- If that sync fails, Baton queues a recovery run for the issue assignee before escalating to a human
 - Parent must remain `in_review` while this approval is pending
 - Approval triggers the real git + PR side effects
 - Parent reaches `done` only after those side effects succeed
+
+## Conflict Recovery Loop
+
+- Baton first attempts git-level branch sync automatically.
+- If git-level sync fails, Baton records the workspace as `conflicted` or `drifted`.
+- Baton then queues a recovery wakeup for the issue assignee agent with workspace-specific recovery context.
+- When the recovery run finishes, Baton re-runs branch verification itself.
+- If verification succeeds, Baton restores the workspace to `verified` or `pr_open`.
+- If recovery still fails after bounded retries, Baton marks the workspace `escalated` and leaves a structured escalation summary for the board.
 
 ## Release Checklist For This Workflow
 

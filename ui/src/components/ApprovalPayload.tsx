@@ -114,6 +114,10 @@ export function GenericApprovalPayload({ payload }: { payload: Record<string, un
       <PayloadField label={t("approval.baseBranch")} value={payload.baseBranch} />
       <PayloadField label="Sync" value={payload.syncStatus} />
       <PayloadField label="Sync Method" value={payload.syncMethod} />
+      <PayloadField label="Recovery" value={payload.recoveryStatus} />
+      <PayloadField label="Recovery Reason" value={payload.recoveryReason} />
+      <PayloadField label="Recovery Attempts" value={payload.recoveryAttemptCount} />
+      <PayloadField label="Recovery Run" value={payload.lastRecoveryRunId} />
       <PayloadField label="Base SHA" value={payload.lastBaseCommitSha} />
       <PayloadField label="Branch SHA" value={payload.lastBranchCommitSha} />
       <PayloadField label={t("approval.headBranch")} value={payload.headBranch} />
