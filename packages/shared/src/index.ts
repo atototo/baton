@@ -84,6 +84,7 @@ export type {
   ProjectWorkspace,
   Issue,
   IssueAssigneeAdapterOverrides,
+  IssueExecutionWorkspaceConflictSummary,
   IssueExecutionWorkspace,
   IssueComment,
   IssueAttachment,

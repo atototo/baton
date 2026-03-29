@@ -56,12 +56,37 @@ export interface IssueDelegation {
   scope?: string | null;
 }
 
+export interface IssueExecutionWorkspaceConflictSummary {
+  phase: string;
+  baseBranch: string | null;
+  branch: string | null;
+  conflictedPaths: string[];
+  autoResolutionAttempted: boolean;
+  autoResolutionSucceeded: boolean;
+  agentRecoveryAttempted: boolean;
+  agentRecoverySucceeded: boolean;
+  lastError: string | null;
+}
+
 export interface IssueExecutionWorkspace {
   id: string;
   cwd: string;
   branch: string | null;
   baseBranch: string | null;
   ticketKey: string | null;
+  syncStatus: string | null;
+  syncMethod: string | null;
+  lastSyncedAt: Date | null;
+  lastVerifiedAt: Date | null;
+  lastPrCheckedAt: Date | null;
+  lastBaseCommitSha: string | null;
+  lastBranchCommitSha: string | null;
+  pullRequestUrl: string | null;
+  pullRequestNumber: string | null;
+  prOpenedAt: Date | null;
+  lastDriftDetectedAt: Date | null;
+  conflictSummary: IssueExecutionWorkspaceConflictSummary | null;
+  escalationSummary: string | null;
 }
 
 export interface Issue {

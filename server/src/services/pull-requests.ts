@@ -47,6 +47,36 @@ export interface WorkingTreeChangeSummary {
   paths: string[];
 }
 
+export interface PullRequestConflictSummary {
+  phase: "merge";
+  baseBranch: string;
+  branch: string;
+  conflictedPaths: string[];
+  autoResolutionAttempted: boolean;
+  autoResolutionSucceeded: boolean;
+  agentRecoveryAttempted: boolean;
+  agentRecoverySucceeded: boolean;
+  lastError: string | null;
+}
+
+export interface PullRequestPreparationResult {
+  branch: string;
+  baseBranch: string;
+  baseCommitSha: string | null;
+  branchCommitSha: string | null;
+  changedPaths: string[];
+  syncStatus: "verified" | "conflicted";
+  conflictSummary: PullRequestConflictSummary | null;
+}
+
+export interface PullRequestDriftInspectionResult {
+  branch: string;
+  baseBranch: string;
+  storedBaseCommitSha: string | null;
+  latestBaseCommitSha: string | null;
+  drifted: boolean;
+}
+
 async function runCommand(command: string, args: string[], cwd: string, env?: Record<string, string>) {
   return execFile(command, args, { cwd, env: env ? { ...process.env, ...env } : undefined });
 }
@@ -75,6 +105,10 @@ async function resolveCurrentBranch(cwd: string) {
   return branch;
 }
 
+async function checkoutBranch(cwd: string, branch: string) {
+  await runGit(cwd, ["checkout", branch]);
+}
+
 async function hasWorkingTreeChanges(cwd: string) {
   const { stdout } = await runGit(cwd, ["status", "--porcelain", "--untracked-files=all"]);
   return stdout.trim().length > 0;
@@ -89,6 +123,47 @@ async function listWorkingTreeChangePaths(cwd: string) {
     .map((line) => line.slice(3).trim())
     .filter((line) => line.length > 0);
   return Array.from(new Set(paths));
+}
+
+async function listChangedPathsBetween(cwd: string, fromRef: string, toRef: string) {
+  const { stdout } = await runGit(cwd, ["diff", "--name-only", `${fromRef}...${toRef}`]);
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+async function revParse(cwd: string, rev: string) {
+  try {
+    const { stdout } = await runGit(cwd, ["rev-parse", rev]);
+    return readNonEmptyString(stdout);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBranch(cwd: string, remote: string, branch: string) {
+  await runGit(cwd, ["fetch", remote, branch]);
+}
+
+async function mergeBaseIntoBranch(cwd: string, baseRef: string) {
+  await runGit(cwd, ["merge", "--no-ff", "--no-edit", baseRef]);
+}
+
+async function listConflictedPaths(cwd: string) {
+  const { stdout } = await runGit(cwd, ["diff", "--name-only", "--diff-filter=U"]);
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+async function abortMerge(cwd: string) {
+  try {
+    await runGit(cwd, ["merge", "--abort"]);
+  } catch {
+    // ignore abort failures; caller will surface original error
+  }
 }
 
 async function createCommitIfNeeded(cwd: string, commitMessage: string) {
@@ -162,6 +237,78 @@ export function pullRequestService() {
     summarizeWorkingTreeChanges: async (cwd: string): Promise<WorkingTreeChangeSummary> => ({
       paths: await listWorkingTreeChangePaths(cwd),
     }),
+
+    prepareForPullRequest: async (input: {
+      cwd: string;
+      branch: string;
+      baseBranch: string;
+    }): Promise<PullRequestPreparationResult> => {
+      const branch = readNonEmptyString(input.branch) ?? (await resolveCurrentBranch(input.cwd));
+      const baseBranch = readNonEmptyString(input.baseBranch) ?? "main";
+      await checkoutBranch(input.cwd, branch);
+      await fetchBranch(input.cwd, "origin", baseBranch);
+      const baseRef = `origin/${baseBranch}`;
+      const baseCommitSha = await revParse(input.cwd, baseRef);
+
+      try {
+        await mergeBaseIntoBranch(input.cwd, baseRef);
+      } catch (error) {
+        const conflictedPaths = await listConflictedPaths(input.cwd);
+        await abortMerge(input.cwd);
+        return {
+          branch,
+          baseBranch,
+          baseCommitSha,
+          branchCommitSha: await revParse(input.cwd, "HEAD"),
+          changedPaths: [],
+          syncStatus: "conflicted",
+          conflictSummary: {
+            phase: "merge",
+            baseBranch,
+            branch,
+            conflictedPaths,
+            autoResolutionAttempted: true,
+            autoResolutionSucceeded: false,
+            agentRecoveryAttempted: false,
+            agentRecoverySucceeded: false,
+            lastError: error instanceof Error ? error.message : String(error),
+          },
+        };
+      }
+
+      return {
+        branch,
+        baseBranch,
+        baseCommitSha,
+        branchCommitSha: await revParse(input.cwd, "HEAD"),
+        changedPaths: await listChangedPathsBetween(input.cwd, baseRef, "HEAD"),
+        syncStatus: "verified",
+        conflictSummary: null,
+      };
+    },
+
+    inspectPullRequestDrift: async (input: {
+      cwd: string;
+      branch: string;
+      baseBranch: string;
+      storedBaseCommitSha: string | null;
+    }): Promise<PullRequestDriftInspectionResult> => {
+      const branch = readNonEmptyString(input.branch) ?? (await resolveCurrentBranch(input.cwd));
+      const baseBranch = readNonEmptyString(input.baseBranch) ?? "main";
+      await checkoutBranch(input.cwd, branch);
+      await fetchBranch(input.cwd, "origin", baseBranch);
+      const latestBaseCommitSha = await revParse(input.cwd, `origin/${baseBranch}`);
+      return {
+        branch,
+        baseBranch,
+        storedBaseCommitSha: readNonEmptyString(input.storedBaseCommitSha),
+        latestBaseCommitSha,
+        drifted:
+          !!latestBaseCommitSha &&
+          !!readNonEmptyString(input.storedBaseCommitSha) &&
+          latestBaseCommitSha !== readNonEmptyString(input.storedBaseCommitSha),
+      };
+    },
 
     openForExecutionWorkspace: async (input: PullRequestExecutionInput): Promise<PullRequestExecutionResult> => {
       const cwd = input.cwd;

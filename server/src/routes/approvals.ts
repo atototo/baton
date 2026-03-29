@@ -349,6 +349,74 @@ export function approvalRoutes(db: Db) {
       }
     }
 
+    if (approvalInput.type === "approve_pull_request" && primaryIssue) {
+      if (!primaryIssue.executionWorkspaceId) {
+        throw conflict("Pull request approval requires a linked execution workspace.");
+      }
+
+      const executionWorkspace = await executionWorkspacesSvc.getById(primaryIssue.executionWorkspaceId);
+      if (!executionWorkspace) {
+        throw conflict("Pull request approval requires a linked execution workspace.");
+      }
+
+      const pullRequestBranch =
+        typeof normalizedPayload.branch === "string" && normalizedPayload.branch.trim().length > 0
+          ? normalizedPayload.branch.trim()
+          : executionWorkspace.branch;
+      const pullRequestBaseBranch =
+        typeof normalizedPayload.baseBranch === "string" && normalizedPayload.baseBranch.trim().length > 0
+          ? normalizedPayload.baseBranch.trim()
+          : executionWorkspace.baseBranch;
+
+      const syncStartedAt = new Date();
+      await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
+        syncStatus: "syncing",
+        syncMethod: "merge",
+        lastPrCheckedAt: syncStartedAt,
+        conflictSummary: null,
+        escalationSummary: null,
+      });
+
+      const preparation = await pullRequestsSvc.prepareForPullRequest({
+        cwd: executionWorkspace.executionCwd,
+        branch: pullRequestBranch,
+        baseBranch: pullRequestBaseBranch,
+      });
+
+      const syncCompletedAt = new Date();
+      await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
+        syncStatus: preparation.syncStatus,
+        syncMethod: "merge",
+        lastSyncedAt: syncCompletedAt,
+        lastPrCheckedAt: syncCompletedAt,
+        lastVerifiedAt: preparation.syncStatus === "verified" ? syncCompletedAt : null,
+        lastBaseCommitSha: preparation.baseCommitSha,
+        lastBranchCommitSha: preparation.branchCommitSha,
+        conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+        escalationSummary:
+          preparation.syncStatus === "conflicted"
+            ? "Baton could not synchronize the execution branch with the latest base branch."
+            : null,
+      });
+
+      if (preparation.syncStatus === "conflicted") {
+        throw conflict("Pull request branch sync conflict detected.", preparation.conflictSummary ?? undefined);
+      }
+
+      enrichedPayload = {
+        ...normalizedPayload,
+        branch: preparation.branch,
+        baseBranch: preparation.baseBranch,
+        syncStatus: preparation.syncStatus,
+        syncMethod: "merge",
+        lastBaseCommitSha: preparation.baseCommitSha,
+        lastBranchCommitSha: preparation.branchCommitSha,
+        changedPaths: preparation.changedPaths,
+        conflictSummary: preparation.conflictSummary,
+        mergeabilityCheckedAt: syncCompletedAt.toISOString(),
+      };
+    }
+
     if (
       primaryIssue &&
       (approvalInput.type === "approve_issue_plan" || approvalInput.type === "approve_pull_request")
@@ -609,6 +677,23 @@ export function approvalRoutes(db: Db) {
     let approval = await svc.approve(id, req.body.decidedByUserId ?? "board", req.body.decisionNote);
 
     if (approval.type === "approve_pull_request" && pullRequestResult) {
+      if (primaryIssue?.executionWorkspaceId) {
+        await executionWorkspacesSvc.updateSyncState(primaryIssue.executionWorkspaceId, {
+          syncStatus: "pr_open",
+          lastPrCheckedAt: new Date(),
+          lastBaseCommitSha: pullRequestResult.baseBranch ? approval.payload.lastBaseCommitSha as string | null ?? null : null,
+          lastBranchCommitSha: pullRequestResult.commitSha,
+          pullRequestUrl: pullRequestResult.pullRequestUrl,
+          pullRequestNumber:
+            typeof pullRequestResult.pullRequestNumber === "number"
+              ? String(pullRequestResult.pullRequestNumber)
+              : null,
+          prOpenedAt: new Date(),
+          conflictSummary: null,
+          escalationSummary: null,
+        });
+      }
+
       const payload = {
         ...approval.payload,
         branch: pullRequestResult.branch,

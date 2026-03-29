@@ -485,6 +485,17 @@ if (config.heartbeatSchedulerEnabled) {
         logger.error({ err }, "heartbeat timer tick failed");
       });
 
+    void heartbeat
+      .tickPullRequestDrift(new Date())
+      .then((result) => {
+        if (result.drifted > 0 || result.resynced > 0) {
+          logger.info({ ...result }, "pull request drift scan updated execution workspaces");
+        }
+      })
+      .catch((err) => {
+        logger.error({ err }, "pull request drift scan failed");
+      });
+
     // Periodically reap orphaned runs (5-min staleness threshold)
     void heartbeat
       .reapOrphanedRuns({ staleThresholdMs: 5 * 60 * 1000 })

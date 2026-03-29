@@ -27,8 +27,10 @@ Review and pull request creation are part of the workflow, not prompt convention
    - implementation agents do not directly finish governed ticket work
    - Baton rewrites child completion to `in_review`
    - reviewer handoff happens automatically
-9. When child reviews complete, Baton moves the parent to `in_review` and creates `approve_pull_request`.
-10. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
+9. When child reviews complete, Baton moves the parent to `in_review`.
+10. Before opening PR approval, Baton syncs the execution branch with the latest base branch and records whether the branch is merge-ready.
+11. If sync succeeds, Baton creates `approve_pull_request`.
+12. When the board approves the PR request, Baton commits, pushes, opens the real PR, and only then marks the parent `done`.
 
 ### 2. Parallelism Rules
 
@@ -150,8 +152,10 @@ Use this flow unless a project-specific policy explicitly overrides it.
 6. The parent resumes and the leader creates child implementation issues.
 7. Child implementation runs execute in the ticket execution workspace.
 8. Child completion is rewritten into review handoff.
-9. When child reviews complete, Baton moves the parent to `in_review` and creates `approve_pull_request`.
-10. When the board approves the PR request, Baton performs the real git + PR side effects and then closes the parent.
+9. When child reviews complete, Baton moves the parent to `in_review`.
+10. Baton runs pre-PR branch sync against the latest base branch.
+11. If sync is clean and verification is still valid, Baton creates `approve_pull_request`.
+12. When the board approves the PR request, Baton performs the real git + PR side effects and then closes the parent.
 
 ## Workspace Rules
 
@@ -221,6 +225,7 @@ Terminal child issues (`done`, `cancelled`) do not block future work with the sa
 ### `approve_pull_request`
 
 - Created after child reviews complete
+- Created only after Baton confirms the execution branch is synchronized with the latest base branch
 - Parent must remain `in_review` while this approval is pending
 - Approval triggers the real git + PR side effects
 - Parent reaches `done` only after those side effects succeed

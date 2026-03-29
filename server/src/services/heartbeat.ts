@@ -30,6 +30,8 @@ import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import { executionWorkspaceService } from "./execution-workspaces.js";
 import { promptCompositionService } from "./prompt-composition.js";
 import { agentInstructionsService } from "./agent-instructions.js";
+import { pullRequestService } from "./pull-requests.js";
+import { logActivity } from "./activity-log.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -499,6 +501,7 @@ export function heartbeatService(db: Db) {
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const promptComposition = promptCompositionService(db);
   const agentInstructions = agentInstructionsService(db);
+  const pullRequestsSvc = pullRequestService();
 
   async function getAgent(agentId: string) {
     return db
@@ -2721,6 +2724,90 @@ export function heartbeatService(db: Db) {
       }
 
       return { checked, enqueued, skipped };
+    },
+
+    tickPullRequestDrift: async (now = new Date()) => {
+      const workspaces = await executionWorkspacesSvc.listPullRequestOpenWorkspaces();
+      let checked = 0;
+      let drifted = 0;
+      let resynced = 0;
+
+      for (const workspace of workspaces) {
+        checked += 1;
+        const inspection = await pullRequestsSvc.inspectPullRequestDrift({
+          cwd: workspace.executionCwd,
+          branch: workspace.branch,
+          baseBranch: workspace.baseBranch,
+          storedBaseCommitSha: workspace.lastBaseCommitSha,
+        });
+        if (!inspection.drifted) {
+          await executionWorkspacesSvc.updateSyncState(workspace.id, {
+            lastPrCheckedAt: now,
+          });
+          continue;
+        }
+
+        const preparation = await pullRequestsSvc.prepareForPullRequest({
+          cwd: workspace.executionCwd,
+          branch: workspace.branch,
+          baseBranch: workspace.baseBranch,
+        });
+
+        if (preparation.syncStatus === "verified") {
+          resynced += 1;
+          await executionWorkspacesSvc.updateSyncState(workspace.id, {
+            syncStatus: "pr_open",
+            lastSyncedAt: now,
+            lastVerifiedAt: now,
+            lastPrCheckedAt: now,
+            lastBaseCommitSha: preparation.baseCommitSha,
+            lastBranchCommitSha: preparation.branchCommitSha,
+            conflictSummary: null,
+            escalationSummary: null,
+          });
+          await logActivity(db, {
+            companyId: workspace.companyId,
+            actorType: "system",
+            actorId: "heartbeat_scheduler",
+            action: "pull_request.resync_succeeded",
+            entityType: "execution_workspace",
+            entityId: workspace.id,
+            details: {
+              branch: workspace.branch,
+              baseBranch: workspace.baseBranch,
+              latestBaseCommitSha: preparation.baseCommitSha,
+            },
+          });
+          continue;
+        }
+
+        drifted += 1;
+        await executionWorkspacesSvc.updateSyncState(workspace.id, {
+          syncStatus: "drifted",
+          lastPrCheckedAt: now,
+          lastDriftDetectedAt: now,
+          lastBaseCommitSha: inspection.latestBaseCommitSha,
+          conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+          escalationSummary: "Open pull request drifted from base branch and automatic resync failed.",
+        });
+        await logActivity(db, {
+          companyId: workspace.companyId,
+          actorType: "system",
+          actorId: "heartbeat_scheduler",
+          action: "pull_request.drift_detected",
+          entityType: "execution_workspace",
+          entityId: workspace.id,
+          details: {
+            branch: workspace.branch,
+            baseBranch: workspace.baseBranch,
+            storedBaseCommitSha: inspection.storedBaseCommitSha,
+            latestBaseCommitSha: inspection.latestBaseCommitSha,
+            conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+          },
+        });
+      }
+
+      return { checked, drifted, resynced };
     },
 
     cancelRun: async (runId: string) => {

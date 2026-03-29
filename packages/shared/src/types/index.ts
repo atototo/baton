@@ -19,6 +19,7 @@ export type {
   Issue,
   IssueAssigneeAdapterOverrides,
   IssueDelegation,
+  IssueExecutionWorkspaceConflictSummary,
   IssueExecutionWorkspace,
   IssueComment,
   IssueAncestor,

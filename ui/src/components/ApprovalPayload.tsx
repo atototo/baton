@@ -112,6 +112,10 @@ export function GenericApprovalPayload({ payload }: { payload: Record<string, un
       <PayloadField label={t("approval.title")} value={payload.title} />
       <PayloadField label={t("approval.branch")} value={payload.branch} />
       <PayloadField label={t("approval.baseBranch")} value={payload.baseBranch} />
+      <PayloadField label="Sync" value={payload.syncStatus} />
+      <PayloadField label="Sync Method" value={payload.syncMethod} />
+      <PayloadField label="Base SHA" value={payload.lastBaseCommitSha} />
+      <PayloadField label="Branch SHA" value={payload.lastBranchCommitSha} />
       <PayloadField label={t("approval.headBranch")} value={payload.headBranch} />
       <PayloadField label={t("approval.repository")} value={payload.repository} />
       {workspace && (
@@ -127,6 +131,16 @@ export function GenericApprovalPayload({ payload }: { payload: Record<string, un
         <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap font-mono text-xs max-h-48 overflow-y-auto">
           {String(summary)}
         </div>
+      )}
+      {typeof payload.escalationSummary === "string" && payload.escalationSummary.trim().length > 0 && (
+        <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200 whitespace-pre-wrap">
+          {String(payload.escalationSummary)}
+        </div>
+      )}
+      {Boolean(payload.conflictSummary) && (
+        <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">
+          {JSON.stringify(payload.conflictSummary, null, 2)}
+        </pre>
       )}
       {!summary && (
         <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">

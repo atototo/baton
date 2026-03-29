@@ -379,6 +379,40 @@ export function executionWorkspaceService(db: Db) {
         )
         .then((rows) => rows[0] ?? null),
 
+    listPullRequestOpenWorkspaces: async () =>
+      db
+        .select()
+        .from(executionWorkspaces)
+        .where(eq(executionWorkspaces.syncStatus, "pr_open")),
+
+    updateSyncState: async (
+      id: string,
+      patch: {
+        syncStatus?: string;
+        syncMethod?: string;
+        lastSyncedAt?: Date | null;
+        lastVerifiedAt?: Date | null;
+        lastPrCheckedAt?: Date | null;
+        lastBaseCommitSha?: string | null;
+        lastBranchCommitSha?: string | null;
+        pullRequestUrl?: string | null;
+        pullRequestNumber?: string | null;
+        prOpenedAt?: Date | null;
+        lastDriftDetectedAt?: Date | null;
+        conflictSummary?: Record<string, unknown> | null;
+        escalationSummary?: string | null;
+      },
+    ) =>
+      db
+        .update(executionWorkspaces)
+        .set({
+          ...patch,
+          updatedAt: new Date(),
+        })
+        .where(eq(executionWorkspaces.id, id))
+        .returning()
+        .then((rows) => rows[0] ?? null),
+
     async provisionExecutionWorkspace(input: {
       companyId: string;
       plan: ExecutionWorkspacePlan;

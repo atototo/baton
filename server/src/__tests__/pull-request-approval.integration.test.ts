@@ -21,7 +21,7 @@ import {
   projectWorkspaces,
 } from "@atototo/db";
 import { createApp } from "../app.js";
-import { executionWorkspaceService } from "../services/index.js";
+import { executionWorkspaceService, heartbeatService } from "../services/index.js";
 import type { StorageService } from "../storage/types.js";
 
 const execFile = promisify(execFileCb);
@@ -51,6 +51,12 @@ const storageStub: StorageService = {
 
 async function runGit(cwd: string, args: string[]) {
   return execFile("git", args, { cwd });
+}
+
+async function cloneRepo(originDir: string, targetDir: string) {
+  await runGit(path.dirname(targetDir), ["clone", originDir, targetDir]);
+  await runGit(targetDir, ["config", "user.name", "atototo"]);
+  await runGit(targetDir, ["config", "user.email", "atoto0311@gmail.com"]);
 }
 
 async function applyPgliteMigrations(client: { exec: (sql: string) => Promise<unknown> }) {
@@ -192,7 +198,7 @@ exit 1
     await db.insert(companies).values({
       id: companyId,
       name: "Craveny",
-      issuePrefix: "DOB",
+      issuePrefix: "D44",
       issueCounter: 43,
       locale: "ko",
     });
@@ -331,5 +337,374 @@ exit 1
     expect(ghLog).toContain("backend/README.md");
     expect(ghLog).toContain("frontend/README.md");
     expect(ghLog).toContain("DOB-43");
+  }, 120_000);
+
+  it("syncs the execution branch before creating pull request approval", async () => {
+    const companyId = randomUUID();
+    const projectId = randomUUID();
+    const projectWorkspaceId = randomUUID();
+    const leaderAgentId = randomUUID();
+    const parentIssueId = randomUUID();
+    const ticketKey = "AZAK-PR-2";
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Craveny",
+      issuePrefix: "D45",
+      issueCounter: 44,
+      locale: "ko",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: "craveny-leader-2",
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "claude_local",
+      adapterConfig: {},
+    });
+    await db.insert(projects).values({
+      id: projectId,
+      companyId,
+      name: "craveny-2",
+      status: "in_progress",
+      leadAgentId: leaderAgentId,
+    });
+    await db.insert(projectWorkspaces).values({
+      id: projectWorkspaceId,
+      companyId,
+      projectId,
+      name: "azak",
+      cwd: repoDir,
+      repoUrl: "https://github.com/atototo/azak",
+      isPrimary: true,
+      metadata: { defaultBaseBranch: "main" },
+    });
+    await runGit(repoDir, ["checkout", "main"]);
+    await runGit(repoDir, ["pull", "--ff-only", "origin", "main"]);
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId,
+      projectId,
+      title: "기존 브랜치를 최신 main으로 동기화 후 PR 준비",
+      status: "in_review",
+      priority: "medium",
+      assigneeUserId: "local-board",
+      createdByUserId: "local-board",
+      issueNumber: 44,
+      identifier: "DOB-44",
+      requestDepth: 0,
+    });
+
+    const executionWorkspacesSvc = executionWorkspaceService(db);
+    const workspace = await executionWorkspacesSvc.provisionExecutionWorkspace({
+      companyId,
+      plan: {
+        ownerIssueId: parentIssueId,
+        projectId,
+        projectWorkspaceId,
+        projectWorkspaceName: "azak",
+        sourceRepoCwd: repoDir,
+        ticketKey,
+        baseBranch: "main",
+        branch: `feature/${ticketKey}`,
+      },
+    });
+
+    await runGit(workspace.executionCwd, ["config", "user.name", "atototo"]);
+    await runGit(workspace.executionCwd, ["config", "user.email", "atoto0311@gmail.com"]);
+    await fs.writeFile(path.join(workspace.executionCwd, "feature-sync.txt"), "feature sync\n", "utf8");
+    await runGit(workspace.executionCwd, ["add", "feature-sync.txt"]);
+    await runGit(workspace.executionCwd, ["commit", "-m", "feature sync work"]);
+
+    const updaterDir = path.join(tempRoot, `updater-${ticketKey}`);
+    await cloneRepo(bareDir, updaterDir);
+    await runGit(updaterDir, ["checkout", "main"]);
+    await fs.writeFile(path.join(updaterDir, "base-sync.txt"), "base sync\n", "utf8");
+    await runGit(updaterDir, ["add", "base-sync.txt"]);
+    await runGit(updaterDir, ["commit", "-m", "base sync"]);
+    await runGit(updaterDir, ["push", "origin", "main"]);
+
+    await db.update(issues).set({ executionWorkspaceId: workspace.id }).where(eq(issues.id, parentIssueId));
+
+    const response = await request(app)
+      .post(`/api/companies/${companyId}/approvals`)
+      .send({
+        type: "approve_pull_request",
+        requestedByAgentId: leaderAgentId,
+        payload: {
+          summary: "브랜치 최신화 후 PR 준비",
+          branch: `feature/${ticketKey}`,
+          baseBranch: "main",
+        },
+        issueIds: [parentIssueId],
+      })
+      .expect(201);
+
+    expect(response.body.payload.syncStatus).toBe("verified");
+    expect(typeof response.body.payload.lastBaseCommitSha).toBe("string");
+
+    const storedWorkspace = await db
+      .select()
+      .from(executionWorkspaces)
+      .where(eq(executionWorkspaces.id, workspace.id))
+      .then((rows) => rows[0]);
+    expect(storedWorkspace?.syncStatus).toBe("verified");
+    expect(storedWorkspace?.lastBaseCommitSha).toBeTruthy();
+
+    const { stdout } = await runGit(workspace.executionCwd, ["show", "--stat", "--oneline", "HEAD"]);
+    expect(stdout).toContain("base-sync.txt");
+  }, 120_000);
+
+  it("blocks pull request approval creation when pre-pr sync conflicts", async () => {
+    const companyId = randomUUID();
+    const projectId = randomUUID();
+    const projectWorkspaceId = randomUUID();
+    const leaderAgentId = randomUUID();
+    const parentIssueId = randomUUID();
+    const ticketKey = "AZAK-PR-3";
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Craveny",
+      issuePrefix: "DOB",
+      issueCounter: 45,
+      locale: "ko",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: "craveny-leader-3",
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "claude_local",
+      adapterConfig: {},
+    });
+    await db.insert(projects).values({
+      id: projectId,
+      companyId,
+      name: "craveny-3",
+      status: "in_progress",
+      leadAgentId: leaderAgentId,
+    });
+    await db.insert(projectWorkspaces).values({
+      id: projectWorkspaceId,
+      companyId,
+      projectId,
+      name: "azak",
+      cwd: repoDir,
+      repoUrl: "https://github.com/atototo/azak",
+      isPrimary: true,
+      metadata: { defaultBaseBranch: "main" },
+    });
+    await runGit(repoDir, ["checkout", "main"]);
+    await runGit(repoDir, ["pull", "--ff-only", "origin", "main"]);
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId,
+      projectId,
+      title: "충돌 발생 시 PR approval 생성 차단",
+      status: "in_review",
+      priority: "medium",
+      assigneeUserId: "local-board",
+      createdByUserId: "local-board",
+      issueNumber: 45,
+      identifier: "DOB-45",
+      requestDepth: 0,
+    });
+
+    await fs.writeFile(path.join(repoDir, "shared-pr-sync.txt"), "base original\n", "utf8");
+    await runGit(repoDir, ["add", "shared-pr-sync.txt"]);
+    await runGit(repoDir, ["commit", "-m", "shared sync base"]);
+    await runGit(repoDir, ["push", "origin", "main"]);
+
+    const executionWorkspacesSvc = executionWorkspaceService(db);
+    const workspace = await executionWorkspacesSvc.provisionExecutionWorkspace({
+      companyId,
+      plan: {
+        ownerIssueId: parentIssueId,
+        projectId,
+        projectWorkspaceId,
+        projectWorkspaceName: "azak",
+        sourceRepoCwd: repoDir,
+        ticketKey,
+        baseBranch: "main",
+        branch: `feature/${ticketKey}`,
+      },
+    });
+
+    await runGit(workspace.executionCwd, ["config", "user.name", "atototo"]);
+    await runGit(workspace.executionCwd, ["config", "user.email", "atoto0311@gmail.com"]);
+    await fs.writeFile(path.join(workspace.executionCwd, "shared-pr-sync.txt"), "feature version\n", "utf8");
+    await runGit(workspace.executionCwd, ["add", "shared-pr-sync.txt"]);
+    await runGit(workspace.executionCwd, ["commit", "-m", "feature conflicting change"]);
+
+    const updaterDir = path.join(tempRoot, `conflict-updater-${ticketKey}`);
+    await cloneRepo(bareDir, updaterDir);
+    await runGit(updaterDir, ["checkout", "main"]);
+    await fs.writeFile(path.join(updaterDir, "shared-pr-sync.txt"), "base version\n", "utf8");
+    await runGit(updaterDir, ["add", "shared-pr-sync.txt"]);
+    await runGit(updaterDir, ["commit", "-m", "base conflicting change"]);
+    await runGit(updaterDir, ["push", "origin", "main"]);
+
+    await db.update(issues).set({ executionWorkspaceId: workspace.id }).where(eq(issues.id, parentIssueId));
+
+    const response = await request(app)
+      .post(`/api/companies/${companyId}/approvals`)
+      .send({
+        type: "approve_pull_request",
+        requestedByAgentId: leaderAgentId,
+        payload: {
+          summary: "충돌 확인",
+          branch: `feature/${ticketKey}`,
+          baseBranch: "main",
+        },
+        issueIds: [parentIssueId],
+      })
+      .expect(409);
+
+    expect(response.body.error).toContain("conflict");
+
+    const storedWorkspace = await db
+      .select()
+      .from(executionWorkspaces)
+      .where(eq(executionWorkspaces.id, workspace.id))
+      .then((rows) => rows[0]);
+    expect(storedWorkspace?.syncStatus).toBe("conflicted");
+    expect(storedWorkspace?.conflictSummary).toMatchObject({
+      branch: `feature/${ticketKey}`,
+      baseBranch: "main",
+    });
+  }, 120_000);
+
+  it("marks an open pull request workspace as drifted when post-pr resync fails", async () => {
+    const companyId = randomUUID();
+    const projectId = randomUUID();
+    const projectWorkspaceId = randomUUID();
+    const leaderAgentId = randomUUID();
+    const parentIssueId = randomUUID();
+    const ticketKey = "AZAK-PR-4";
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Craveny",
+      issuePrefix: "D46",
+      issueCounter: 46,
+      locale: "ko",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: "craveny-leader-4",
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "claude_local",
+      adapterConfig: {},
+    });
+    await db.insert(projects).values({
+      id: projectId,
+      companyId,
+      name: "craveny-4",
+      status: "in_progress",
+      leadAgentId: leaderAgentId,
+    });
+    await db.insert(projectWorkspaces).values({
+      id: projectWorkspaceId,
+      companyId,
+      projectId,
+      name: "azak",
+      cwd: repoDir,
+      repoUrl: "https://github.com/atototo/azak",
+      isPrimary: true,
+      metadata: { defaultBaseBranch: "main" },
+    });
+    await runGit(repoDir, ["checkout", "main"]);
+    await runGit(repoDir, ["pull", "--ff-only", "origin", "main"]);
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId,
+      projectId,
+      title: "post-pr drift detection",
+      status: "in_review",
+      priority: "medium",
+      assigneeUserId: "local-board",
+      createdByUserId: "local-board",
+      issueNumber: 46,
+      identifier: "DOB-46",
+      requestDepth: 0,
+    });
+
+    const executionWorkspacesSvc = executionWorkspaceService(db);
+    const workspace = await executionWorkspacesSvc.provisionExecutionWorkspace({
+      companyId,
+      plan: {
+        ownerIssueId: parentIssueId,
+        projectId,
+        projectWorkspaceId,
+        projectWorkspaceName: "azak",
+        sourceRepoCwd: repoDir,
+        ticketKey,
+        baseBranch: "main",
+        branch: `feature/${ticketKey}`,
+      },
+    });
+    await runGit(workspace.executionCwd, ["config", "user.name", "atototo"]);
+    await runGit(workspace.executionCwd, ["config", "user.email", "atoto0311@gmail.com"]);
+
+    await fs.writeFile(path.join(workspace.executionCwd, "shared-post-pr.txt"), "feature version\n", "utf8");
+    await runGit(workspace.executionCwd, ["add", "shared-post-pr.txt"]);
+    await runGit(workspace.executionCwd, ["commit", "-m", "feature post-pr change"]);
+
+    await db.update(issues).set({ executionWorkspaceId: workspace.id }).where(eq(issues.id, parentIssueId));
+
+    const approvalCreate = await request(app)
+      .post(`/api/companies/${companyId}/approvals`)
+      .send({
+        type: "approve_pull_request",
+        requestedByAgentId: leaderAgentId,
+        payload: {
+          summary: "drift test",
+          branch: `feature/${ticketKey}`,
+          baseBranch: "main",
+        },
+        issueIds: [parentIssueId],
+      })
+      .expect(201);
+
+    const approvalId = approvalCreate.body.id as string;
+
+    await request(app)
+      .post(`/api/approvals/${approvalId}/approve`)
+      .send({ decidedByUserId: "local-board" })
+      .expect(200);
+
+    const updaterDir = path.join(tempRoot, `post-pr-drift-${ticketKey}`);
+    await cloneRepo(bareDir, updaterDir);
+    await runGit(updaterDir, ["checkout", "main"]);
+    await fs.writeFile(path.join(updaterDir, "shared-post-pr.txt"), "base version\n", "utf8");
+    await runGit(updaterDir, ["add", "shared-post-pr.txt"]);
+    await runGit(updaterDir, ["commit", "-m", "base post-pr change"]);
+    await runGit(updaterDir, ["push", "origin", "main"]);
+
+    const heartbeat = heartbeatService(db);
+    const result = await heartbeat.tickPullRequestDrift(new Date());
+    expect(result.checked).toBeGreaterThan(0);
+    expect(result.drifted).toBeGreaterThan(0);
+
+    const updatedWorkspace = await db
+      .select()
+      .from(executionWorkspaces)
+      .where(eq(executionWorkspaces.id, workspace.id))
+      .then((rows) => rows[0]);
+
+    expect(updatedWorkspace?.syncStatus).toBe("drifted");
+    expect(updatedWorkspace?.lastDriftDetectedAt).toBeTruthy();
+    expect(updatedWorkspace?.conflictSummary).toMatchObject({
+      branch: `feature/${ticketKey}`,
+      baseBranch: "main",
+    });
   }, 120_000);
 });
