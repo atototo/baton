@@ -38,6 +38,7 @@ tmp/
 # Editor / tool temp files
 *.tmp
 .vscode/
+.worktrees/
 .claude/settings.local.json
 .baton-local/
 /.claude/prompts/
