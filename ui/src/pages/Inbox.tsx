@@ -422,13 +422,24 @@ export function Inbox() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => approvalsApi.reject(id),
+    mutationFn: ({ id, note }: { id: string; note?: string }) => approvalsApi.reject(id, note),
     onSuccess: () => {
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(selectedCompanyId!) });
     },
     onError: (err) => {
       setActionError(err instanceof Error ? err.message : t("inbox.failedToReject"));
+    },
+  });
+
+  const requestRevisionMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => approvalsApi.requestRevision(id, note),
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(selectedCompanyId!) });
+    },
+    onError: (err) => {
+      setActionError(err instanceof Error ? err.message : t("approval.failedToRequestRevision"));
     },
   });
 
@@ -669,7 +680,7 @@ export function Inbox() {
                         : null
                     }
                     onAnswer={(answer) => approveMutation.mutate({ id: approval.id, decisionNote: answer })}
-                    onDismiss={() => rejectMutation.mutate(approval.id)}
+                    onDismiss={() => rejectMutation.mutate({ id: approval.id })}
                     detailLink={`/approvals/${approval.id}`}
                     isPending={approveMutation.isPending || rejectMutation.isPending}
                   />
@@ -685,9 +696,10 @@ export function Inbox() {
                     onApprove={() => approveMutation.mutate({ id: approval.id })}
                     onForceApprove={() => approveMutation.mutate({ id: approval.id, force: true })}
                     onDismissError={() => setApproveErrorMap((prev) => { const next = { ...prev }; delete next[approval.id]; return next; })}
-                    onReject={() => rejectMutation.mutate(approval.id)}
+                    onReject={(note) => rejectMutation.mutate({ id: approval.id, note })}
+                    onRequestRevision={(note) => requestRevisionMutation.mutate({ id: approval.id, note })}
                     detailLink={`/approvals/${approval.id}`}
-                    isPending={approveMutation.isPending || rejectMutation.isPending}
+                    isPending={approveMutation.isPending || rejectMutation.isPending || requestRevisionMutation.isPending}
                     approveError={approveErrorMap[approval.id] ?? null}
                   />
                 ),

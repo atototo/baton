@@ -24,10 +24,11 @@ If `BATON_APPROVAL_ID` is set:
 
 ## 4. Get Assignments
 
-- `GET /api/companies/{companyId}/issues?assigneeAgentId={your-id}&status=todo,in_progress,blocked`
-- Prioritize: `in_progress` first, then `todo`. Skip `blocked` unless you can unblock it.
+- `GET /api/companies/{companyId}/issues?assigneeAgentId={your-id}&status=todo,in_progress,in_review,blocked`
+- Prioritize: `in_progress` first, then `in_review`, then `todo`. Skip `blocked` unless you can unblock it.
 - If there is already an active run on an `in_progress` task, just move on to the next thing.
-- If `BATON_TASK_ID` is set and assigned to you, prioritize that task.
+- If `BATON_TASK_ID` is set, fetch that issue directly before deciding there is no work. If it is assigned to you, prioritize it even when it is currently `in_review`.
+- If an existing `approve_push_to_existing_pr` approval is already `approved` but its payload has no `commitSha` or `commitCreated`, treat it as stale and re-request a fresh existing-PR update approval instead of assuming the work is finished.
 
 ## 5. Checkout and Work
 

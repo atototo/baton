@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/media/baton-mark-crop.png" alt="Baton mark" width="108" />
+  <img src="./docs/media/baton-mark-transparent.png" alt="Baton mark" width="88" />
 </p>
 
 # Baton

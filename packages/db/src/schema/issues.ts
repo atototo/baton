@@ -37,6 +37,9 @@ export const issues = pgTable(
     executionRunId: uuid("execution_run_id").references(() => heartbeatRuns.id, { onDelete: "set null" }),
     executionAgentNameKey: text("execution_agent_name_key"),
     executionLockedAt: timestamp("execution_locked_at", { withTimezone: true }),
+    workflowEpoch: integer("workflow_epoch").notNull().default(0),
+    activeWorkflowSessionId: uuid("active_workflow_session_id"),
+    workflowUpdatedAt: timestamp("workflow_updated_at", { withTimezone: true }),
     createdByAgentId: uuid("created_by_agent_id").references(() => agents.id),
     createdByUserId: text("created_by_user_id"),
     issueNumber: integer("issue_number"),
@@ -71,6 +74,7 @@ export const issues = pgTable(
     ),
     parentIdx: index("issues_company_parent_idx").on(table.companyId, table.parentId),
     projectIdx: index("issues_company_project_idx").on(table.companyId, table.projectId),
+    workflowEpochIdx: index("issues_company_workflow_epoch_idx").on(table.companyId, table.workflowEpoch),
     identifierIdx: uniqueIndex("issues_identifier_idx").on(table.identifier),
   }),
 );

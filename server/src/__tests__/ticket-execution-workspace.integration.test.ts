@@ -15,12 +15,14 @@ import {
   executionWorkspaces,
   heartbeatRuns,
   issueApprovals,
+  issueWorkflowSessions,
   issues,
   projects,
   projectWorkspaces,
 } from "@atototo/db";
 import { createApp } from "../app.js";
 import type { StorageService } from "../storage/types.js";
+import { createLocalAgentJwt as createAgentJwt } from "../agent-auth-jwt.js";
 
 const execFile = promisify(execFileCb);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -107,6 +109,7 @@ describe("ticket execution workspace approval flow", () => {
         projectWorkspaces,
         issues,
         issueApprovals,
+        issueWorkflowSessions,
         executionWorkspaces,
         heartbeatRuns,
       },
@@ -222,6 +225,24 @@ describe("ticket execution workspace approval flow", () => {
       branch: "feature/AZAK-001",
     });
 
+    const createdWorkflowSession = await db
+      .select({
+        kind: issueWorkflowSessions.kind,
+        status: issueWorkflowSessions.status,
+        approvalId: issueWorkflowSessions.approvalId,
+      })
+      .from(issueWorkflowSessions)
+      .where(eq(issueWorkflowSessions.issueId, PARENT_ISSUE_ID))
+      .then((rows) => rows[0]);
+
+    expect(createdWorkflowSession).toEqual(
+      expect.objectContaining({
+        kind: "issue_plan",
+        status: "open",
+        approvalId: approvalCreate.body.id,
+      }),
+    );
+
     const blockedParent = await db
       .select({ status: issues.status })
       .from(issues)
@@ -287,6 +308,129 @@ describe("ticket execution workspace approval flow", () => {
     expect(childCreate.body.executionWorkspaceId).toBe(resumedParent?.executionWorkspaceId);
     expect(childCreate.body.billingCode).toBe("AZAK-001");
   }, 120_000);
+
+  it("returns an in_review parent to the requesting agent after plan approval", async () => {
+    const parentIssueId = "4f433bd8-53e6-4a9a-88b0-bbe701615a6b";
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId: COMPANY_ID,
+      projectId: PROJECT_ID,
+      title: "workflow verify parent resumes after plan approval",
+      description: "jira-ticket: AZAK-010",
+      status: "in_review",
+      priority: "high",
+      assigneeAgentId: null,
+      assigneeUserId: "local-board",
+      createdByUserId: "local-board",
+      issueNumber: 50,
+      identifier: "DOB-50",
+      requestDepth: 0,
+    });
+
+    const approvalCreate = await request(app)
+      .post(`/api/companies/${COMPANY_ID}/approvals`)
+      .send({
+        type: "approve_issue_plan",
+        requestedByAgentId: LEADER_AGENT_ID,
+        payload: {
+          issueId: parentIssueId,
+          issueIdentifier: "DOB-50",
+          summary: "Resume orchestration after board approves the plan",
+        },
+      })
+      .expect(201);
+
+    await request(app)
+      .post(`/api/approvals/${approvalCreate.body.id}/approve`)
+      .send({ decidedByUserId: "local-board" })
+      .expect(200);
+
+    const resumedParent = await db
+      .select({
+        status: issues.status,
+        assigneeAgentId: issues.assigneeAgentId,
+        assigneeUserId: issues.assigneeUserId,
+        executionWorkspaceId: issues.executionWorkspaceId,
+      })
+      .from(issues)
+      .where(eq(issues.id, parentIssueId))
+      .then((rows) => rows[0]);
+
+    expect(resumedParent).toMatchObject({
+      status: "in_progress",
+      assigneeAgentId: LEADER_AGENT_ID,
+      assigneeUserId: null,
+    });
+    expect(typeof resumedParent?.executionWorkspaceId).toBe("string");
+  }, 120_000);
+
+  it("does not create approve_issue_plan when a parent issue has no <plan> block", async () => {
+    const runId = "1d9fdcf3-6e62-4cd3-979e-c97d8c0eb4a1";
+    const parentIssueId = "38efe95d-5741-4c3b-a8c3-af12fe8e1c7f";
+
+    await db.insert(heartbeatRuns).values({
+      id: runId,
+      companyId: COMPANY_ID,
+      agentId: LEADER_AGENT_ID,
+      invocationSource: "manual",
+      status: "running",
+      startedAt: new Date(),
+    });
+
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId: COMPANY_ID,
+      projectId: PROJECT_ID,
+      title: "plan 없이 먼저 분해를 시도한 부모 이슈",
+      description: "jira-ticket: AZAK-099",
+      status: "in_progress",
+      priority: "high",
+      assigneeAgentId: LEADER_AGENT_ID,
+      checkoutRunId: runId,
+      executionRunId: runId,
+      createdByUserId: "local-board",
+      issueNumber: 99,
+      identifier: "DOB-99",
+      requestDepth: 0,
+    });
+
+    const token = createAgentJwt(LEADER_AGENT_ID, COMPANY_ID, "claude_local", runId);
+
+    const response = await request(app)
+      .post(`/api/companies/${COMPANY_ID}/issues`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Baton-Run-Id", runId)
+      .send({
+        projectId: PROJECT_ID,
+        parentId: parentIssueId,
+        title: "자식 이슈를 먼저 만들면 안 됨",
+        status: "todo",
+        priority: "medium",
+        assigneeAgentId: FE_AGENT_ID,
+      })
+      .expect(409);
+
+    expect(response.body.error).toMatch(/<plan>/);
+
+    const linkedApprovals = await db
+      .select()
+      .from(issueApprovals)
+      .where(eq(issueApprovals.issueId, parentIssueId));
+    expect(linkedApprovals).toHaveLength(0);
+
+    const pendingPlanApprovals = await db
+      .select()
+      .from(approvals)
+      .where(eq(approvals.companyId, COMPANY_ID))
+      .then((rows) =>
+        rows.filter((row) => {
+          if (row.type !== "approve_issue_plan") return false;
+          const payloadIssueId = typeof row.payload?.issueId === "string" ? row.payload.issueId : null;
+          return row.status === "pending" && payloadIssueId === parentIssueId;
+        }),
+      );
+    expect(pendingPlanApprovals).toHaveLength(0);
+  });
 
   it("dedupes plan approvals created from payload.issueId and links the existing approval", async () => {
     const dedupeIssueId = "9b6b1ebb-7920-4634-afc0-19fb38f81427";

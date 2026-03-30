@@ -134,6 +134,7 @@ export const APPROVAL_TYPES = [
   "approve_ceo_strategy",
   "approve_issue_plan",
   "approve_pull_request",
+  "approve_push_to_existing_pr",
   "approve_completion",
   "agent_question",
 ] as const;
@@ -147,6 +148,34 @@ export const APPROVAL_STATUSES = [
   "cancelled",
 ] as const;
 export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+
+export const ISSUE_WORKFLOW_SESSION_KINDS = [
+  "issue_plan",
+  "pull_request",
+  "push_to_existing_pr",
+  "completion",
+  "agent_question",
+] as const;
+export type IssueWorkflowSessionKind = (typeof ISSUE_WORKFLOW_SESSION_KINDS)[number];
+
+export const ISSUE_WORKFLOW_SESSION_STATUSES = [
+  "open",
+  "revision_requested",
+  "approved",
+  "consumed",
+  "rejected",
+  "obsolete",
+  "cancelled",
+] as const;
+export type IssueWorkflowSessionStatus = (typeof ISSUE_WORKFLOW_SESSION_STATUSES)[number];
+
+export const ISSUE_WORKFLOW_GIT_SIDE_EFFECT_STATES = [
+  "none",
+  "pending",
+  "succeeded",
+  "failed",
+] as const;
+export type IssueWorkflowGitSideEffectState = (typeof ISSUE_WORKFLOW_GIT_SIDE_EFFECT_STATES)[number];
 
 export const SECRET_PROVIDERS = [
   "local_encrypted",

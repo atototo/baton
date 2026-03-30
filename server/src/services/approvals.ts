@@ -4,6 +4,10 @@ import { approvalComments, approvals } from "@atototo/db";
 import { notFound, unprocessable } from "../errors.js";
 import { agentService } from "./agents.js";
 
+function normalizeCommentBody(body: string) {
+  return body.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+}
+
 export function approvalService(db: Db) {
   const agentsSvc = agentService(db);
   const canResolveStatuses = new Set(["pending", "revision_requested"]);
@@ -242,7 +246,7 @@ export function approvalService(db: Db) {
           approvalId,
           authorAgentId: actor.agentId ?? null,
           authorUserId: actor.userId ?? null,
-          body,
+          body: normalizeCommentBody(body),
         })
         .returning()
         .then((rows) => rows[0]);

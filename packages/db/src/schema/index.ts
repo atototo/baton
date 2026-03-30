@@ -20,6 +20,7 @@ export { issues } from "./issues.js";
 export { labels } from "./labels.js";
 export { issueLabels } from "./issue_labels.js";
 export { issueApprovals } from "./issue_approvals.js";
+export { issueWorkflowSessions } from "./issue_workflow_sessions.js";
 export { issueComments } from "./issue_comments.js";
 export { assets } from "./assets.js";
 export { issueAttachments } from "./issue_attachments.js";

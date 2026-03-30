@@ -32,11 +32,11 @@ Follow these steps every time you wake up:
 
 **Step 2 — Approval follow-up (when triggered).** If `BATON_APPROVAL_ID` is set (or wake reason indicates approval resolution), you MUST read `references/governance.md` first, then follow the approval resolution procedure there.
 
-**Step 3 — Get assignments.** `GET /api/companies/{companyId}/issues?assigneeAgentId={your-agent-id}&status=todo,in_progress,blocked`. Results sorted by priority. This is your inbox.
+**Step 3 — Get assignments.** `GET /api/companies/{companyId}/issues?assigneeAgentId={your-agent-id}&status=todo,in_progress,in_review,blocked`. Results sorted by priority. This is your inbox. `in_review` items assigned to you are still actionable work, especially leader/reviewer handoffs inside parent/subtask workflows.
 
-**Step 4 — Pick work (with mention exception).** Work on `in_progress` first, then `todo`. Skip `blocked` unless you can unblock it.
+**Step 4 — Pick work (with mention exception).** Work on `in_progress` first, then `in_review`, then `todo`. Skip `blocked` unless you can unblock it.
 **Blocked-task dedup:** Before working on a `blocked` task, fetch its comment thread. If your most recent comment was a blocked-status update AND no new comments from other agents or users have been posted since, skip the task entirely — do not checkout, do not post another comment. Exit the heartbeat (or move to the next task) instead. Only re-engage with a blocked task when new context exists (a new comment, status change, or event-based wake like `BATON_WAKE_COMMENT_ID`).
-If `BATON_TASK_ID` is set and that task is assigned to you, prioritize it first for this heartbeat.
+If `BATON_TASK_ID` is set, fetch `GET /api/issues/{BATON_TASK_ID}` directly before deciding there is no work. If that task is assigned to you, prioritize it first for this heartbeat even when it is currently `in_review`.
 If this run was triggered by a comment mention (`BATON_WAKE_COMMENT_ID` set; typically `BATON_WAKE_REASON=issue_comment_mentioned`), you MUST read that comment thread first, even if the task is not currently assigned to you.
 If that mentioned comment explicitly asks you to take the task, you may self-assign by checking out `BATON_TASK_ID` as yourself, then proceed normally.
 If the comment asks for input/review but not ownership, respond in comments if useful, then continue with assigned work.
@@ -83,6 +83,16 @@ Headers: Authorization: Bearer $BATON_API_KEY, X-Baton-Run-Id: $BATON_RUN_ID
 
 **Step 8 — Submit for review (governed workflow).** When work is complete, you MUST read `references/governance.md` and follow the submission procedure. Do NOT mark issues as `done` directly — submit for board review via `in_review` status. Baton auto-creates the appropriate approval. See governance reference for the exact steps and approval types.
 
+**Critical submission nuance:** Returning an issue to `in_review` does **not** always mean a pull request will be opened next.
+
+- If the issue has no approved `<plan>` yet, Baton creates `approve_issue_plan`.
+- If the issue has an execution workspace, no open PR yet, and this is the final governed handoff, Baton creates `approve_pull_request`.
+- If the issue already has an open PR on its execution workspace, Baton creates `approve_push_to_existing_pr` instead of opening a new PR.
+- If the issue is a child implementation task inside a larger parent/review flow, your job is to hand the child issue back for review or to your leader as directed. **Do not assume your child issue will directly trigger PR creation.**
+- If you are the leader on a parent/subtask workflow, child issues handed back as `in_review` are still active. You must terminalize accepted child issues as `done` (or `cancelled` if abandoned) before returning the parent issue to the board.
+- Agents must **never** open pull requests directly. PR creation happens only after Baton creates `approve_pull_request` and the board approves it.
+- When a PR already exists, agents still must not open or recreate PRs directly. The governed path is: commit/push on the same branch, reviewer re-check, then board approval via `approve_push_to_existing_pr`.
+
 **Step 9 — Delegate if needed.** Create subtasks with `POST /api/companies/{companyId}/issues`. Always set `parentId` and `goalId`. Set `billingCode` for cross-team work.
 
 ## Critical Rules
@@ -112,6 +122,21 @@ When posting issue comments, use concise markdown with:
 - bullets for what changed / what is blocked
 - links to related entities when available
 
+**All user-facing writing must be valid markdown.**
+
+- Comments, approval summaries, progress reports, rejection notes, and review findings must be written as readable markdown.
+- Use headings, paragraphs, and bullet lists with proper blank lines so the rendered output stays readable.
+- Internal links must be markdown links, not raw path strings.
+- Bad: `/DOB/issues/DOB-181`
+- Good: `[DOB-181](/DOB/issues/DOB-181)`
+- Bad: `## 완료### 파일- item`
+- Good:
+  `## 완료`
+
+  `### 파일`
+
+  `- item`
+
 **Company-prefixed URLs (required):** All internal links MUST include the company prefix. Derive the prefix from any issue identifier you have (e.g., `PAP-315` → prefix is `PAP`). Use this prefix in all UI links:
 
 - Issues: `/<prefix>/issues/<issue-identifier>` (e.g., `/PAP/issues/PAP-224`)
@@ -136,7 +161,7 @@ If you're asked to make a plan, _do not mark the issue as done_. Re-assign the i
 | Action               | Endpoint                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------ |
 | My identity          | `GET /api/agents/me`                                                                       |
-| My assignments       | `GET /api/companies/:companyId/issues?assigneeAgentId=:id&status=todo,in_progress,blocked` |
+| My assignments       | `GET /api/companies/:companyId/issues?assigneeAgentId=:id&status=todo,in_progress,in_review,blocked` |
 | Checkout task        | `POST /api/issues/:issueId/checkout`                                                       |
 | Get task + ancestors | `GET /api/issues/:issueId`                                                                 |
 | Get comments         | `GET /api/issues/:issueId/comments`                                                        |

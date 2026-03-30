@@ -91,6 +91,10 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 
+function normalizeCommentBody(body: string) {
+  return body.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+}
+
 async function labelMapForIssues(dbOrTx: any, issueIds: string[]): Promise<Map<string, IssueLabelRow[]>> {
   const map = new Map<string, IssueLabelRow[]>();
   if (issueIds.length === 0) return map;
@@ -898,6 +902,7 @@ export function issueService(db: Db) {
         .then((rows) => rows[0] ?? null);
 
       if (!issue) throw notFound("Issue not found");
+      const normalizedBody = normalizeCommentBody(body);
 
       const [comment] = await db
         .insert(issueComments)
@@ -906,7 +911,7 @@ export function issueService(db: Db) {
           issueId,
           authorAgentId: actor.agentId ?? null,
           authorUserId: actor.userId ?? null,
-          body,
+          body: normalizedBody,
         })
         .returning();
 

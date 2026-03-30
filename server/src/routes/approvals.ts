@@ -17,6 +17,7 @@ import {
   executionWorkspaceService,
   heartbeatService,
   issueApprovalService,
+  issueWorkflowOrchestrator,
   issueService,
   logActivity,
   parseDelegationPlan,
@@ -157,6 +158,7 @@ export function approvalRoutes(db: Db) {
   const heartbeat = heartbeatService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const issueApprovalsSvc = issueApprovalService(db);
+  const workflowOrchestrator = issueWorkflowOrchestrator(db);
   const issuesSvc = issueService(db);
   const projectsSvc = projectService(db);
   const pullRequestsSvc = pullRequestService();
@@ -349,7 +351,7 @@ export function approvalRoutes(db: Db) {
       }
     }
 
-    if (approvalInput.type === "approve_pull_request" && primaryIssue) {
+    if ((approvalInput.type === "approve_pull_request" || approvalInput.type === "approve_push_to_existing_pr") && primaryIssue) {
       if (!primaryIssue.executionWorkspaceId) {
         throw conflict("Pull request approval requires a linked execution workspace.");
       }
@@ -368,65 +370,80 @@ export function approvalRoutes(db: Db) {
           ? normalizedPayload.baseBranch.trim()
           : executionWorkspace.baseBranch;
 
-      const syncStartedAt = new Date();
-      await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
-        syncStatus: "syncing",
-        syncMethod: "merge",
-        lastPrCheckedAt: syncStartedAt,
-        conflictSummary: null,
-        escalationSummary: null,
-      });
-
-      const preparation = await pullRequestsSvc.prepareForPullRequest({
-        cwd: executionWorkspace.executionCwd,
-        branch: pullRequestBranch,
-        baseBranch: pullRequestBaseBranch,
-      });
-
-      const syncCompletedAt = new Date();
-      await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
-        syncStatus: preparation.syncStatus,
-        syncMethod: "merge",
-        lastSyncedAt: syncCompletedAt,
-        lastPrCheckedAt: syncCompletedAt,
-        lastVerifiedAt: preparation.syncStatus === "verified" ? syncCompletedAt : null,
-        lastBaseCommitSha: preparation.baseCommitSha,
-        lastBranchCommitSha: preparation.branchCommitSha,
-        conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
-        escalationSummary:
-          preparation.syncStatus === "conflicted"
-            ? "Baton could not synchronize the execution branch with the latest base branch."
-            : null,
-      });
-
-      if (preparation.syncStatus === "conflicted") {
-        await heartbeat.queueExecutionWorkspaceRecovery({
-          executionWorkspaceId: executionWorkspace.id,
-          issueId: primaryIssue.id,
-          reason: "pre_pr_conflict",
-          conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
-          actorId: actor.actorId,
+      if (approvalInput.type === "approve_pull_request") {
+        const syncStartedAt = new Date();
+        await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
+          syncStatus: "syncing",
+          syncMethod: "merge",
+          lastPrCheckedAt: syncStartedAt,
+          conflictSummary: null,
+          escalationSummary: null,
         });
-        throw conflict("Pull request branch sync conflict detected.", preparation.conflictSummary ?? undefined);
-      }
 
-      enrichedPayload = {
-        ...normalizedPayload,
-        branch: preparation.branch,
-        baseBranch: preparation.baseBranch,
-        syncStatus: preparation.syncStatus,
-        syncMethod: "merge",
-        lastBaseCommitSha: preparation.baseCommitSha,
-        lastBranchCommitSha: preparation.branchCommitSha,
-        changedPaths: preparation.changedPaths,
-        conflictSummary: preparation.conflictSummary,
-        mergeabilityCheckedAt: syncCompletedAt.toISOString(),
-      };
+        const preparation = await pullRequestsSvc.prepareForPullRequest({
+          cwd: executionWorkspace.executionCwd,
+          branch: pullRequestBranch,
+          baseBranch: pullRequestBaseBranch,
+        });
+
+        const syncCompletedAt = new Date();
+        await executionWorkspacesSvc.updateSyncState(executionWorkspace.id, {
+          syncStatus: preparation.syncStatus,
+          syncMethod: "merge",
+          lastSyncedAt: syncCompletedAt,
+          lastPrCheckedAt: syncCompletedAt,
+          lastVerifiedAt: preparation.syncStatus === "verified" ? syncCompletedAt : null,
+          lastBaseCommitSha: preparation.baseCommitSha,
+          lastBranchCommitSha: preparation.branchCommitSha,
+          conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+          escalationSummary:
+            preparation.syncStatus === "conflicted"
+              ? "Baton could not synchronize the execution branch with the latest base branch."
+              : null,
+        });
+
+        if (preparation.syncStatus === "conflicted") {
+          await heartbeat.queueExecutionWorkspaceRecovery({
+            executionWorkspaceId: executionWorkspace.id,
+            issueId: primaryIssue.id,
+            reason: "pre_pr_conflict",
+            conflictSummary: (preparation.conflictSummary as Record<string, unknown> | null) ?? null,
+            actorId: actor.actorId,
+          });
+          throw conflict("Pull request branch sync conflict detected.", preparation.conflictSummary ?? undefined);
+        }
+
+        enrichedPayload = {
+          ...normalizedPayload,
+          branch: preparation.branch,
+          baseBranch: preparation.baseBranch,
+          syncStatus: preparation.syncStatus,
+          syncMethod: "merge",
+          lastBaseCommitSha: preparation.baseCommitSha,
+          lastBranchCommitSha: preparation.branchCommitSha,
+          changedPaths: preparation.changedPaths,
+          conflictSummary: preparation.conflictSummary,
+          mergeabilityCheckedAt: syncCompletedAt.toISOString(),
+        };
+      } else {
+        enrichedPayload = {
+          ...normalizedPayload,
+          branch: pullRequestBranch,
+          baseBranch: pullRequestBaseBranch,
+          pullRequestUrl: executionWorkspace.pullRequestUrl,
+          pullRequestNumber: executionWorkspace.pullRequestNumber,
+          existingPullRequest: true,
+        };
+      }
     }
 
     if (
       primaryIssue &&
-      (approvalInput.type === "approve_issue_plan" || approvalInput.type === "approve_pull_request")
+      (
+        approvalInput.type === "approve_issue_plan" ||
+        approvalInput.type === "approve_pull_request" ||
+        approvalInput.type === "approve_push_to_existing_pr"
+      )
     ) {
       const existingApproval = await svc.findActionableForIssue({
         companyId,
@@ -454,6 +471,20 @@ export function approvalRoutes(db: Db) {
           });
         }
 
+        if (primaryIssue) {
+          await workflowOrchestrator.attachApprovalWorkflowSession({
+            companyId,
+            issue: {
+              id: primaryIssue.id,
+              workflowEpoch: primaryIssue.workflowEpoch ?? 0,
+              executionWorkspaceId: primaryIssue.executionWorkspaceId ?? null,
+            },
+            approval: responseApproval,
+            requestRunId: actor.runId ?? null,
+            source: "approval.create.existing",
+          });
+        }
+
         res.status(200).json(redactApprovalPayload(responseApproval));
         return;
       }
@@ -477,6 +508,20 @@ export function approvalRoutes(db: Db) {
         agentId: actor.agentId,
         userId: actor.actorType === "user" ? actor.actorId : null,
       });
+
+      if (primaryIssue) {
+        await workflowOrchestrator.attachApprovalWorkflowSession({
+          companyId,
+          issue: {
+            id: primaryIssue.id,
+            workflowEpoch: primaryIssue.workflowEpoch ?? 0,
+            executionWorkspaceId: primaryIssue.executionWorkspaceId ?? null,
+          },
+          approval,
+          requestRunId: actor.runId ?? null,
+          source: "approval.create",
+        });
+      }
 
       if (approval.type === "approve_issue_plan") {
         for (const issue of linkedIssues) {
@@ -611,12 +656,12 @@ export function approvalRoutes(db: Db) {
       primaryIssueId != null
         ? await issuesSvc.getById(primaryIssueId)
         : null;
-    if (existingApproval.type === "approve_pull_request" && !primaryIssue) {
+    if ((existingApproval.type === "approve_pull_request" || existingApproval.type === "approve_push_to_existing_pr") && !primaryIssue) {
       res.status(422).json({ error: "Pull request approval must be linked to a parent issue" });
       return;
     }
 
-    if (existingApproval.type === "approve_pull_request" && !primaryIssue?.executionWorkspaceId) {
+    if ((existingApproval.type === "approve_pull_request" || existingApproval.type === "approve_push_to_existing_pr") && !primaryIssue?.executionWorkspaceId) {
       res.status(422).json({ error: "Pull request approval requires a linked execution workspace" });
       return;
     }
@@ -680,8 +725,43 @@ export function approvalRoutes(db: Db) {
             });
           })()
         : null;
+    const pushToExistingPrResult =
+      existingApproval.type === "approve_push_to_existing_pr" && primaryIssue?.executionWorkspaceId
+        ? await (async () => {
+            const executionWorkspace = await executionWorkspacesSvc.getById(primaryIssue.executionWorkspaceId!);
+            if (!executionWorkspace) {
+              throw conflict("Existing pull request update approval requires a linked execution workspace.");
+            }
+            if (!executionWorkspace.pullRequestUrl && !executionWorkspace.pullRequestNumber) {
+              throw conflict("Existing pull request update approval requires an already-open pull request.");
+            }
+            const projectWorkspaces = primaryIssue.projectId
+              ? await projectsSvc.listWorkspaces(primaryIssue.projectId)
+              : [];
+            const linkedProjectWorkspace =
+              projectWorkspaces.find((workspace) => workspace.id === executionWorkspace.projectWorkspaceId) ?? null;
+            return pullRequestsSvc.updateExistingForExecutionWorkspace({
+              cwd: executionWorkspace.executionCwd,
+              preferredRepoUrl: linkedProjectWorkspace?.repoUrl ?? null,
+              branch:
+                typeof existingApproval.payload.branch === "string" && existingApproval.payload.branch.trim().length > 0
+                  ? existingApproval.payload.branch.trim()
+                  : executionWorkspace.branch,
+              baseBranch:
+                typeof existingApproval.payload.baseBranch === "string" && existingApproval.payload.baseBranch.trim().length > 0
+                  ? existingApproval.payload.baseBranch.trim()
+                  : executionWorkspace.baseBranch,
+              commitMessage: `${primaryIssue.identifier ?? executionWorkspace.ticketKey}: ${primaryIssue.title}`,
+              pullRequestUrl: executionWorkspace.pullRequestUrl,
+              pullRequestNumber: executionWorkspace.pullRequestNumber,
+            });
+          })()
+        : null;
 
     let approval = await svc.approve(id, req.body.decidedByUserId ?? "board", req.body.decisionNote);
+    const linkedWorkflowSession = await workflowOrchestrator.markApprovalSessionApproved({
+      approvalId: approval.id,
+    });
 
     if (approval.type === "approve_pull_request" && pullRequestResult) {
       if (primaryIssue?.executionWorkspaceId) {
@@ -809,6 +889,111 @@ export function approvalRoutes(db: Db) {
       }
     }
 
+    if (approval.type === "approve_push_to_existing_pr" && pushToExistingPrResult) {
+      if (primaryIssue?.executionWorkspaceId) {
+        await executionWorkspacesSvc.updateSyncState(primaryIssue.executionWorkspaceId, {
+          syncStatus: "pr_open",
+          lastPrCheckedAt: new Date(),
+          lastBranchCommitSha: pushToExistingPrResult.commitSha,
+          pullRequestUrl: pushToExistingPrResult.pullRequestUrl,
+          pullRequestNumber:
+            typeof pushToExistingPrResult.pullRequestNumber === "number"
+              ? String(pushToExistingPrResult.pullRequestNumber)
+              : null,
+          prOpenedAt: new Date(),
+          conflictSummary: null,
+          escalationSummary: null,
+        });
+      }
+
+      const payload = {
+        ...approval.payload,
+        repository: pushToExistingPrResult.repository,
+        repoUrl: pushToExistingPrResult.repoUrl,
+        branch: pushToExistingPrResult.branch,
+        baseBranch: pushToExistingPrResult.baseBranch,
+        pullRequestUrl: pushToExistingPrResult.pullRequestUrl,
+        pullRequestNumber: pushToExistingPrResult.pullRequestNumber,
+        commitCreated: pushToExistingPrResult.commitCreated,
+        commitSha: pushToExistingPrResult.commitSha,
+      };
+      const updatedApproval = await svc.updatePayload(approval.id, payload);
+      if (updatedApproval) approval = updatedApproval;
+
+      for (const linkedIssue of linkedIssues) {
+        if (linkedIssue.status === "done" || linkedIssue.status === "cancelled") continue;
+
+        const completedIssue = await issuesSvc.update(linkedIssue.id, { status: "done" });
+        if (!completedIssue) continue;
+
+        await logActivity(db, {
+          companyId: approval.companyId,
+          actorType: "user",
+          actorId: req.actor.userId ?? "board",
+          action: "issue.completed_after_existing_pull_request_update_approval",
+          entityType: "issue",
+          entityId: linkedIssue.id,
+          details: {
+            approvalId: approval.id,
+            approvalType: approval.type,
+            previousStatus: linkedIssue.status,
+            nextStatus: completedIssue.status,
+            repository: pushToExistingPrResult.repository,
+            pullRequestUrl: pushToExistingPrResult.pullRequestUrl,
+            pullRequestNumber: pushToExistingPrResult.pullRequestNumber,
+            commitSha: pushToExistingPrResult.commitSha,
+          },
+        });
+
+        const comment = await issuesSvc.addComment(
+          linkedIssue.id,
+          `## 기존 PR 업데이트 승인 완료\n\n` +
+            `기존 PR에 대한 추가 커밋 반영이 승인되었습니다. parent issue를 종료합니다.\n\n` +
+            `- 저장소: ${pushToExistingPrResult.repository}\n` +
+            `- 브랜치: \`${pushToExistingPrResult.branch}\`\n` +
+            `- 베이스: \`${pushToExistingPrResult.baseBranch}\`\n` +
+            (pushToExistingPrResult.pullRequestUrl ? `- PR: ${pushToExistingPrResult.pullRequestUrl}\n` : "") +
+            (pushToExistingPrResult.commitSha ? `- 커밋: \`${pushToExistingPrResult.commitSha}\`\n` : ""),
+          { userId: req.actor.userId ?? "board" },
+        );
+
+        await logActivity(db, {
+          companyId: approval.companyId,
+          actorType: "user",
+          actorId: req.actor.userId ?? "board",
+          action: "issue.comment_added",
+          entityType: "issue",
+          entityId: linkedIssue.id,
+          details: {
+            commentId: comment.id,
+            bodySnippet: comment.body.slice(0, 120),
+            identifier: linkedIssue.identifier,
+            issueTitle: linkedIssue.title,
+          },
+        });
+      }
+
+      await logActivity(db, {
+        companyId: approval.companyId,
+        actorType: "user",
+        actorId: req.actor.userId ?? "board",
+        action: "pull_request.updated",
+        entityType: "approval",
+        entityId: approval.id,
+        details: {
+          issueId: primaryIssueId,
+          repository: pushToExistingPrResult.repository,
+          repoUrl: pushToExistingPrResult.repoUrl,
+          branch: pushToExistingPrResult.branch,
+          baseBranch: pushToExistingPrResult.baseBranch,
+          pullRequestUrl: pushToExistingPrResult.pullRequestUrl,
+          pullRequestNumber: pushToExistingPrResult.pullRequestNumber,
+          commitSha: pushToExistingPrResult.commitSha,
+          commitCreated: pushToExistingPrResult.commitCreated,
+        },
+      });
+    }
+
     if (approval.type === "approve_issue_plan" && provisionedWorkspace) {
       const issueIdsToAttach = Array.from(
         new Set([
@@ -857,17 +1042,32 @@ export function approvalRoutes(db: Db) {
 
     }
 
-    // Resume blocked issues after plan approval — applies regardless of workspace
+    // Resume requester-owned orchestration after plan approval — applies regardless of workspace
     if (approval.type === "approve_issue_plan") {
       for (const linkedIssue of linkedIssues) {
-        const shouldResumeBlockedParent =
-          linkedIssue.status === "blocked" &&
-          linkedIssue.assigneeAgentId != null &&
-          linkedIssue.assigneeAgentId === approval.requestedByAgentId;
-        if (!shouldResumeBlockedParent) continue;
+        const shouldResumeRequester =
+          !!approval.requestedByAgentId &&
+          (
+            (linkedIssue.status === "blocked" &&
+              linkedIssue.assigneeAgentId != null &&
+              linkedIssue.assigneeAgentId === approval.requestedByAgentId) ||
+            (linkedIssue.status === "in_review" &&
+              linkedIssue.assigneeAgentId == null &&
+              linkedIssue.assigneeUserId != null)
+          );
+        if (!shouldResumeRequester) continue;
 
-        const resumedIssue = await issuesSvc.update(linkedIssue.id, { status: "in_progress" });
+        const resumedIssue = await issuesSvc.update(linkedIssue.id, {
+          status: "in_progress",
+          assigneeAgentId: approval.requestedByAgentId,
+          assigneeUserId: null,
+        });
         if (!resumedIssue) continue;
+
+        await workflowOrchestrator.bumpIssueWorkflowEpoch({
+          issueId: linkedIssue.id,
+          activeWorkflowSessionId: linkedWorkflowSession?.id ?? null,
+        });
 
         await logActivity(db, {
           companyId: approval.companyId,
@@ -881,6 +1081,7 @@ export function approvalRoutes(db: Db) {
             approvalType: approval.type,
             previousStatus: linkedIssue.status,
             nextStatus: resumedIssue.status,
+            assigneeAgentId: approval.requestedByAgentId,
           },
         });
       }
@@ -975,6 +1176,38 @@ export function approvalRoutes(db: Db) {
             source: "agent_question_answer",
           },
         });
+
+        if (
+          approval.requestedByAgentId &&
+          (linkedIssue.status === "blocked" || linkedIssue.status === "in_review")
+        ) {
+          const resumedIssue = await issuesSvc.update(linkedIssue.id, {
+            status: "in_progress",
+            assigneeAgentId: approval.requestedByAgentId,
+            assigneeUserId: null,
+          });
+          if (resumedIssue) {
+            await workflowOrchestrator.bumpIssueWorkflowEpoch({
+              issueId: linkedIssue.id,
+              activeWorkflowSessionId: linkedWorkflowSession?.id ?? null,
+            });
+            await logActivity(db, {
+              companyId: approval.companyId,
+              actorType: "user",
+              actorId: req.actor.userId ?? "board",
+              action: "issue.resumed_after_agent_question_answer",
+              entityType: "issue",
+              entityId: linkedIssue.id,
+              details: {
+                approvalId: approval.id,
+                approvalType: approval.type,
+                previousStatus: linkedIssue.status,
+                nextStatus: resumedIssue.status,
+                assigneeAgentId: approval.requestedByAgentId,
+              },
+            });
+          }
+        }
       }
     }
 
@@ -1052,6 +1285,41 @@ export function approvalRoutes(db: Db) {
       }
     }
 
+    await workflowOrchestrator.consumeApprovalSession({
+      approvalId: approval.id,
+      patch: {
+        approvalId: approval.id,
+        branch:
+          typeof approval.payload.branch === "string" && approval.payload.branch.trim().length > 0
+            ? approval.payload.branch.trim()
+            : null,
+        baseBranch:
+          typeof approval.payload.baseBranch === "string" && approval.payload.baseBranch.trim().length > 0
+            ? approval.payload.baseBranch.trim()
+            : null,
+        pullRequestUrl:
+          typeof approval.payload.pullRequestUrl === "string" ? approval.payload.pullRequestUrl : null,
+        pullRequestNumber:
+          typeof approval.payload.pullRequestNumber === "string"
+            ? approval.payload.pullRequestNumber
+            : typeof approval.payload.pullRequestNumber === "number"
+              ? String(approval.payload.pullRequestNumber)
+              : null,
+        commitSha:
+          typeof approval.payload.commitSha === "string" && approval.payload.commitSha.trim().length > 0
+            ? approval.payload.commitSha.trim()
+            : null,
+        gitSideEffectState:
+          approval.type === "approve_pull_request" ||
+          approval.type === "approve_push_to_existing_pr" ||
+          approval.type === "approve_completion" ||
+          approval.type === "approve_issue_plan" ||
+          approval.type === "agent_question"
+            ? "succeeded"
+            : "none",
+      },
+    });
+
     res.json(redactApprovalPayload(approval));
   });
 
@@ -1059,6 +1327,11 @@ export function approvalRoutes(db: Db) {
     assertBoard(req);
     const id = req.params.id as string;
     const approval = await svc.reject(id, req.body.decidedByUserId ?? "board", req.body.decisionNote);
+    await workflowOrchestrator.rejectApprovalSession({
+      approvalId: approval.id,
+      reopenSignal: "board_rejected",
+      bumpIssueEpoch: false,
+    });
 
     await logActivity(db, {
       companyId: approval.companyId,
@@ -1088,20 +1361,35 @@ export function approvalRoutes(db: Db) {
         const issue = await issuesSvc.getById(linked.id);
         if (issue && issue.status === "blocked") {
           await issuesSvc.update(linked.id, { status: "in_progress" });
+          await workflowOrchestrator.bumpIssueWorkflowEpoch({
+            issueId: linked.id,
+            activeWorkflowSessionId: null,
+          });
         }
       }
     }
 
     if (approval.requestedByAgentId) {
-      await heartbeat.wakeup(approval.requestedByAgentId, {
-        source: "automation",
-        reason: "approval_rejected",
-        payload: {
-          approvalId: approval.id,
-          approvalType: approval.type,
-          decisionNote: note,
-        },
-      });
+      try {
+        await heartbeat.wakeup(approval.requestedByAgentId, {
+          source: "automation",
+          reason: "approval_rejected",
+          payload: {
+            approvalId: approval.id,
+            approvalType: approval.type,
+            decisionNote: note,
+          },
+        });
+      } catch (err) {
+        logger.warn(
+          {
+            err,
+            approvalId: approval.id,
+            requestedByAgentId: approval.requestedByAgentId,
+          },
+          "failed to queue requester wakeup after rejection",
+        );
+      }
     }
 
     res.json(redactApprovalPayload(approval));
@@ -1118,6 +1406,10 @@ export function approvalRoutes(db: Db) {
         req.body.decidedByUserId ?? "board",
         req.body.decisionNote,
       );
+      const linkedWorkflowSession = await workflowOrchestrator.requestRevisionForApproval({
+        approvalId: approval.id,
+        reopenSignal: "revision_requested",
+      });
 
       await logActivity(db, {
         companyId: approval.companyId,
@@ -1147,20 +1439,37 @@ export function approvalRoutes(db: Db) {
             assigneeAgentId: approval.requestedByAgentId,
             assigneeUserId: null,
           });
+          if (!linkedWorkflowSession) {
+            await workflowOrchestrator.bumpIssueWorkflowEpoch({
+              issueId: linked.id,
+              activeWorkflowSessionId: null,
+            });
+          }
         }
       }
 
       // Wake requesting agent so it can act on the revision feedback
       if (approval.requestedByAgentId) {
-        await heartbeat.wakeup(approval.requestedByAgentId, {
-          source: "automation",
-          reason: "approval_revision_requested",
-          payload: {
-            approvalId: approval.id,
-            approvalType: approval.type,
-            decisionNote: note,
-          },
-        });
+        try {
+          await heartbeat.wakeup(approval.requestedByAgentId, {
+            source: "automation",
+            reason: "approval_revision_requested",
+            payload: {
+              approvalId: approval.id,
+              approvalType: approval.type,
+              decisionNote: note,
+            },
+          });
+        } catch (err) {
+          logger.warn(
+            {
+              err,
+              approvalId: approval.id,
+              requestedByAgentId: approval.requestedByAgentId,
+            },
+            "failed to queue requester wakeup after revision request",
+          );
+        }
       }
 
       res.json(redactApprovalPayload(approval));
@@ -1239,6 +1548,9 @@ export function approvalRoutes(db: Db) {
     }
 
     const approval = await svc.resubmit(id, normalizedPayload);
+    await workflowOrchestrator.resubmitApprovalSession({
+      approvalId: approval.id,
+    });
     const actor = getActorInfo(req);
     await logActivity(db, {
       companyId: approval.companyId,

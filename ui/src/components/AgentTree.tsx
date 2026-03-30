@@ -60,6 +60,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { cn, agentRouteRef, agentUrl, projectRouteRef } from "../lib/utils";
 import { useProjectOrder } from "../hooks/useProjectOrder";
 import { CompanyPatternIcon } from "./CompanyPatternIcon";
+import { BatonBrand } from "./BatonBrand";
 import { SidebarNavItem } from "./SidebarNavItem";
 import {
   Collapsible,
@@ -509,16 +510,7 @@ export function AgentTree() {
           className="flex items-center gap-2 flex-1 min-w-0 group"
           aria-label="회사 선택"
         >
-          <div className="flex items-center gap-[7px] min-w-0">
-            <div className="relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] bg-primary text-primary-foreground">
-              <span className="absolute left-[5px] top-[6px] h-[3px] w-[3px] rounded-full bg-current" />
-              <span className="absolute right-[5px] top-[6px] h-[3px] w-[3px] rounded-full bg-current" />
-              <span className="absolute left-[6px] top-[10px] h-[2px] w-[10px] rounded-full bg-current" />
-            </div>
-            <span className="shrink-0 text-[15px] font-bold tracking-[-0.02em] text-primary">
-              baton
-            </span>
-          </div>
+          <BatonBrand compact />
           <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground group-hover:text-foreground">
             {selectedCompany?.name ?? t("sidebar.selectCompany")}
           </span>

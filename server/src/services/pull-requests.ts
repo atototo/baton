@@ -43,6 +43,27 @@ export interface PullRequestExecutionResult {
   pullRequestNumber: number | null;
 }
 
+export interface ExistingPullRequestUpdateInput {
+  cwd: string;
+  branch: string;
+  baseBranch: string;
+  preferredRepoUrl?: string | null;
+  commitMessage?: string | null;
+  pullRequestUrl?: string | null;
+  pullRequestNumber?: string | number | null;
+}
+
+export interface ExistingPullRequestUpdateResult {
+  repository: string;
+  repoUrl: string;
+  branch: string;
+  baseBranch: string;
+  commitCreated: boolean;
+  commitSha: string | null;
+  pullRequestUrl: string | null;
+  pullRequestNumber: number | null;
+}
+
 export interface WorkingTreeChangeSummary {
   paths: string[];
 }
@@ -345,6 +366,42 @@ export function pullRequestService() {
         commitSha: commitResult.sha,
         pullRequestUrl: pullRequest.pullRequestUrl,
         pullRequestNumber: pullRequest.pullRequestNumber,
+      };
+    },
+
+    updateExistingForExecutionWorkspace: async (
+      input: ExistingPullRequestUpdateInput,
+    ): Promise<ExistingPullRequestUpdateResult> => {
+      const cwd = input.cwd;
+      const repositoryUrl = await resolveRepoUrl(cwd, input.preferredRepoUrl);
+      const repoInfo = repoSlugFromUrl(repositoryUrl);
+      if (!repoInfo) {
+        throw conflict("Only GitHub remotes are currently supported for Baton pull request updates.");
+      }
+
+      const branch = readNonEmptyString(input.branch) ?? (await resolveCurrentBranch(cwd));
+      const baseBranch = readNonEmptyString(input.baseBranch) ?? "main";
+      const commitMessage =
+        readNonEmptyString(input.commitMessage) ??
+        `chore(${branch}): update existing pull request`;
+
+      const commitResult = await createCommitIfNeeded(cwd, commitMessage);
+      await pushBranch(cwd, branch);
+
+      const parsedPullRequestNumber =
+        typeof input.pullRequestNumber === "number"
+          ? input.pullRequestNumber
+          : Number.parseInt(String(input.pullRequestNumber ?? ""), 10);
+
+      return {
+        repository: repoInfo.slug,
+        repoUrl: repositoryUrl,
+        branch,
+        baseBranch,
+        commitCreated: commitResult.created,
+        commitSha: commitResult.sha,
+        pullRequestUrl: readNonEmptyString(input.pullRequestUrl) ?? null,
+        pullRequestNumber: Number.isNaN(parsedPullRequestNumber) ? null : parsedPullRequestNumber,
       };
     },
   };
