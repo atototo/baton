@@ -4,6 +4,8 @@ export { assetService } from "./assets.js";
 export { projectService } from "./projects.js";
 export { issueService, type IssueFilters } from "./issues.js";
 export { issueApprovalService } from "./issue-approvals.js";
+export { issueWorkflowSessionService } from "./issue-workflow-sessions.js";
+export { issueWorkflowOrchestrator } from "./issue-workflow-orchestrator.js";
 export { goalService } from "./goals.js";
 export { activityService, type ActivityFilters } from "./activity.js";
 export { approvalService } from "./approvals.js";

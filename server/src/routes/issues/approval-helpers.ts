@@ -5,8 +5,11 @@
  * All functions receive services through the IssueApprovalContext instead of closures.
  */
 import { issues as issueTable, type Db } from "@atototo/db";
+import { sql } from "drizzle-orm";
 import { conflict } from "../../errors.js";
 import {
+  approvalService as approvalServiceFactory,
+  issueApprovalService as issueApprovalServiceFactory,
   type approvalService,
   type issueApprovalService,
   type issueService,
@@ -14,6 +17,7 @@ import {
   type executionWorkspaceService,
   buildExecutionWorkspacePlanForIssue,
   buildExecutionWorkspacePlansForDelegations,
+  issueWorkflowOrchestrator,
   logActivity,
 } from "../../services/index.js";
 import type { getActorInfo } from "../authz.js";
@@ -22,8 +26,13 @@ import type { getActorInfo } from "../authz.js";
 
 export type IssueRow = NonNullable<Awaited<ReturnType<ReturnType<typeof issueService>["getById"]>>>;
 export type ActorInfo = ReturnType<typeof getActorInfo>;
-export type ApprovalType = "approve_issue_plan" | "approve_pull_request" | "approve_completion";
+export type ApprovalType =
+  | "approve_issue_plan"
+  | "approve_pull_request"
+  | "approve_push_to_existing_pr"
+  | "approve_completion";
 export type DelegationSpec = { agentName: string; projectWorkspaceId?: string; workspaceName?: string; tasks: string[] };
+type ApprovalRow = Awaited<ReturnType<ReturnType<typeof approvalService>["create"]>>;
 
 /** Services required by approval helpers — passed in from the route closure. */
 export type IssueApprovalContext = {
@@ -34,6 +43,25 @@ export type IssueApprovalContext = {
   projectsSvc: ReturnType<typeof projectService>;
   executionWorkspacesSvc: ReturnType<typeof executionWorkspaceService>;
 };
+
+const BOARD_REVIEW_APPROVAL_TYPES = [
+  "approve_pull_request",
+  "approve_push_to_existing_pr",
+  "approve_completion",
+] as const;
+
+function isStaleApprovedExistingPrApproval(
+  approval: Awaited<ReturnType<typeof issueApprovalServiceFactory>> extends { listApprovalsForIssue: (...args: any[]) => Promise<infer T> }
+    ? T extends Array<infer U>
+      ? U
+      : never
+    : never,
+) {
+  if (approval.type !== "approve_push_to_existing_pr" || approval.status !== "approved") return false;
+  const commitCreated = approval.payload?.commitCreated;
+  const commitSha = typeof approval.payload?.commitSha === "string" ? approval.payload.commitSha.trim() : "";
+  return commitCreated === undefined && commitSha.length === 0;
+}
 
 // ---- Pure helpers (no service deps) ----
 
@@ -65,8 +93,10 @@ export function determineApprovalType(args: {
   planText: string | null;
   hasApprovedPlan: boolean;
   hasExecutionWorkspace: boolean;
+  hasOpenPullRequest: boolean;
 }): ApprovalType {
   if (args.planText && !args.hasApprovedPlan) return "approve_issue_plan";
+  if (args.hasOpenPullRequest) return "approve_push_to_existing_pr";
   if (args.hasExecutionWorkspace) return "approve_pull_request";
   return "approve_completion";
 }
@@ -102,55 +132,54 @@ export function buildApprovalPayload(args: {
         baseBranch,
         summary: commentBody ?? "Requesting board approval before opening a pull request.",
       };
+    case "approve_push_to_existing_pr":
+      return {
+        ...base,
+        branch: branchName,
+        baseBranch,
+        summary: commentBody ?? "Requesting board approval before pushing updates to the existing pull request.",
+      };
   }
 }
 
-// ---- Factory: creates helpers bound to services ----
+export async function findOrCreateLinkedApproval(args: {
+  db: Db;
+  issue: IssueRow;
+  type: ApprovalType;
+  agentId: string;
+  actor: ActorInfo;
+  payload: Record<string, unknown>;
+  source: string;
+}): Promise<{ approval: ApprovalRow; created: boolean }> {
+  const { db, issue, type, agentId, actor, payload, source } = args;
 
-export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
-  const { db, svc, approvalsSvc, issueApprovalsSvc, projectsSvc, executionWorkspacesSvc } = ctx;
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select ${issueTable.id} from ${issueTable} where ${issueTable.id} = ${issue.id} for update`);
 
-  async function buildExecutionWorkspacePlan(issue: IssueRow) {
-    if (!issue.projectId) {
-      throw conflict("Issue must belong to a project before requesting implementation approval.");
-    }
-    const projectWorkspaces = await projectsSvc.listWorkspaces(issue.projectId);
-    return buildExecutionWorkspacePlanForIssue({ issue, projectWorkspaces });
-  }
+    const txDb = tx as unknown as Db;
+    const txApprovalsSvc = approvalServiceFactory(txDb);
+    const txIssueApprovalsSvc = issueApprovalServiceFactory(txDb);
 
-  async function reuseOrLinkExistingApproval(args: {
-    issue: IssueRow;
-    type: ApprovalType;
-    agentId: string;
-  }): Promise<boolean> {
-    const { issue, type, agentId } = args;
-    const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(issue.id);
+    const linkedApprovals = await txIssueApprovalsSvc.listApprovalsForIssue(issue.id);
     const linkedExisting = linkedApprovals.find(
       (approval) =>
         approval.type === type && (approval.status === "pending" || approval.status === "revision_requested"),
     );
     const existing =
       linkedExisting ??
-      (await approvalsSvc.findActionableForIssue({
+      (await txApprovalsSvc.findActionableForIssue({
         companyId: issue.companyId,
         type,
         issueId: issue.id,
         issueIdentifier: issue.identifier,
       }));
-    if (!existing) return false;
-    await issueApprovalsSvc.link(issue.id, existing.id, { agentId, userId: null });
-    return true;
-  }
 
-  async function createAndLinkApproval(args: {
-    issue: IssueRow;
-    actor: ActorInfo;
-    type: ApprovalType;
-    payload: Record<string, unknown>;
-    source: string;
-  }) {
-    const { issue, actor, type, payload, source } = args;
-    const approval = await approvalsSvc.create(issue.companyId, {
+    if (existing) {
+      await txIssueApprovalsSvc.link(issue.id, existing.id, { agentId, userId: null });
+      return { approval: existing, created: false };
+    }
+
+    const approval = await txApprovalsSvc.create(issue.companyId, {
       type,
       requestedByAgentId: actor.agentId,
       requestedByUserId: null,
@@ -162,9 +191,9 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
       updatedAt: new Date(),
     });
 
-    await issueApprovalsSvc.link(issue.id, approval.id, { agentId: actor.agentId, userId: null });
+    await txIssueApprovalsSvc.link(issue.id, approval.id, { agentId: actor.agentId, userId: null });
 
-    await logActivity(db, {
+    await logActivity(txDb, {
       companyId: issue.companyId,
       actorType: actor.actorType,
       actorId: actor.actorId,
@@ -175,7 +204,7 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
       entityId: approval.id,
       details: { type, issueIds: [issue.id], source },
     });
-    await logActivity(db, {
+    await logActivity(txDb, {
       companyId: issue.companyId,
       actorType: actor.actorType,
       actorId: actor.actorId,
@@ -187,7 +216,22 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
       details: { approvalId: approval.id, source },
     });
 
-    return approval;
+    return { approval, created: true };
+  });
+}
+
+// ---- Factory: creates helpers bound to services ----
+
+export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
+  const { db, svc, approvalsSvc, issueApprovalsSvc, projectsSvc, executionWorkspacesSvc } = ctx;
+  const workflowOrchestrator = issueWorkflowOrchestrator(db);
+
+  async function buildExecutionWorkspacePlan(issue: IssueRow) {
+    if (!issue.projectId) {
+      throw conflict("Issue must belong to a project before requesting implementation approval.");
+    }
+    const projectWorkspaces = await projectsSvc.listWorkspaces(issue.projectId);
+    return buildExecutionWorkspacePlanForIssue({ issue, projectWorkspaces });
   }
 
   async function maybeBlockIssueForPendingPlanApproval(args: {
@@ -297,6 +341,55 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
 
   // ---- Main orchestrators ----
 
+  async function unlinkObsoleteBoardReviewApprovals(args: {
+    issue: IssueRow;
+    actor: ActorInfo;
+    nextApprovalType: ApprovalType;
+    linkedApprovals: Awaited<ReturnType<typeof issueApprovalsSvc.listApprovalsForIssue>>;
+    source: string;
+  }) {
+    const { issue, actor, nextApprovalType, linkedApprovals, source } = args;
+    if (
+      nextApprovalType !== "approve_pull_request" &&
+      nextApprovalType !== "approve_push_to_existing_pr" &&
+      nextApprovalType !== "approve_completion"
+    ) {
+      return;
+    }
+
+    const obsoleteApprovals = linkedApprovals.filter(
+      (approval) =>
+        ((approval.status === "revision_requested" &&
+          BOARD_REVIEW_APPROVAL_TYPES.includes(approval.type as (typeof BOARD_REVIEW_APPROVAL_TYPES)[number]) &&
+          approval.type !== nextApprovalType) ||
+          (nextApprovalType === "approve_push_to_existing_pr" && isStaleApprovedExistingPrApproval(approval))),
+    );
+
+    for (const approval of obsoleteApprovals) {
+      await issueApprovalsSvc.unlink(issue.id, approval.id);
+      await logActivity(db, {
+        companyId: issue.companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        runId: actor.runId,
+        action: "issue.approval_unlinked",
+        entityType: "issue",
+        entityId: issue.id,
+        details: {
+          approvalId: approval.id,
+          approvalType: approval.type,
+          nextApprovalType,
+          source,
+          reason:
+            approval.type === "approve_push_to_existing_pr" && approval.status === "approved"
+              ? "stale_existing_pr_update_approval"
+              : "obsolete_board_review_approval",
+        },
+      });
+    }
+  }
+
   async function maybeCreateBoardReviewApproval(args: {
     issue: IssueRow;
     existing: IssueRow;
@@ -305,7 +398,8 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
     isAgentReturningIssueToCreator: boolean;
     delegations?: DelegationSpec[];
   }) {
-    const { issue, existing, actor, commentBody, isAgentReturningIssueToCreator, delegations } = args;
+    let { issue } = args;
+    const { existing, actor, commentBody, isAgentReturningIssueToCreator, delegations } = args;
     if (!isAgentReturningIssueToCreator) return;
     if (!isAgentReviewHandoff({ issue, existing, actor })) return;
 
@@ -314,14 +408,26 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
     const hasApprovedPlan = linkedApprovals.some(
       (a) => a.type === "approve_issue_plan" && a.status === "approved",
     );
+    const executionWorkspace = issue.executionWorkspaceId
+      ? await executionWorkspacesSvc.getById(issue.executionWorkspaceId)
+      : null;
 
     const approvalType = determineApprovalType({
       planText,
       hasApprovedPlan,
       hasExecutionWorkspace: !!issue.executionWorkspaceId,
+      hasOpenPullRequest: Boolean(
+        executionWorkspace?.pullRequestUrl || executionWorkspace?.pullRequestNumber || executionWorkspace?.prOpenedAt,
+      ),
     });
 
-    if (await reuseOrLinkExistingApproval({ issue, type: approvalType, agentId: actor.agentId! })) return;
+    await unlinkObsoleteBoardReviewApprovals({
+      issue,
+      actor,
+      nextApprovalType: approvalType,
+      linkedApprovals,
+      source: "issue.review_handoff",
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let workspacePlan: any = null;
@@ -333,18 +439,69 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
     }
 
     const branchName =
-      approvalType === "approve_pull_request"
+      approvalType === "approve_pull_request" || approvalType === "approve_push_to_existing_pr"
         ? await resolveIssueBranchName(issue, commentBody, issue.description)
         : workspacePlan?.branch ?? extractBranchName(commentBody, issue.description);
     const baseBranch = approvalType !== "approve_completion" ? await resolveIssueBaseBranch(issue) : null;
+    const workflowKind = workflowOrchestrator.approvalTypeToWorkflowKind(approvalType);
+    if (workflowKind) {
+      const handoffState = await workflowOrchestrator.beginApprovalHandoff({
+        companyId: issue.companyId,
+        issueId: issue.id,
+        currentWorkflowEpoch: existing.workflowEpoch ?? issue.workflowEpoch ?? 0,
+        kind: workflowKind,
+        executionWorkspaceId: issue.executionWorkspaceId ?? null,
+        branch: branchName,
+        baseBranch,
+        source: "issue.review_handoff",
+      });
+      issue = {
+        ...issue,
+        workflowEpoch: handoffState.issueWorkflowEpoch,
+        workflowUpdatedAt: new Date(),
+        updatedAt: new Date(),
+      } as IssueRow;
+    }
 
     const payload = buildApprovalPayload({
       type: approvalType, issue, planText, workspacePlan, resolvedDelegations, branchName, baseBranch, commentBody,
     });
 
-    const approval = await createAndLinkApproval({ issue, actor, type: approvalType, payload, source: "issue.review_handoff" });
+    const { approval, created } = await findOrCreateLinkedApproval({
+      db,
+      issue,
+      type: approvalType,
+      agentId: actor.agentId!,
+      actor,
+      payload,
+      source: "issue.review_handoff",
+    });
 
-    if (approvalType === "approve_issue_plan") {
+    await workflowOrchestrator.attachApprovalWorkflowSession({
+      companyId: issue.companyId,
+      issue: {
+        id: issue.id,
+        workflowEpoch: issue.workflowEpoch ?? 0,
+        executionWorkspaceId: issue.executionWorkspaceId ?? null,
+      },
+      approval: {
+        id: approval.id,
+        type: approval.type,
+        requestedByAgentId: actor.agentId ?? null,
+        requestedByUserId: actor.actorType === "user" ? actor.actorId : null,
+        payload: {
+          branch: branchName,
+          baseBranch,
+        },
+      },
+      requestRunId: actor.runId ?? null,
+      source: "issue.review_handoff",
+      context: {
+        created,
+      },
+    });
+
+    if (approvalType === "approve_issue_plan" && created) {
       await maybeBlockIssueForPendingPlanApproval({ issue, actor, approvalId: approval.id, source: "issue.review_handoff" });
     }
   }
@@ -363,15 +520,24 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
 
     const linkedApprovals = await issueApprovalsSvc.listApprovalsForIssue(parentIssue.id);
     if (linkedApprovals.some((a) => a.type === "approve_issue_plan" && a.status === "approved")) return;
-    if (await reuseOrLinkExistingApproval({ issue: parentIssue, type: "approve_issue_plan", agentId: actor.agentId })) return;
 
     const planText = extractPlanText(parentIssue.description);
+    if (!planText) {
+      throw conflict("Parent issue must include a <plan>...</plan> block before requesting issue plan approval.", {
+        parentIssueId,
+        source,
+        reason: "missing_plan",
+      });
+    }
+
     const workspacePlan = await buildExecutionWorkspacePlan(parentIssue);
 
-    const approval = await createAndLinkApproval({
+    const { approval, created } = await findOrCreateLinkedApproval({
+      db,
       issue: parentIssue,
-      actor,
       type: "approve_issue_plan",
+      agentId: actor.agentId,
+      actor,
       payload: {
         title: parentIssue.title,
         issueIdentifier: parentIssue.identifier,
@@ -384,12 +550,14 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
       source,
     });
 
-    await maybeBlockIssueForPendingPlanApproval({
-      issue: parentIssue,
-      actor,
-      approvalId: approval.id,
-      source,
-    });
+    if (created) {
+      await maybeBlockIssueForPendingPlanApproval({
+        issue: parentIssue,
+        actor,
+        approvalId: approval.id,
+        source,
+      });
+    }
   }
 
   async function assertParentPlanApprovedBeforeDelegation(args: {
@@ -441,8 +609,6 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
   }
 
   return {
-    reuseOrLinkExistingApproval,
-    createAndLinkApproval,
     maybeBlockIssueForPendingPlanApproval,
     resolveIssueBranchName,
     resolveIssueBaseBranch,

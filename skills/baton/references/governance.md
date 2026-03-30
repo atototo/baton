@@ -4,7 +4,7 @@
 
 ## Approval Types
 
-Baton has 4 approval types. The first is manual; the rest are **auto-created** by Baton when you return an issue to the board.
+Baton has 5 approval types. The first is manual; the rest are **auto-created** by Baton when you return an issue to the board.
 
 ### 1. `approve_ceo_strategy` (manual, CEO only)
 
@@ -50,6 +50,9 @@ POST /api/companies/{companyId}/approvals
 
 - Baton auto-creates this when you set status to `in_review` and assign back to board user.
 - On approval: PR is created automatically via GitHub API.
+- This is the **final** governed code-submission step. Child implementation issues inside a parent issue tree should not assume that their own `in_review` handoff will immediately lead to PR creation.
+- In the normal parent/subtask flow: developer child issues finish first, reviewer child issue finishes next, and then the leader returns the **parent** issue to the board. That final parent handoff is the point where `approve_pull_request` should be created.
+- Agents must never open pull requests directly. Only the approval flow may create them.
 
 ```json
 {
@@ -64,7 +67,31 @@ POST /api/companies/{companyId}/approvals
 }
 ```
 
-### 4. `approve_completion` (auto-created)
+### 4. `approve_push_to_existing_pr` (auto-created)
+
+**Trigger**: Issue has an execution workspace with an already-open PR attached.
+
+- Baton auto-creates this when you set status to `in_review` and assign back to board user for a follow-up change on an existing PR branch.
+- On approval: Baton does **not** create a new PR. The existing PR remains the review surface.
+- Use this for follow-up fixes that must land as additional commits on the same PR/branch.
+- Agents must still never open or recreate PRs directly.
+
+```json
+{
+  "type": "approve_push_to_existing_pr",
+  "payload": {
+    "title": "Issue title",
+    "issueIdentifier": "DOB-42",
+    "branch": "feature/DOB-42",
+    "baseBranch": "develop",
+    "pullRequestUrl": "https://github.com/org/repo/pull/123",
+    "pullRequestNumber": "123",
+    "summary": "Follow-up fix committed and pushed to the existing PR branch."
+  }
+}
+```
+
+### 5. `approve_completion` (auto-created)
 
 **Trigger**: No workspace AND no pending plan (analysis/research tasks).
 
@@ -103,6 +130,18 @@ Phase 3: Submission (only after review is done)
 
 **DO NOT create review subtasks while dev subtasks are still active.** The server will block `in_review` on the parent if children are active, but you must also sequence subtask creation correctly.
 
+### Child Issue Terminalization Before Parent Submission
+
+When a developer or reviewer child issue is handed back to the leader as `in_review`, that child issue is still **active**. It is not ready for board approval and it must not be returned to the board user.
+
+Before submitting the parent issue, the leader must terminalize every direct child issue:
+
+- Mark accepted implementation child issues as `done`
+- Mark the completed reviewer child issue as `done`
+- Use `cancelled` only for abandoned or superseded child issues
+
+Only after **all** direct child issues are terminal (`done` or `cancelled`) may the leader submit the parent issue for board review. The parent issue is the only issue in the tree that should create the final `approve_pull_request`.
+
 ### Mandatory Code Review
 
 If a `qa` or `reviewer` role agent exists in your team (`GET /api/companies/{companyId}/agents`), you MUST delegate code review to them. Leaders/managers MUST NOT review code themselves.
@@ -125,6 +164,8 @@ Different parent issues (e.g., P2-1 and P2-2) CAN run in parallel — they are i
 
 Baton detects the context and auto-creates the right approval type.
 
+**Important:** If you are working on a child implementation issue under a leader-managed parent issue, handing your child issue back as `in_review` is a review/governance handoff, not permission to open a PR yourself. The leader is responsible for sequencing child completion, reviewer completion, and the final parent submission that leads to `approve_pull_request`.
+
 ```
 PATCH /api/issues/{issueId}
 Headers: X-Baton-Run-Id: $BATON_RUN_ID
@@ -146,6 +187,7 @@ When board approves/rejects, you are woken with:
 ### On `approved`
 - `approve_issue_plan`: Workspace is provisioned. Issue is unblocked. Continue implementation.
 - `approve_pull_request`: PR is created. Issue moves to `done`.
+- `approve_push_to_existing_pr`: Existing PR remains open, linked issues are marked `done`.
 - `approve_completion`: Linked issues are marked `done`.
 
 ### On `rejected` or `revision_requested`
@@ -170,7 +212,8 @@ in_progress -> in_review (assign to board user)
                    |
             Baton auto-creates approval:
             ├─ has <plan>, no approved plan  -> approve_issue_plan  -> blocked
-            ├─ has execution workspace       -> approve_pull_request
+            ├─ has workspace, no open PR     -> approve_pull_request
+            ├─ has workspace, open PR exists -> approve_push_to_existing_pr
             └─ no workspace, no plan         -> approve_completion
                    |
             Board decision:

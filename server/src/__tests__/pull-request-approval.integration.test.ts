@@ -18,6 +18,7 @@ import {
   heartbeatRuns,
   issueApprovals,
   issueComments,
+  issueWorkflowSessions,
   issues,
   projects,
   projectWorkspaces,
@@ -158,6 +159,7 @@ exit 1
         issues,
         issueApprovals,
         issueComments,
+        issueWorkflowSessions,
         executionWorkspaces,
       },
     });
@@ -293,6 +295,19 @@ exit 1
       issueId: parentIssueId,
       approvalId,
     });
+    await db.insert(issueWorkflowSessions).values({
+      id: randomUUID(),
+      companyId,
+      issueId: parentIssueId,
+      issueWorkflowEpoch: 0,
+      kind: "pull_request",
+      status: "open",
+      fingerprint: [parentIssueId, "pull_request", workspace.id, `feature/${ticketKey}`, "main"].join(":"),
+      approvalId,
+      requestedByAgentId: leaderAgentId,
+      branch: `feature/${ticketKey}`,
+      baseBranch: "main",
+    });
 
     const response = await request(app)
       .post(`/api/approvals/${approvalId}/approve`)
@@ -339,6 +354,28 @@ exit 1
     expect(ghLog).toContain("backend/README.md");
     expect(ghLog).toContain("frontend/README.md");
     expect(ghLog).toContain("DOB-43");
+
+    const workflowSession = await db
+      .select({
+        approvalId: issueWorkflowSessions.approvalId,
+        status: issueWorkflowSessions.status,
+        gitSideEffectState: issueWorkflowSessions.gitSideEffectState,
+        commitSha: issueWorkflowSessions.commitSha,
+        pullRequestUrl: issueWorkflowSessions.pullRequestUrl,
+      })
+      .from(issueWorkflowSessions)
+      .where(eq(issueWorkflowSessions.approvalId, approvalId))
+      .then((rows) => rows[0]);
+
+    expect(workflowSession).toEqual(
+      expect.objectContaining({
+        approvalId,
+        status: "consumed",
+        gitSideEffectState: "succeeded",
+        commitSha: response.body.payload.commitSha,
+        pullRequestUrl: "https://github.com/atototo/azak/pull/123",
+      }),
+    );
   }, 120_000);
 
   it("syncs the execution branch before creating pull request approval", async () => {
@@ -459,6 +496,173 @@ exit 1
     expect(stdout).toContain("base-sync.txt");
   }, 120_000);
 
+  it("approves push to an existing PR without opening a new pull request", async () => {
+    const companyId = randomUUID();
+    const projectId = randomUUID();
+    const projectWorkspaceId = randomUUID();
+    const leaderAgentId = randomUUID();
+    const parentIssueId = randomUUID();
+    const ticketKey = "AZAK-PR-EXISTING-1";
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Craveny",
+      issuePrefix: "D46",
+      issueCounter: 45,
+      locale: "ko",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: "craveny-leader-existing-pr",
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "claude_local",
+      adapterConfig: {},
+    });
+    await db.insert(projects).values({
+      id: projectId,
+      companyId,
+      name: "craveny-existing-pr",
+      status: "in_progress",
+      leadAgentId: leaderAgentId,
+    });
+    await db.insert(projectWorkspaces).values({
+      id: projectWorkspaceId,
+      companyId,
+      projectId,
+      name: "azak",
+      cwd: repoDir,
+      repoUrl: "https://github.com/atototo/azak",
+      isPrimary: true,
+      metadata: { defaultBaseBranch: "main" },
+    });
+    await db.insert(issues).values({
+      id: parentIssueId,
+      companyId,
+      projectId,
+      title: "기존 PR 업데이트 승인 테스트",
+      status: "in_review",
+      priority: "medium",
+      assigneeUserId: "local-board",
+      createdByUserId: "local-board",
+      issueNumber: 45,
+      identifier: "DOB-45",
+      requestDepth: 0,
+    });
+
+    const executionWorkspacesSvc = executionWorkspaceService(db);
+    const workspace = await executionWorkspacesSvc.provisionExecutionWorkspace({
+      companyId,
+      plan: {
+        ownerIssueId: parentIssueId,
+        projectId,
+        projectWorkspaceId,
+        projectWorkspaceName: "azak",
+        sourceRepoCwd: repoDir,
+        ticketKey,
+        baseBranch: "main",
+        branch: `feature/${ticketKey}`,
+      },
+    });
+
+    await db.update(executionWorkspaces)
+      .set({
+        pullRequestUrl: "https://github.com/atototo/azak/pull/123",
+        pullRequestNumber: "123",
+        prOpenedAt: new Date(),
+      })
+      .where(eq(executionWorkspaces.id, workspace.id));
+    await db.update(issues).set({ executionWorkspaceId: workspace.id }).where(eq(issues.id, parentIssueId));
+    await runGit(workspace.executionCwd, ["config", "user.name", "atototo"]);
+    await runGit(workspace.executionCwd, ["config", "user.email", "atoto0311@gmail.com"]);
+    await fs.writeFile(path.join(workspace.executionCwd, "follow-up.txt"), "follow-up change\n", "utf8");
+    await fs.writeFile(path.join(tempRoot, "gh-log"), "", "utf8");
+
+    const approvalId = randomUUID();
+    await db.insert(approvals).values({
+      id: approvalId,
+      companyId,
+      type: "approve_push_to_existing_pr",
+      requestedByAgentId: leaderAgentId,
+      status: "pending",
+      payload: {
+        title: "기존 PR 업데이트 승인 테스트",
+        issueIdentifier: "DOB-45",
+        branch: `feature/${ticketKey}`,
+        baseBranch: "main",
+        summary: "기존 PR #123에 추가 커밋을 반영합니다.",
+      },
+    });
+    await db.insert(issueApprovals).values({
+      companyId,
+      issueId: parentIssueId,
+      approvalId,
+    });
+    await db.insert(issueWorkflowSessions).values({
+      id: randomUUID(),
+      companyId,
+      issueId: parentIssueId,
+      issueWorkflowEpoch: 0,
+      kind: "push_to_existing_pr",
+      status: "open",
+      fingerprint: [parentIssueId, "push_to_existing_pr", workspace.id, `feature/${ticketKey}`, "main"].join(":"),
+      approvalId,
+      requestedByAgentId: leaderAgentId,
+      branch: `feature/${ticketKey}`,
+      baseBranch: "main",
+    });
+    const seededWorkflowSession = await db
+      .select({
+        approvalId: issueWorkflowSessions.approvalId,
+        status: issueWorkflowSessions.status,
+      })
+      .from(issueWorkflowSessions)
+      .where(eq(issueWorkflowSessions.approvalId, approvalId))
+      .then((rows) => rows[0]);
+    expect(seededWorkflowSession).toEqual(
+      expect.objectContaining({
+        approvalId,
+        status: "open",
+      }),
+    );
+
+    const response = await request(app)
+      .post(`/api/approvals/${approvalId}/approve`)
+      .send({ decidedByUserId: "local-board" })
+      .expect(200);
+
+    expect(response.body.status).toBe("approved");
+    expect(response.body.payload.pullRequestUrl).toBe("https://github.com/atototo/azak/pull/123");
+    expect(response.body.payload.commitCreated).toBe(true);
+    expect(typeof response.body.payload.commitSha).toBe("string");
+
+    const updatedParent = await db
+      .select({
+        status: issues.status,
+      })
+      .from(issues)
+      .where(eq(issues.id, parentIssueId))
+      .then((rows) => rows[0]);
+
+    expect(updatedParent?.status).toBe("done");
+
+    const parentComments = await db
+      .select({ body: issueComments.body })
+      .from(issueComments)
+      .where(eq(issueComments.issueId, parentIssueId));
+    expect(parentComments.some((comment) => comment.body.includes("기존 PR"))).toBe(true);
+    expect(parentComments.some((comment) => comment.body.includes("커밋"))).toBe(true);
+
+    const { stdout: ghLog } = await execFile("cat", [path.join(tempRoot, "gh-log")]);
+    expect(ghLog).not.toContain("pr create");
+
+    const { stdout: remoteHead } = await runGit(bareDir, ["rev-parse", `refs/heads/feature/${ticketKey}`]);
+    expect(remoteHead.trim()).toBe(response.body.payload.commitSha);
+
+  }, 120_000);
+
   it("blocks pull request approval creation when pre-pr sync conflicts", async () => {
     const companyId = randomUUID();
     const projectId = randomUUID();
@@ -467,11 +671,12 @@ exit 1
     const assigneeAgentId = randomUUID();
     const parentIssueId = randomUUID();
     const ticketKey = "AZAK-PR-3";
+    const issuePrefix = `D${companyId.replace(/-/g, "").slice(0, 5).toUpperCase()}`;
 
     await db.insert(companies).values({
       id: companyId,
       name: "Craveny",
-      issuePrefix: "DOB",
+      issuePrefix,
       issueCounter: 45,
       locale: "ko",
     });
@@ -532,7 +737,7 @@ exit 1
       assigneeAgentId,
       createdByUserId: "local-board",
       issueNumber: 45,
-      identifier: "DOB-45",
+      identifier: `${issuePrefix}-45`,
       requestDepth: 0,
     });
 
@@ -618,11 +823,12 @@ exit 1
     const assigneeAgentId = randomUUID();
     const parentIssueId = randomUUID();
     const ticketKey = "AZAK-PR-4";
+    const issuePrefix = `D${companyId.replace(/-/g, "").slice(0, 5).toUpperCase()}`;
 
     await db.insert(companies).values({
       id: companyId,
       name: "Craveny",
-      issuePrefix: "D46",
+      issuePrefix,
       issueCounter: 46,
       locale: "ko",
     });
@@ -683,7 +889,7 @@ exit 1
       assigneeAgentId,
       createdByUserId: "local-board",
       issueNumber: 46,
-      identifier: "DOB-46",
+      identifier: `${issuePrefix}-46`,
       requestDepth: 0,
     });
 

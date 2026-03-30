@@ -105,15 +105,16 @@ async function localBranchExists(cwd: string, branch: string) {
 }
 
 async function resolveBaseRef(cwd: string, baseBranch: string) {
+  // Prefer origin/<branch> over local branch — after a fetch, origin is the most up-to-date ref.
   try {
-    await runGit(cwd, ["show-ref", "--verify", `refs/heads/${baseBranch}`]);
-    return baseBranch;
+    await runGit(cwd, ["show-ref", "--verify", `refs/remotes/origin/${baseBranch}`]);
+    return `origin/${baseBranch}`;
   } catch {
     // continue
   }
   try {
-    await runGit(cwd, ["show-ref", "--verify", `refs/remotes/origin/${baseBranch}`]);
-    return `origin/${baseBranch}`;
+    await runGit(cwd, ["show-ref", "--verify", `refs/heads/${baseBranch}`]);
+    return baseBranch;
   } catch {
     throw conflict(`Base branch "${baseBranch}" is not available in the source repository.`);
   }
@@ -518,6 +519,14 @@ export function executionWorkspaceService(db: Db) {
         .catch(() => false);
 
       if (!executionExists) {
+        // Fetch latest base branch from remote before creating worktree
+        // so new branches are always based on the most recent upstream state.
+        try {
+          await runGit(sourceRepoCwd, ["fetch", "origin", baseBranch]);
+        } catch {
+          // fetch may fail if no remote is configured (local-only repos); continue gracefully
+        }
+
         const branchExists = await localBranchExists(sourceRepoCwd, branch);
         if (branchExists) {
           await runGit(sourceRepoCwd, ["worktree", "add", effectiveExecutionCwd, branch]);

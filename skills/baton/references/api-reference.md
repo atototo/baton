@@ -129,7 +129,7 @@ GET /api/agents/me
 -> { id: "agent-42", companyId: "company-1", ... }
 
 # 2. Check inbox
-GET /api/companies/company-1/issues?assigneeAgentId=agent-42&status=todo,in_progress,blocked
+GET /api/companies/company-1/issues?assigneeAgentId=agent-42&status=todo,in_progress,in_review,blocked
 -> [
     { id: "issue-101", title: "Fix rate limiter bug", status: "in_progress", priority: "high" },
     { id: "issue-99", title: "Implement login API", status: "todo", priority: "medium" }
@@ -185,7 +185,7 @@ PATCH /api/issues/issue-55
 { "assigneeAgentId": "dba-agent-1", "comment": "@DBAAgent Please review the migration in PR #38." }
 
 # 5. Check own assignments.
-GET /api/companies/company-1/issues?assigneeAgentId=mgr-1&status=todo,in_progress
+GET /api/companies/company-1/issues?assigneeAgentId=mgr-1&status=todo,in_progress,in_review
 -> [ { id: "issue-30", title: "Break down Q2 roadmap into tasks", status: "todo" } ]
 
 POST /api/issues/issue-30/checkout
@@ -443,6 +443,12 @@ On approval: execution workspace(s) are provisioned (branch created), issue is u
 }
 ```
 On approval: PR is created automatically via GitHub API.
+
+Important sequencing note:
+- `approve_pull_request` is the governed PR-opening step.
+- Developer child issues in a parent/subtask workflow should not assume their own completion will immediately create this approval.
+- The normal sequence is: dev subtasks complete -> reviewer subtask completes -> leader returns the parent issue to board review -> Baton auto-creates `approve_pull_request` -> board approves -> PR is created.
+- Agents must not open PRs directly outside this approval flow.
 
 **`approve_completion`** — When no workspace exists and no pending plan (analysis/research).
 ```json

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { issues as issueTable, type Db } from "@atototo/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import {
   createIssueLabelSchema,
   checkoutIssueSchema,
@@ -18,6 +18,8 @@ import {
   goalService,
   heartbeatService,
   issueApprovalService,
+  issueWorkflowSessionService,
+  issueWorkflowOrchestrator,
   issueService,
   logActivity,
   projectService,
@@ -30,22 +32,19 @@ import { sanitizeProjectWorkspacePaths } from "./response.js";
 import { issueAttachmentRoutes } from "./attachment-routes.js";
 import { createIssueApprovalHelpers, type ActorInfo } from "./approval-helpers.js";
 import {
-  isAssigneeAgentReviewCompletionAttempt,
-  isAssigneeAgentDoneAttempt,
-  isAssigneeAgentReviewRequestAttempt,
-  rewriteChildAgentDoneToReview,
-  rewriteParentAgentDoneToReview,
   TERMINAL_ISSUE_STATUSES,
 } from "./workflow.js";
 
 export function issueRoutes(db: Db, storage: StorageService) {
   const router = Router();
   const svc = issueService(db);
+  const workflowOrchestrator = issueWorkflowOrchestrator(db);
   const access = accessService(db);
   const heartbeat = heartbeatService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const agentsSvc = agentService(db);
   const approvalsSvc = approvalService(db);
+  const workflowSessionsSvc = issueWorkflowSessionService(db);
   const projectsSvc = projectService(db);
   const goalsSvc = goalService(db);
   const issueApprovalsSvc = issueApprovalService(db);
@@ -73,47 +72,9 @@ export function issueRoutes(db: Db, storage: StorageService) {
     return Boolean((agent.permissions as Record<string, unknown>).canCreateAgents);
   }
 
-  function normalizeDelegatedChildTitle(title: string | null | undefined) {
-    let normalized = (title ?? "").trim();
-    normalized = normalized.replace(/^\[[^\]]+\]\s*/, "").trim();
-    while (/\s*\([^)]*\)\s*$/.test(normalized)) {
-      normalized = normalized.replace(/\s*\([^)]*\)\s*$/, "").trim();
-    }
-    return normalized.toLowerCase();
-  }
-
-  function normalizeDelegationValue(value: string | null | undefined) {
-    return (value ?? "").trim().toLowerCase();
-  }
-
-  function normalizeIssueDelegation(
-    delegation:
-      | {
-          kind?: string | null;
-          key?: string | null;
-          targetPath?: string | null;
-          scope?: string | null;
-        }
-      | null
-      | undefined,
-  ) {
-    if (!delegation) return null;
-    const kind = normalizeDelegationValue(delegation.kind);
-    const key = normalizeDelegationValue(delegation.key);
-    if (!kind || !key) return null;
-    return {
-      kind,
-      key,
-      targetPath: delegation.targetPath?.trim() || null,
-      scope: delegation.scope?.trim() || null,
-    };
-  }
-
   async function findReusableActiveChildIssue(args: {
     companyId: string;
     parentId: string;
-    assigneeAgentId?: string | null;
-    assigneeUserId?: string | null;
     title: string;
     delegation?:
       | {
@@ -124,29 +85,47 @@ export function issueRoutes(db: Db, storage: StorageService) {
         }
       | null;
   }) {
-    const siblings = await db
-      .select()
-      .from(issueTable)
-      .where(and(eq(issueTable.companyId, args.companyId), eq(issueTable.parentId, args.parentId)));
+    const terminalStatuses = [...TERMINAL_ISSUE_STATUSES];
+    const delegationKind = args.delegation?.kind?.trim().toLowerCase();
+    const delegationKey = args.delegation?.key?.trim().toLowerCase();
 
-    const requestedDelegation = normalizeIssueDelegation(args.delegation);
-    const requestedTitle = normalizeDelegatedChildTitle(args.title);
-    return (
-      siblings.find((sibling) => {
-        if (TERMINAL_ISSUE_STATUSES.has(sibling.status)) return false;
-        if ((args.assigneeAgentId ?? null) !== (sibling.assigneeAgentId ?? null)) return false;
-        if ((args.assigneeUserId ?? null) !== (sibling.assigneeUserId ?? null)) return false;
-        if (requestedDelegation) {
-          const siblingDelegation = normalizeIssueDelegation(sibling.delegation);
-          if (!siblingDelegation) return false;
-          return (
-            siblingDelegation.kind === requestedDelegation.kind &&
-            siblingDelegation.key === requestedDelegation.key
-          );
-        }
-        return normalizeDelegatedChildTitle(sibling.title) === requestedTitle;
-      }) ?? null
-    );
+    // Phase 1: delegation match — DB-level JSONB path comparison (exact, no app-level loop)
+    if (delegationKind && delegationKey) {
+      const [match] = await db
+        .select()
+        .from(issueTable)
+        .where(
+          and(
+            eq(issueTable.companyId, args.companyId),
+            eq(issueTable.parentId, args.parentId),
+            notInArray(issueTable.status, terminalStatuses),
+            sql`lower(${issueTable.delegation}->>'kind') = ${delegationKind}`,
+            sql`lower(${issueTable.delegation}->>'key') = ${delegationKey}`,
+          ),
+        )
+        .limit(1);
+      if (match) return match;
+    }
+
+    // Phase 2: title match — DB-level lower+trim (fallback when delegation absent)
+    const normalizedTitle = args.title.trim().toLowerCase();
+    if (normalizedTitle) {
+      const [match] = await db
+        .select()
+        .from(issueTable)
+        .where(
+          and(
+            eq(issueTable.companyId, args.companyId),
+            eq(issueTable.parentId, args.parentId),
+            notInArray(issueTable.status, terminalStatuses),
+            sql`lower(trim(${issueTable.title})) = ${normalizedTitle}`,
+          ),
+        )
+        .limit(1);
+      if (match) return match;
+    }
+
+    return null;
   }
 
   async function assertCanAssignTasks(req: Request, companyId: string) {
@@ -168,69 +147,6 @@ export function issueRoutes(db: Db, storage: StorageService) {
     throw unauthorized();
   }
 
-  async function assertIssuePlanApprovalAllowsExecution(
-    issueId: string,
-    reason: "checkout" | "assign" | "subtask" | "in_progress",
-  ) {
-    const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
-      issueId,
-      ["approve_issue_plan", "approve_pull_request"],
-      ["pending", "revision_requested"],
-    );
-    if (blockingApprovals.length === 0) return;
-    const blockingPlanApproval = blockingApprovals.find((approval) => approval.type === "approve_issue_plan");
-    const blockingPullRequestApproval = blockingApprovals.find(
-      (approval) => approval.type === "approve_pull_request" && approval.status === "pending",
-    );
-    const messageByReason = {
-      checkout: "Cannot start work while issue plan approval is pending",
-      assign: "Cannot assign work while issue plan approval is pending",
-      subtask: "Cannot create subtasks while issue plan approval is pending",
-      in_progress: "Cannot move issue to in_progress while issue plan approval is pending",
-    } as const;
-    if (blockingPlanApproval) {
-      throw forbidden(messageByReason[reason]);
-    }
-    if (blockingPullRequestApproval) {
-      throw forbidden("Cannot resume implementation while pull request approval is pending");
-    }
-  }
-
-  async function assertAncestorIssuePlanApprovalAllowsExecution(
-    issueId: string,
-    reason: "checkout" | "in_progress",
-  ) {
-    const ancestors = await svc.getAncestors(issueId);
-    if (ancestors.length === 0) return;
-
-    for (const ancestor of ancestors) {
-      const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
-        ancestor.id,
-        ["approve_issue_plan"],
-        ["pending", "revision_requested"],
-      );
-      if (blockingApprovals.length === 0) continue;
-      const messageByReason = {
-        checkout: "Cannot start work while parent issue plan approval is pending",
-        in_progress: "Cannot move issue to in_progress while parent issue plan approval is pending",
-      } as const;
-      throw forbidden(messageByReason[reason]);
-    }
-  }
-
-  async function assertIssueCompletionAllowed(issueId: string) {
-    const blockingApprovals = await issueApprovalsSvc.listActiveApprovalsForIssue(
-      issueId,
-      ["approve_pull_request", "approve_completion"],
-      ["pending", "revision_requested"],
-    );
-    if (blockingApprovals.length > 0) {
-      throw conflict("Cannot mark issue done while approval is pending", {
-        approvalIds: blockingApprovals.map((approval) => approval.id),
-      });
-    }
-  }
-
   type IssueRow = NonNullable<Awaited<ReturnType<typeof svc.getById>>>;
 
   // --- Approval helpers (extracted to approval-helpers.ts) ---
@@ -245,44 +161,23 @@ export function issueRoutes(db: Db, storage: StorageService) {
     actor: ActorInfo;
   }) {
     const { issue, existing, actor } = args;
-    if (actor.actorType !== "agent" || !actor.agentId) return;
-    if (!existing.parentId || existing.status !== "in_review" || issue.status !== "done") return;
-
-    const parentIssue = await svc.getById(existing.parentId);
-    if (!parentIssue) return;
-
-    const directChildren = await db
-      .select({
-        id: issueTable.id,
-        identifier: issueTable.identifier,
-        status: issueTable.status,
-      })
-      .from(issueTable)
-      .where(and(eq(issueTable.companyId, parentIssue.companyId), eq(issueTable.parentId, parentIssue.id)));
-    const nonTerminalChildren = directChildren.filter((child) => !TERMINAL_ISSUE_STATUSES.has(child.status));
-    if (nonTerminalChildren.length > 0) return;
-
-    if (
-      parentIssue.status === "in_review" &&
-      parentIssue.assigneeAgentId == null &&
-      parentIssue.assigneeUserId != null &&
-      parentIssue.assigneeUserId === parentIssue.createdByUserId
-    ) {
-      return;
-    }
-
-    const parentPatch = rewriteParentAgentDoneToReview({
-      patch: { status: "done" },
-      createdByUserId: parentIssue.createdByUserId,
+    const parentAdvance = await workflowOrchestrator.advanceParentAfterChildReviewCompletion({
+      completedIssueId: issue.id,
+      previousStatus: existing.status,
+      nextStatus: issue.status,
+      actorType: actor.actorType,
+      actorAgentId: actor.agentId,
+      companyId: issue.companyId,
     });
-    const updatedParent = await svc.update(parentIssue.id, parentPatch);
-    if (!updatedParent) return;
+    if (!parentAdvance) return;
+    const { parentIssue, updatedParent, parentPatch, summary } = parentAdvance;
 
     const previous: Record<string, unknown> = {};
     for (const key of Object.keys(parentPatch)) {
       if (
         key in parentIssue &&
-        (parentIssue as Record<string, unknown>)[key] !== (parentPatch as Record<string, unknown>)[key]
+        (parentIssue as Record<string, unknown>)[key] !==
+          (parentPatch as Record<string, unknown>)[key]
       ) {
         previous[key] = (parentIssue as Record<string, unknown>)[key];
       }
@@ -303,16 +198,6 @@ export function issueRoutes(db: Db, storage: StorageService) {
         _previous: Object.keys(previous).length > 0 ? previous : undefined,
       },
     });
-
-    const summary =
-      `## 리뷰 완료 — 보드 승인 요청\n\n` +
-      `하위 이슈 리뷰가 모두 끝났습니다. PR 승인 후 parent를 마감할 수 있습니다.\n\n` +
-      directChildren
-        .map((child) => {
-          const issuePrefix = parentIssue.identifier?.split("-")[0] ?? "issues";
-          return `- [${child.identifier}](/${issuePrefix}/issues/${child.identifier})`;
-        })
-        .join("\n");
 
     await maybeCreateBoardReviewApproval({
       issue: updatedParent,
@@ -354,12 +239,29 @@ export function issueRoutes(db: Db, storage: StorageService) {
   async function assertAgentRunCheckoutOwnership(
     req: Request,
     res: Response,
-    issue: { id: string; companyId: string; status: string; assigneeAgentId: string | null },
+    issue: {
+      id: string;
+      companyId: string;
+      status: string;
+      assigneeAgentId: string | null;
+      workflowEpoch?: number | null;
+    },
   ) {
     if (req.actor.type !== "agent") return true;
     const actorAgentId = req.actor.agentId;
     if (!actorAgentId) {
       res.status(403).json({ error: "Agent authentication required" });
+      return false;
+    }
+    const workflowAuthority = await workflowOrchestrator.evaluateAgentMutationAuthority({
+      issueId: issue.id,
+      companyId: issue.companyId,
+      actorAgentId,
+    });
+    if (!workflowAuthority.allowed && workflowAuthority.reason === "workflow_advanced") {
+      res.status(409).json({
+        error: workflowAuthority.message,
+      });
       return false;
     }
     if (issue.status !== "in_progress" || issue.assigneeAgentId !== actorAgentId) {
@@ -574,6 +476,18 @@ export function issueRoutes(db: Db, storage: StorageService) {
     res.json(approvals);
   });
 
+  router.get("/issues/:id/workflow-sessions", async (req, res) => {
+    const id = req.params.id as string;
+    const issue = await svc.getById(id);
+    if (!issue) {
+      res.status(404).json({ error: "Issue not found" });
+      return;
+    }
+    assertCompanyAccess(req, issue.companyId);
+    const sessions = await workflowSessionsSvc.listForIssue(id);
+    res.json(sessions);
+  });
+
   router.post("/issues/:id/approvals", validate(linkIssueApprovalSchema), async (req, res) => {
     const id = req.params.id as string;
     const issue = await svc.getById(id);
@@ -637,7 +551,11 @@ export function issueRoutes(db: Db, storage: StorageService) {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     if (typeof req.body.parentId === "string" && req.body.parentId.length > 0) {
-      await assertIssuePlanApprovalAllowsExecution(req.body.parentId, "subtask");
+      await workflowOrchestrator.assertIssueExecutionAllowed({
+        issueId: req.body.parentId,
+        companyId,
+        reason: "subtask",
+      });
       await assertParentPlanApprovedBeforeDelegation({
         parentIssueId: req.body.parentId,
         actor: getActorInfo(req),
@@ -653,8 +571,6 @@ export function issueRoutes(db: Db, storage: StorageService) {
       const existingChild = await findReusableActiveChildIssue({
         companyId,
         parentId: req.body.parentId,
-        assigneeAgentId: req.body.assigneeAgentId ?? null,
-        assigneeUserId: req.body.assigneeUserId ?? null,
         title: req.body.title,
         delegation: req.body.delegation ?? null,
       });
@@ -714,7 +630,6 @@ export function issueRoutes(db: Db, storage: StorageService) {
     }
 
     let updateFields = { ...requestedUpdateFields };
-    let workflowForcedAssigneeChange = false;
 
     // Determine if this PATCH actually mutates issue fields (beyond the
     // already-extracted comment / hiddenAt / delegations).  When the only
@@ -731,163 +646,54 @@ export function issueRoutes(db: Db, storage: StorageService) {
     let isAgentReturningIssueToCreator = false;
 
     if (hasFieldMutations) {
-      // Governed completion flow for assignee agents:
-      // - child in_progress done -> in_review (+ optional leader reassignment)
-      // - child in_progress in_review -> in_review (+ optional leader reassignment)
-      // - child in_review done -> allowed as reviewer completion
-      // - top-level done -> blocked if active children, otherwise in_review + creator reassignment
-      if (
-        isAssigneeAgentDoneAttempt({
-          actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
-          issue: {
-            parentId: existing.parentId,
-            assigneeAgentId: existing.assigneeAgentId,
-            createdByUserId: existing.createdByUserId,
-          },
-          patch: updateFields,
-        })
-      ) {
-        if (typeof existing.parentId === "string" && existing.parentId.length > 0) {
-          if (!isAssigneeAgentReviewCompletionAttempt({
-            actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
-            issue: {
-              parentId: existing.parentId,
-              assigneeAgentId: existing.assigneeAgentId,
-              createdByUserId: existing.createdByUserId,
-              status: existing.status,
-            },
-            patch: updateFields,
-          })) {
-            const parentIssue = await svc.getById(existing.parentId);
-            updateFields = rewriteChildAgentDoneToReview({
-              patch: updateFields,
-              parentAssigneeAgentId: parentIssue?.assigneeAgentId ?? null,
-            });
-            if (parentIssue?.assigneeAgentId) {
-              workflowForcedAssigneeChange = true;
-            }
-          }
-        } else {
-          const directChildren = await db
-            .select({
-              id: issueTable.id,
-              identifier: issueTable.identifier,
-              status: issueTable.status,
-            })
-            .from(issueTable)
-            .where(and(eq(issueTable.companyId, existing.companyId), eq(issueTable.parentId, existing.id)));
-          const nonTerminalChildren = directChildren.filter((child) => !TERMINAL_ISSUE_STATUSES.has(child.status));
-          if (nonTerminalChildren.length > 0) {
-            throw conflict("Cannot mark parent issue done while direct child issues are still active", {
-              issueId: existing.id,
-              openChildIssueIds: nonTerminalChildren.map((child) => child.id),
-              openChildIssueIdentifiers: nonTerminalChildren.map((child) => child.identifier),
-            });
-          }
-          updateFields = rewriteParentAgentDoneToReview({
-            patch: updateFields,
-            createdByUserId: existing.createdByUserId,
-          });
-          workflowForcedAssigneeChange = true;
-        }
-      }
-
-      if (
-        isAssigneeAgentReviewRequestAttempt({
-          actor: { type: req.actor.type, agentId: req.actor.type === "agent" ? req.actor.agentId : null },
-          issue: {
-            parentId: existing.parentId,
-            assigneeAgentId: existing.assigneeAgentId,
-            createdByUserId: existing.createdByUserId,
-          },
-          patch: updateFields,
-        })
-      ) {
-        if (typeof existing.parentId === "string" && existing.parentId.length > 0) {
-          const parentIssue = await svc.getById(existing.parentId);
-          updateFields = rewriteChildAgentDoneToReview({
-            patch: updateFields,
-            parentAssigneeAgentId: parentIssue?.assigneeAgentId ?? null,
-          });
-          if (parentIssue?.assigneeAgentId) {
-            workflowForcedAssigneeChange = true;
-          }
-        }
-      }
-
-      const requestedAssigneeWillChange =
-        (req.body.assigneeAgentId !== undefined && req.body.assigneeAgentId !== existing.assigneeAgentId) ||
-        (req.body.assigneeUserId !== undefined && req.body.assigneeUserId !== existing.assigneeUserId);
-      assigneeWillChange =
-        (updateFields.assigneeAgentId !== undefined && updateFields.assigneeAgentId !== existing.assigneeAgentId) ||
-        (updateFields.assigneeUserId !== undefined && updateFields.assigneeUserId !== existing.assigneeUserId);
-
-      // Agent-created issues have no createdByUserId — allow returning to any board user
-      isAgentReturningIssueToCreator =
-        actor.actorType === "agent" &&
-        !!actor.agentId &&
-        existing.assigneeAgentId === actor.agentId &&
-        updateFields.assigneeAgentId === null &&
-        typeof updateFields.assigneeUserId === "string" &&
-        (existing.createdByUserId
-          ? updateFields.assigneeUserId === existing.createdByUserId
-          : true);
-
-      if (assigneeWillChange) {
-        await assertIssuePlanApprovalAllowsExecution(existing.id, "assign");
-        if (!isAgentReturningIssueToCreator && !workflowForcedAssigneeChange) {
-          await assertCanAssignTasks(req, existing.companyId);
-        }
-        if (!workflowForcedAssigneeChange && typeof existing.parentId === "string" && existing.parentId.length > 0) {
-          await assertParentPlanApprovedBeforeDelegation({
-            parentIssueId: existing.parentId,
-            actor,
-            source: "assignee_change",
-          });
-        }
-      }
-      if (updateFields.status === "in_progress") {
-        await assertIssuePlanApprovalAllowsExecution(existing.id, "in_progress");
-        await assertAncestorIssuePlanApprovalAllowsExecution(existing.id, "in_progress");
-      }
-      if (updateFields.status === "in_review") {
-        // Block in_review transition if there's a pending agent_question for this issue
-        const pendingQuestions = await issueApprovalsSvc.listActiveApprovalsForIssue(
-          existing.id,
-          ["agent_question"],
-          ["pending"],
-        );
-        if (pendingQuestions.length > 0) {
-          throw forbidden(
-            "Cannot submit for review while an agent question is pending. Answer the question first.",
-          );
-        }
-        // Block in_review transition if there are active (non-terminal) child issues
-        const childIssues = await db
-          .select({ id: issueTable.id, identifier: issueTable.identifier, status: issueTable.status })
-          .from(issueTable)
-          .where(and(eq(issueTable.parentId, existing.id), eq(issueTable.companyId, existing.companyId)));
-        const activeChildren = childIssues.filter((c) => !TERMINAL_ISSUE_STATUSES.has(c.status));
-        if (activeChildren.length > 0) {
-          const childList = activeChildren.map((c) => `${c.identifier ?? c.id} (${c.status})`).join(", ");
-          throw forbidden(
-            `Cannot submit for review while child issues are still active: ${childList}. Complete or cancel all child issues first.`,
-          );
-        }
-      }
-      if (updateFields.status === "done") {
-        await assertIssueCompletionAllowed(existing.id);
-      }
-      if (!(await assertAgentRunCheckoutOwnership(req, res, existing))) return;
-
+      let patchResult: Awaited<ReturnType<typeof workflowOrchestrator.applyWorkflowAwareIssuePatch>> | null = null;
       try {
-        const updated = await svc.update(id, updateFields);
-        if (!updated) {
+        patchResult = await workflowOrchestrator.applyWorkflowAwareIssuePatch({
+          issueId: existing.id,
+          companyId: existing.companyId,
+          actorType: req.actor.type,
+          actorAgentId: req.actor.type === "agent" ? req.actor.agentId : null,
+          requestedPatch: updateFields,
+          assertCanAssign: async () => {
+            await assertCanAssignTasks(req, existing.companyId);
+          },
+          assertParentPlanApprovedBeforeDelegation: async () => {
+            if (typeof existing.parentId !== "string" || existing.parentId.length === 0) return;
+            await assertParentPlanApprovedBeforeDelegation({
+              parentIssueId: existing.parentId,
+              actor,
+              source: "assignee_change",
+            });
+          },
+          assertAgentMutationAuthority: async () => {
+            if (!(await assertAgentRunCheckoutOwnership(req, res, existing))) {
+              throw conflict("Agent mutation blocked");
+            }
+          },
+          afterUpdate: async (updatedIssue, context) => {
+            if (!updatedIssue) return;
+            await maybeCreateBoardReviewApproval({
+              issue: updatedIssue,
+              existing,
+              actor,
+              commentBody,
+              isAgentReturningIssueToCreator: context.isAgentReturningIssueToCreator,
+              delegations: requestDelegations,
+            });
+          },
+        });
+        updateFields = patchResult.updateFields;
+        assigneeWillChange = patchResult.assigneeWillChange;
+        isAgentReturningIssueToCreator = patchResult.isAgentReturningIssueToCreator;
+        if (!patchResult.issue) {
           res.status(404).json({ error: "Issue not found" });
           return;
         }
-        issue = updated;
+        issue = patchResult.issue;
       } catch (err) {
+        if (err instanceof HttpError && err.status === 409 && err.message === "Agent mutation blocked") {
+          return;
+        }
         if (err instanceof HttpError && err.status === 422) {
           logger.warn(
             {
@@ -901,23 +707,22 @@ export function issueRoutes(db: Db, storage: StorageService) {
                 assigneeAgentId: existing.assigneeAgentId,
                 assigneeUserId: existing.assigneeUserId,
               },
-              requestedAssigneeWillChange,
+              requestedAssigneeWillChange: patchResult?.requestedAssigneeWillChange,
               error: err.message,
               details: err.details,
             },
             "issue update rejected with 422",
           );
         }
+        if (isAgentReturningIssueToCreator && err instanceof Error) {
+          logger.warn(
+            { issueId: id, error: err.message },
+            "approval creation failed after issue update — rolling back status to in_progress",
+          );
+        }
         throw err;
       }
 
-      // Build activity details with previous values for changed fields
-      const previous: Record<string, unknown> = {};
-      for (const key of Object.keys(updateFields)) {
-        if (key in existing && (existing as Record<string, unknown>)[key] !== (updateFields as Record<string, unknown>)[key]) {
-          previous[key] = (existing as Record<string, unknown>)[key];
-        }
-      }
       await logActivity(db, {
         companyId: issue.companyId,
         actorType: actor.actorType,
@@ -927,35 +732,12 @@ export function issueRoutes(db: Db, storage: StorageService) {
         action: "issue.updated",
         entityType: "issue",
         entityId: issue.id,
-        details: { ...updateFields, identifier: issue.identifier, _previous: Object.keys(previous).length > 0 ? previous : undefined },
+        details: {
+          ...updateFields,
+          identifier: issue.identifier,
+          _previous: patchResult && Object.keys(patchResult.previous).length > 0 ? patchResult.previous : undefined,
+        },
       });
-
-      try {
-        await maybeCreateBoardReviewApproval({
-          issue,
-          existing,
-          actor,
-          commentBody,
-          isAgentReturningIssueToCreator,
-          delegations: requestDelegations,
-        });
-      } catch (approvalErr) {
-        // Approval creation failed after the issue update was already committed.
-        // Roll back the status change so the issue doesn't get stuck in
-        // in_review without an approval object in the inbox.
-        if (isAgentReturningIssueToCreator && issue.status === "in_review") {
-          logger.warn(
-            { issueId: id, error: (approvalErr as Error).message },
-            "approval creation failed after issue update — rolling back status to in_progress",
-          );
-          await svc.update(id, {
-            status: existing.status,
-            assigneeAgentId: existing.assigneeAgentId,
-            assigneeUserId: existing.assigneeUserId,
-          });
-        }
-        throw approvalErr;
-      }
 
       await maybeAdvanceParentAfterChildReviewCompletion({
         issue,
@@ -1100,8 +882,16 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
 
-    await assertIssuePlanApprovalAllowsExecution(issue.id, "checkout");
-    await assertAncestorIssuePlanApprovalAllowsExecution(issue.id, "checkout");
+    await workflowOrchestrator.assertIssueExecutionAllowed({
+      issueId: issue.id,
+      companyId: issue.companyId,
+      reason: "checkout",
+    });
+    await workflowOrchestrator.assertAncestorExecutionAllowed({
+      issueId: issue.id,
+      companyId: issue.companyId,
+      reason: "checkout",
+    });
     const checkoutRunId = requireAgentRunId(req, res);
     if (req.actor.type === "agent" && !checkoutRunId) return;
     const updated = await svc.checkout(id, req.body.agentId, req.body.expectedStatuses, checkoutRunId);

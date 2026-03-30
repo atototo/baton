@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "@/lib/router";
 import { useTranslation } from "react-i18next";
@@ -22,6 +23,7 @@ export function ApprovalCard({
   onForceApprove,
   onDismissError,
   onReject,
+  onRequestRevision,
   onOpen,
   detailLink,
   isPending,
@@ -32,13 +34,16 @@ export function ApprovalCard({
   onApprove: () => void;
   onForceApprove?: () => void;
   onDismissError?: () => void;
-  onReject: () => void;
+  onReject: (note?: string) => void;
+  onRequestRevision?: (note?: string) => void;
   onOpen?: () => void;
   detailLink?: string;
   isPending: boolean;
   approveError?: string | null;
 }) {
   const { t } = useTranslation();
+  const [showNoteFor, setShowNoteFor] = useState<"reject" | "revision" | null>(null);
+  const [decisionNote, setDecisionNote] = useState("");
   const labels = useTypeLabel();
   const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
   const label = labels[approval.type] ?? approval.type;
@@ -128,11 +133,79 @@ export function ApprovalCard({
             variant="destructive"
             size="sm"
             className="h-8 px-3"
-            onClick={onReject}
+            onClick={() => {
+              if (showNoteFor === "reject") {
+                onReject(decisionNote.trim() || undefined);
+                setShowNoteFor(null);
+                setDecisionNote("");
+              } else {
+                setShowNoteFor("reject");
+                setDecisionNote("");
+              }
+            }}
             disabled={isPending}
           >
             {t("approval.reject")}
           </Button>
+          {approval.status === "pending" && onRequestRevision && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => {
+                if (showNoteFor === "revision") {
+                  onRequestRevision(decisionNote.trim() || undefined);
+                  setShowNoteFor(null);
+                  setDecisionNote("");
+                } else {
+                  setShowNoteFor("revision");
+                  setDecisionNote("");
+                }
+              }}
+              disabled={isPending}
+            >
+              {t("approval.requestRevision")}
+            </Button>
+          )}
+        </div>
+      )}
+      {showNoteFor && (
+        <div className="mt-3 flex gap-2 items-start border-t border-border pt-3">
+          <textarea
+            className="flex-1 min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={showNoteFor === "reject" ? "거절 사유를 입력하세요..." : "수정 요청 사유를 입력하세요..."}
+            value={decisionNote}
+            onChange={(e) => setDecisionNote(e.target.value)}
+            autoFocus
+          />
+          <div className="flex flex-col gap-1">
+            <Button
+              size="sm"
+              variant={showNoteFor === "reject" ? "destructive" : "outline"}
+              onClick={() => {
+                if (showNoteFor === "reject") {
+                  onReject(decisionNote.trim() || undefined);
+                } else {
+                  onRequestRevision?.(decisionNote.trim() || undefined);
+                }
+                setShowNoteFor(null);
+                setDecisionNote("");
+              }}
+              disabled={isPending}
+            >
+              {showNoteFor === "reject" ? t("approval.reject") : t("approval.requestRevision")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setShowNoteFor(null);
+                setDecisionNote("");
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
         </div>
       )}
       <div className="mt-2">
