@@ -111,11 +111,11 @@ pnpm db:migrate
 
 ## Roadmap
 
-- Claude Code Remote MCP integration
-- More governed delivery policies and reviewer routing
-- Codex and Gemini integration coverage
-- Custom agent adapters
-- README, demo, and launch assets for open-source distribution
+- Deeper governed workflow policies, reviewer routing, and safer execution handoffs
+- Better agent team composition, org design, and role-specific operating patterns
+- Messenger-style communication flows that connect human operators and agent teams
+- Agent evaluation, performance history, and operating insights across real work
+- Richer admin dashboards for supervision, intervention, budgets, and company health
 
 ## Attribution
 

@@ -111,11 +111,11 @@ pnpm db:migrate
 
 ## 로드맵
 
-- Claude Code Remote MCP 연동
-- 더 정교한 governed delivery 정책과 reviewer routing
-- Codex/Gemini 통합 범위 확대
-- 커스텀 에이전트 어댑터
-- 오픈소스 배포용 README, 데모, 런치 자산 고도화
+- 더 정교한 governed workflow 정책, reviewer routing, 그리고 안전한 execution handoff
+- 더 나은 에이전트 팀 구성, 조직 설계, 역할별 운영 패턴
+- 사람 운영자와 에이전트 팀을 잇는 메신저형 커뮤니케이션 흐름
+- 실제 작업을 기준으로 한 에이전트 평가, 성과 이력, 운영 인사이트
+- 감독, 개입, 예산, 회사 상태를 다루는 관리자 대시보드 고도화
 
 ## Attribution
 
