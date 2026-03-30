@@ -57,7 +57,7 @@ The name Baton comes from the relay baton: work moves from planner to implemente
 Baton makes each transfer visible, reviewable, and governed.
 
 <p align="center">
-  <img src="./docs/media/baton-buddy-source.png" alt="Baton Buddy character concept" width="420" />
+  <img src="./docs/media/baton-buddy-source.jpg" alt="Baton Buddy character concept" width="420" />
 </p>
 
 ## Core Features

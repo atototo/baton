@@ -57,7 +57,7 @@ Baton이라는 이름은 이어달리기 바통에서 왔습니다. 작업은 pl
 Baton은 각 전달 과정을 보이게 만들고, 검토 가능하게 만들고, 거버넌스 가능한 상태로 유지합니다.
 
 <p align="center">
-  <img src="./docs/media/baton-buddy-source.png" alt="Baton Buddy character concept" width="420" />
+  <img src="./docs/media/baton-buddy-source.jpg" alt="Baton Buddy character concept" width="420" />
 </p>
 
 ## 핵심 기능
