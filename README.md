@@ -1,43 +1,80 @@
-# Baton ✨
+<p align="center">
+  <img src="./docs/media/baton-mark-crop.png" alt="Baton mark" width="108" />
+</p>
 
-[🇰🇷 한국어](./README.md) | [🇺🇸 English](./README.en.md)
+# Baton
 
-> Forked from [paperclipai/paperclip](https://github.com/paperclipai/paperclip) — AI 에이전트 오케스트레이션 플랫폼을 개인 워크플로우에 맞게 개편 중
+![Baton hero banner](./docs/media/baton-hero-banner.svg)
 
-## 🎬 Keypoint Demo
+**Governed control plane for AI agent software teams**
+
+Run autonomous coding workflows with approval gates, ticket-isolated workspaces, budget controls, and real PR handoffs.
+
+[English](./README.md) | [한국어](./README.ko.md)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Node.js >=20](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![pnpm 9](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Multi-Agent](https://img.shields.io/badge/Workflow-Multi--Agent-111827)](#core-features)
+[![Governed Delivery](https://img.shields.io/badge/Mode-Governed%20Delivery-0F766E)](#why-baton)
+
+> Baton helps teams run AI agents in real software delivery workflows without giving up reviewability, control, or operational safety.
+
+## Demo
 
 [![Baton keypoint demo](./docs/media/baton-readme-keypoints.gif)](./docs/media/baton-readme-keypoints.mp4)
 
-> 흐름: 회사 선택/추가 메뉴 → 대시보드 → 이슈 칸반보드 → 이슈 상세 → 에이전트 화면
+Flow: company selection, dashboard, issue board, issue detail, and agent views.
 
-## What is Baton?
+## Why Baton
 
-여러 AI 에이전트(Claude Code, Codex, Gemini 등)를 하나의 조직처럼 운영하는 오케스트레이션 플랫폼.
+Most agent frameworks help you build agent workflows. Baton helps you govern software execution.
 
-**핵심 가치:**
-- 🎯 **에이전트 불가지론** — Claude, Codex, Gemini 등 CLI가 있으면 뭐든 "고용" 가능
-- 💓 **Heartbeat 폴링** — 파이프라인 교착 없는 태스크 분배
-- ⚛️ **원자적 태스크 체크아웃** — 중복 실행 방지
-- 🏗️ **미션→프로젝트→태스크 계층** — 모든 작업이 상위 목표와 연결
-- 💰 **비용/예산 제어** — 에이전트별 월 예산 강제
-- 🛡️ **거버넌스 + 롤백** — 승인 게이트, 설정 변경 이력, 롤백
+Baton separates planning from implementation, opens code execution only after approval, isolates each ticket in its own execution workspace, and treats review and pull requests as part of the workflow itself.
 
-## 현재 반영된 커스텀 포인트
+- Approval gates before implementation
+- Ticket-isolated execution workspaces
+- Review and PR handoffs as workflow-enforced steps
+- Budget limits and hard-stop controls
+- Board-level intervention at any point
+- Company-scoped visibility and audit trail
 
-- 🎨 UI/테마 개편 (Baton 브랜딩 중심)
-- 🌐 다국어(i18n) 적용 및 누락 문자열 보완
-- 🧩 이슈/대시보드/에이전트 화면 구성 개선
-- 📌 README용 키포인트 데모 영상 추가
+## How It Works
 
-## Original Paperclip과 차이점
+1. A board operator creates a top-level ticket and assigns it to a leader agent.
+2. The leader plans the work and requests approval.
+3. After approval, Baton provisions a ticket-scoped execution workspace.
+4. Implementation agents work inside that isolated workspace, not your base repo checkout.
+5. Completed work is handed into review instead of silently marked done.
+6. Baton verifies branch state, opens PR approval, and only closes the ticket after real git and PR side effects succeed.
 
-| 항목 | Paperclip | Baton |
-|------|-----------|-------|
-| 브랜딩 | Paperclip (클립 아이콘) | Baton (wand-sparkles 아이콘) |
-| CLI 명령어 | `paperclip` | `baton` |
-| 패키지 org | `@paperclip/*` | `@atototo/*` |
-| 목적 | 범용 AI 회사 운영 | 개인 개발 워크플로우 최적화 |
-| MCP 연동 | 없음 | 예정 (Claude Code Remote 연동) |
+In Baton, `done` means the governed workflow has actually closed.
+
+## Built for Governed Handoffs
+
+The name Baton comes from the relay baton: work moves from planner to implementer to reviewer, but never as an uncontrolled handoff.
+
+Baton makes each transfer visible, reviewable, and governed.
+
+<p align="center">
+  <img src="./docs/media/baton-buddy-source.png" alt="Baton Buddy character concept" width="420" />
+</p>
+
+## Core Features
+
+- Governed approvals for hires, plans, and pull requests
+- Baton-managed execution workspaces for ticket isolation
+- Multi-agent adapter support for Claude Code, Codex, Gemini, Cursor, and HTTP/process-based agents
+- Budget controls with soft alerts and hard-stop auto-pause behavior
+- Company-scoped org charts, tasks, goals, and activity logging
+- Local-first setup with embedded PostgreSQL when `DATABASE_URL` is unset
+- Board operator UI for dashboard, issues, approvals, costs, and intervention
+
+## Why Baton vs Agent Frameworks
+
+Frameworks help you compose agent systems. Baton helps you operate them in governed delivery workflows.
+
+Use Baton when approval gates, workspace isolation, budget enforcement, and PR lifecycle control matter as much as orchestration itself.
 
 ## Quickstart
 
@@ -48,40 +85,42 @@ pnpm install
 pnpm dev
 ```
 
-Dashboard: `http://localhost:3100`
+Open `http://localhost:3100`
 
-Onboard:
+Onboard a local instance:
+
 ```bash
 pnpm baton onboard
 ```
 
-> **Requirements:** Node.js 20+, pnpm 9.15+
+Requirements:
+- Node.js 20+
+- pnpm 9+
 
 ## Development
 
 ```bash
-pnpm dev              # Full dev (API + UI)
-pnpm dev:server       # Server only
-pnpm build            # Build all
-pnpm typecheck        # Type checking
-pnpm test:run         # Run tests
-pnpm db:generate      # Generate DB migration
-pnpm db:migrate       # Apply migrations
+pnpm dev
+pnpm dev:server
+pnpm build
+pnpm typecheck
+pnpm test:run
+pnpm db:generate
+pnpm db:migrate
 ```
 
 ## Roadmap
 
-- [ ] Claude Code Remote MCP 연동
-- [ ] Codex/Gemini 에이전트 통합 테스트
-- [ ] ai-party 플러그인 패턴 흡수 (phase gate, 티켓 시스템)
-- [ ] 커스텀 에이전트 어댑터
-- [ ] README 문서/데모 영상 고도화 (영문/국문 분리)
+- Claude Code Remote MCP integration
+- More governed delivery policies and reviewer routing
+- Codex and Gemini integration coverage
+- Custom agent adapters
+- README, demo, and launch assets for open-source distribution
 
 ## Attribution
 
-- This project is based on the original work: [paperclipai/paperclip](https://github.com/paperclipai/paperclip)
-- Baton includes custom branding, workflow, UI changes, and localization improvements on top of the upstream project.
+Baton is based on the original work in [paperclipai/paperclip](https://github.com/paperclipai/paperclip) and has been adapted toward governed software delivery workflows, branding, and localization.
 
 ## License
 
-MIT — Original work &copy; 2026 [Paperclip AI](https://github.com/paperclipai/paperclip)
+MIT. See [LICENSE](./LICENSE).
