@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -186,5 +187,43 @@ describe("agent instructions managed cleanup", () => {
     });
     expect(await fs.readFile(path.join(managedRoot, "AGENTS.md"), "utf8")).toBe("# keep me\n");
     expect(await fs.readFile(path.join(managedRoot, "nested", "secret.md"), "utf8")).toBe("remove me\n");
+  });
+
+  it("persists managed instruction edits to DB and invalidates the execution bundle cache", async () => {
+    const managedRoot = path.join(
+      process.env.BATON_HOME!,
+      "instances",
+      "default",
+      "companies",
+      COMPANY_ID,
+      "agents",
+      AGENT_ID,
+      "instructions",
+    );
+
+    const service = agentInstructionsService(db);
+    const initialAgent = createAgent({
+      instructionsBundleMode: "managed",
+      instructionsRootPath: managedRoot,
+      instructionsEntryFile: "AGENTS.md",
+      instructionsFilePath: path.join(managedRoot, "AGENTS.md"),
+    });
+
+    await service.writeFile(initialAgent, "AGENTS.md", "before\n");
+    const firstBundle = await service.loadBundleForExecution(AGENT_ID);
+    expect(firstBundle?.files.get("AGENTS.md")).toBe("before\n");
+
+    await service.writeFile(initialAgent, "AGENTS.md", "after\n");
+
+    const persistedRow = await db
+      .select()
+      .from(agentInstructions)
+      .where(eq(agentInstructions.agentId, AGENT_ID))
+      .then((rows) => rows.find((row) => row.path === "AGENTS.md") ?? null);
+    expect(persistedRow?.content).toBe("after\n");
+
+    const secondBundle = await service.loadBundleForExecution(AGENT_ID);
+    expect(secondBundle?.files.get("AGENTS.md")).toBe("after\n");
+    expect(secondBundle?.hash).not.toBe(firstBundle?.hash);
   });
 });

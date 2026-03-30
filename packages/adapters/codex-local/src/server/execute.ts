@@ -61,9 +61,38 @@ function resolveCodexBillingType(env: Record<string, string>): "api" | "subscrip
   return hasNonEmptyEnvValue(env, "OPENAI_API_KEY") ? "api" : "subscription";
 }
 
-function codexHomeDir(): string {
-  const fromEnv = process.env.CODEX_HOME;
-  if (typeof fromEnv === "string" && fromEnv.trim().length > 0) return fromEnv.trim();
+function resolveBatonHomeDir(): string | null {
+  const fromEnv = process.env.BATON_HOME;
+  if (typeof fromEnv === "string" && fromEnv.trim().length > 0) return path.resolve(fromEnv.trim());
+  return null;
+}
+
+function resolveBatonInstanceId(): string {
+  const raw = process.env.BATON_INSTANCE_ID;
+  if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+  return "default";
+}
+
+function codexHomeDir(args: {
+  env: Record<string, string>;
+  agentId: string;
+  companyId: string;
+}): string {
+  const fromEnv = args.env.CODEX_HOME ?? process.env.CODEX_HOME;
+  if (typeof fromEnv === "string" && fromEnv.trim().length > 0) return path.resolve(fromEnv.trim());
+  const batonHome = resolveBatonHomeDir();
+  if (batonHome) {
+    return path.join(
+      batonHome,
+      "instances",
+      resolveBatonInstanceId(),
+      "companies",
+      args.companyId,
+      "agents",
+      args.agentId,
+      "codex-home",
+    );
+  }
   return path.join(os.homedir(), ".codex");
 }
 
@@ -75,11 +104,14 @@ async function resolveBatonSkillsDir(): Promise<string | null> {
   return null;
 }
 
-async function ensureCodexSkillsInjected(onLog: AdapterExecutionContext["onLog"]) {
+async function ensureCodexSkillsInjected(args: {
+  onLog: AdapterExecutionContext["onLog"];
+  codexHome: string;
+}) {
   const skillsDir = await resolveBatonSkillsDir();
   if (!skillsDir) return;
 
-  const skillsHome = path.join(codexHomeDir(), "skills");
+  const skillsHome = path.join(args.codexHome, "skills");
   await fs.mkdir(skillsHome, { recursive: true });
   const entries = await fs.readdir(skillsDir, { withFileTypes: true });
   for (const entry of entries) {
@@ -91,12 +123,12 @@ async function ensureCodexSkillsInjected(onLog: AdapterExecutionContext["onLog"]
 
     try {
       await fs.symlink(source, target);
-      await onLog(
+      await args.onLog(
         "stderr",
         `[baton] Injected Codex skill "${entry.name}" into ${skillsHome}\n`,
       );
     } catch (err) {
-      await onLog(
+      await args.onLog(
         "stderr",
         `[baton] Failed to inject Codex skill "${entry.name}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
@@ -139,11 +171,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  await ensureCodexSkillsInjected(onLog);
   const envConfig = parseObject(config.env);
   const hasExplicitApiKey =
     typeof envConfig.BATON_API_KEY === "string" && envConfig.BATON_API_KEY.trim().length > 0;
   const env: Record<string, string> = { ...buildBatonEnv(agent) };
+  const resolvedCodexHome = codexHomeDir({
+    env: Object.fromEntries(Object.entries(envConfig).filter((entry): entry is [string, string] => typeof entry[1] === "string")),
+    agentId: agent.id,
+    companyId: agent.companyId,
+  });
+  env.CODEX_HOME = resolvedCodexHome;
   env.BATON_RUN_ID = runId;
   if (typeof context.batonLocale === "string") env.BATON_LOCALE = context.batonLocale;
   const wakeTaskId =
@@ -208,6 +245,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   for (const [k, v] of Object.entries(envConfig)) {
     if (typeof v === "string") env[k] = v;
   }
+  await ensureCodexSkillsInjected({
+    onLog,
+    codexHome: env.CODEX_HOME,
+  });
   if (!hasExplicitApiKey && authToken) {
     env.BATON_API_KEY = authToken;
   }
