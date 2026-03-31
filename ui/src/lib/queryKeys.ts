@@ -66,6 +66,8 @@ export const queryKeys = {
     ["costs", companyId, from, to] as const,
   heartbeats: (companyId: string, agentId?: string, limit?: number) =>
     ["heartbeats", companyId, agentId ?? "__all_agents__", limit ?? "__all_runs__"] as const,
+  inboxFailedRuns: (companyId: string, limit = 50) =>
+    ["heartbeats", companyId, "inbox-failed-runs", limit] as const,
   liveRuns: (companyId: string) => ["live-runs", companyId] as const,
   runIssues: (runId: string) => ["run-issues", runId] as const,
   org: (companyId: string) => ["org", companyId] as const,

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, not, sql } from "drizzle-orm";
 import type { Db } from "@atototo/db";
 import {
   agents,
@@ -37,6 +37,8 @@ const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_MAX = 10;
 const DEFERRED_WAKE_CONTEXT_KEY = "_batonWakeContext";
+const INBOX_FAILED_RUN_STATUSES = ["failed", "timed_out"] as const;
+const INBOX_FAILED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000;
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 
@@ -2888,6 +2890,56 @@ export function heartbeatService(db: Db) {
         return query.limit(limit);
       }
       return query;
+    },
+
+    listInboxFailedRuns: async (companyId: string, limit = 50) => {
+      const latestRunByAgent = await db
+        .selectDistinctOn([heartbeatRuns.agentId], {
+          id: heartbeatRuns.id,
+          companyId: heartbeatRuns.companyId,
+          agentId: heartbeatRuns.agentId,
+          invocationSource: heartbeatRuns.invocationSource,
+          triggerDetail: heartbeatRuns.triggerDetail,
+          status: heartbeatRuns.status,
+          startedAt: heartbeatRuns.startedAt,
+          finishedAt: heartbeatRuns.finishedAt,
+          error: heartbeatRuns.error,
+          wakeupRequestId: heartbeatRuns.wakeupRequestId,
+          exitCode: heartbeatRuns.exitCode,
+          signal: heartbeatRuns.signal,
+          usageJson: heartbeatRuns.usageJson,
+          resultJson: heartbeatRuns.resultJson,
+          sessionIdBefore: heartbeatRuns.sessionIdBefore,
+          sessionIdAfter: heartbeatRuns.sessionIdAfter,
+          logStore: heartbeatRuns.logStore,
+          logRef: heartbeatRuns.logRef,
+          logBytes: heartbeatRuns.logBytes,
+          logSha256: heartbeatRuns.logSha256,
+          logCompressed: heartbeatRuns.logCompressed,
+          stdoutExcerpt: heartbeatRuns.stdoutExcerpt,
+          stderrExcerpt: heartbeatRuns.stderrExcerpt,
+          errorCode: heartbeatRuns.errorCode,
+          externalRunId: heartbeatRuns.externalRunId,
+          contextSnapshot: heartbeatRuns.contextSnapshot,
+          createdAt: heartbeatRuns.createdAt,
+          updatedAt: heartbeatRuns.updatedAt,
+        })
+        .from(heartbeatRuns)
+        .innerJoin(agents, eq(heartbeatRuns.agentId, agents.id))
+        .where(
+          and(
+            eq(heartbeatRuns.companyId, companyId),
+            eq(agents.companyId, companyId),
+            not(eq(agents.status, "terminated")),
+            gte(heartbeatRuns.createdAt, new Date(Date.now() - INBOX_FAILED_RUN_WINDOW_MS)),
+          ),
+        )
+        .orderBy(heartbeatRuns.agentId, desc(heartbeatRuns.createdAt));
+
+      return latestRunByAgent
+        .filter((run) => run.status === "failed" || run.status === "timed_out")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, Math.max(1, Math.min(limit, 100)));
     },
 
     getRun,

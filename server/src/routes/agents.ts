@@ -1412,6 +1412,15 @@ export function agentRoutes(db: Db) {
     res.json(runs);
   });
 
+  router.get("/companies/:companyId/inbox-failed-runs", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const limitParam = req.query.limit as string | undefined;
+    const limit = limitParam ? Math.max(1, Math.min(100, parseInt(limitParam, 10) || 50)) : 50;
+    const runs = await heartbeat.listInboxFailedRuns(companyId, limit);
+    res.json(runs);
+  });
+
   router.get("/companies/:companyId/live-runs", async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);

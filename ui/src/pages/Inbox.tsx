@@ -44,10 +44,8 @@ import { PageTabBar } from "../components/PageTabBar";
 import type { HeartbeatRun, Issue, JoinRequest } from "@atototo/shared";
 
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
-const FAILED_RUN_INBOX_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
-const INBOX_HEARTBEAT_RUN_LIMIT = 500;
-const FAILED_RUN_STATUSES = new Set(["failed", "timed_out"]);
 const ACTIONABLE_APPROVAL_STATUSES = new Set(["pending"]);
+const INBOX_FAILED_RUN_LIMIT = 50;
 
 type InboxTab = "new" | "all";
 type InboxCategoryFilter =
@@ -85,25 +83,6 @@ function getStaleIssues(issues: Issue[]): Issue[] {
         now - new Date(i.updatedAt).getTime() > STALE_THRESHOLD_MS,
     )
     .sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
-}
-
-function getLatestFailedRunsByAgent(runs: HeartbeatRun[]): HeartbeatRun[] {
-  const now = Date.now();
-  const sorted = [...runs].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
-  const latestByAgent = new Map<string, HeartbeatRun>();
-
-  for (const run of sorted) {
-    if (!latestByAgent.has(run.agentId)) {
-      latestByAgent.set(run.agentId, run);
-    }
-  }
-
-  return Array.from(latestByAgent.values()).filter((run) => {
-    if (!FAILED_RUN_STATUSES.has(run.status)) return false;
-    return now - new Date(run.createdAt).getTime() <= FAILED_RUN_INBOX_WINDOW_MS;
-  });
 }
 
 function groupIssuesByStatus<T extends Issue>(items: T[]): Array<{ status: string; items: T[] }> {
@@ -186,6 +165,9 @@ function FailedRunCard({
     onSuccess: (newRun) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.heartbeats(run.companyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.heartbeats(run.companyId, run.agentId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inboxFailedRuns(run.companyId, INBOX_FAILED_RUN_LIMIT),
+      });
       navigate(`/agents/${run.agentId}/runs/${newRun.id}`);
     },
   });
@@ -350,9 +332,9 @@ export function Inbox() {
     enabled: !!selectedCompanyId,
   });
 
-  const { data: heartbeatRuns, isLoading: isRunsLoading } = useQuery({
-    queryKey: queryKeys.heartbeats(selectedCompanyId!, undefined, INBOX_HEARTBEAT_RUN_LIMIT),
-    queryFn: () => heartbeatsApi.list(selectedCompanyId!, undefined, INBOX_HEARTBEAT_RUN_LIMIT),
+  const { data: failedRuns = [], isLoading: isRunsLoading } = useQuery({
+    queryKey: queryKeys.inboxFailedRuns(selectedCompanyId!, INBOX_FAILED_RUN_LIMIT),
+    queryFn: () => heartbeatsApi.listInboxFailedRuns(selectedCompanyId!, INBOX_FAILED_RUN_LIMIT),
     enabled: !!selectedCompanyId,
   });
 
@@ -376,11 +358,6 @@ export function Inbox() {
     for (const issue of issues ?? []) map.set(issue.id, issue);
     return map;
   }, [issues]);
-
-  const failedRuns = useMemo(
-    () => getLatestFailedRunsByAgent(heartbeatRuns ?? []),
-    [heartbeatRuns],
-  );
 
   const allApprovals = useMemo(
     () =>
