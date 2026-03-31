@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, not, sql } from "drizzle-orm";
 import type { Db } from "@atototo/db";
 import { agents, approvals, heartbeatRuns } from "@atototo/db";
 import type { SidebarBadges } from "@atototo/shared";
 
-const ACTIONABLE_APPROVAL_STATUSES = ["pending", "revision_requested"];
+const ACTIONABLE_APPROVAL_STATUSES = ["pending"];
 const FAILED_HEARTBEAT_STATUSES = ["failed", "timed_out"];
+const FAILED_RUN_BADGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function sidebarBadgeService(db: Db) {
   return {
@@ -26,6 +27,7 @@ export function sidebarBadgeService(db: Db) {
       const latestRunByAgent = await db
         .selectDistinctOn([heartbeatRuns.agentId], {
           runStatus: heartbeatRuns.status,
+          createdAt: heartbeatRuns.createdAt,
         })
         .from(heartbeatRuns)
         .innerJoin(agents, eq(heartbeatRuns.agentId, agents.id))
@@ -34,6 +36,7 @@ export function sidebarBadgeService(db: Db) {
             eq(heartbeatRuns.companyId, companyId),
             eq(agents.companyId, companyId),
             not(eq(agents.status, "terminated")),
+            gte(heartbeatRuns.createdAt, new Date(Date.now() - FAILED_RUN_BADGE_WINDOW_MS)),
           ),
         )
         .orderBy(heartbeatRuns.agentId, desc(heartbeatRuns.createdAt));

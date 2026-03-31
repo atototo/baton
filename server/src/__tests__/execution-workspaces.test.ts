@@ -104,4 +104,37 @@ describe("execution workspace helpers", () => {
       branch: "feature/custom-azak-001",
     });
   });
+
+  it("prefers the current issue identifier over referenced tickets in the description", () => {
+    expect(
+      buildExecutionWorkspacePlanForIssue({
+        issue: {
+          id: "issue-2",
+          projectId: "project-1",
+          billingCode: null,
+          title: "workflow 탭을 사람이 이해 가능한 flow UI로 재설계",
+          description:
+            "실제 검증 케이스: DOB-187\n검증 방법: 실제 이슈 DOB-187로 흐름을 검증합니다.",
+          identifier: "DOB-191",
+        },
+        projectWorkspaces: [
+          {
+            id: "workspace-1",
+            name: "baton-dashboard",
+            cwd: "/tmp/baton-dashboard",
+            defaultBaseBranch: "main",
+          },
+        ],
+      }),
+    ).toEqual({
+      ownerIssueId: "issue-2",
+      projectId: "project-1",
+      projectWorkspaceId: "workspace-1",
+      projectWorkspaceName: "baton-dashboard",
+      sourceRepoCwd: "/tmp/baton-dashboard",
+      ticketKey: "DOB-191",
+      baseBranch: "main",
+      branch: "feature/DOB-191",
+    });
+  });
 });

@@ -44,8 +44,10 @@ import { PageTabBar } from "../components/PageTabBar";
 import type { HeartbeatRun, Issue, JoinRequest } from "@atototo/shared";
 
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+const FAILED_RUN_INBOX_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+const INBOX_HEARTBEAT_RUN_LIMIT = 500;
 const FAILED_RUN_STATUSES = new Set(["failed", "timed_out"]);
-const ACTIONABLE_APPROVAL_STATUSES = new Set(["pending", "revision_requested"]);
+const ACTIONABLE_APPROVAL_STATUSES = new Set(["pending"]);
 
 type InboxTab = "new" | "all";
 type InboxCategoryFilter =
@@ -86,6 +88,7 @@ function getStaleIssues(issues: Issue[]): Issue[] {
 }
 
 function getLatestFailedRunsByAgent(runs: HeartbeatRun[]): HeartbeatRun[] {
+  const now = Date.now();
   const sorted = [...runs].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
@@ -97,7 +100,10 @@ function getLatestFailedRunsByAgent(runs: HeartbeatRun[]): HeartbeatRun[] {
     }
   }
 
-  return Array.from(latestByAgent.values()).filter((run) => FAILED_RUN_STATUSES.has(run.status));
+  return Array.from(latestByAgent.values()).filter((run) => {
+    if (!FAILED_RUN_STATUSES.has(run.status)) return false;
+    return now - new Date(run.createdAt).getTime() <= FAILED_RUN_INBOX_WINDOW_MS;
+  });
 }
 
 function groupIssuesByStatus<T extends Issue>(items: T[]): Array<{ status: string; items: T[] }> {
@@ -345,8 +351,8 @@ export function Inbox() {
   });
 
   const { data: heartbeatRuns, isLoading: isRunsLoading } = useQuery({
-    queryKey: queryKeys.heartbeats(selectedCompanyId!),
-    queryFn: () => heartbeatsApi.list(selectedCompanyId!),
+    queryKey: queryKeys.heartbeats(selectedCompanyId!, undefined, INBOX_HEARTBEAT_RUN_LIMIT),
+    queryFn: () => heartbeatsApi.list(selectedCompanyId!, undefined, INBOX_HEARTBEAT_RUN_LIMIT),
     enabled: !!selectedCompanyId,
   });
 

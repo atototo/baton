@@ -132,7 +132,7 @@ describe("review-governed workflow transitions", () => {
     const leaderAgentId = randomUUID();
     const childAgentId = randomUUID();
     const childRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -232,7 +232,7 @@ describe("review-governed workflow transitions", () => {
     const leaderAgentId = randomUUID();
     const childAgentId = randomUUID();
     const childRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -332,7 +332,7 @@ describe("review-governed workflow transitions", () => {
     const leaderAgentId = randomUUID();
     const childAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -434,7 +434,7 @@ describe("review-governed workflow transitions", () => {
     const leaderAgentId = randomUUID();
     const childAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -578,7 +578,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
 
@@ -833,7 +833,7 @@ describe("review-governed workflow transitions", () => {
     const companyId = randomUUID();
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
-    const issuePrefix = `AQ${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `AQ${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const approvalId = randomUUID();
     const sessionId = randomUUID();
@@ -959,7 +959,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RS${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RS${randomUUID().slice(0, 8)}`;
     const issueId = randomUUID();
     const approvalId = randomUUID();
     const sessionId = randomUUID();
@@ -1140,7 +1140,7 @@ describe("review-governed workflow transitions", () => {
     const companyId = randomUUID();
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
-    const issuePrefix = `RJ${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RJ${randomUUID().slice(0, 8)}`;
     const issueId = randomUUID();
     const approvalId = randomUUID();
     const sessionId = randomUUID();
@@ -1257,7 +1257,7 @@ describe("review-governed workflow transitions", () => {
     const companyId = randomUUID();
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
-    const issuePrefix = `PL${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `PL${randomUUID().slice(0, 8)}`;
     const issueId = randomUUID();
     const approvalId = randomUUID();
     const sessionId = randomUUID();
@@ -1374,12 +1374,115 @@ describe("review-governed workflow transitions", () => {
     );
   });
 
+  it("rejects planning-intent handoff without a <plan> block instead of creating approve_completion", async () => {
+    const companyId = randomUUID();
+    const reviewerUserId = `user-${randomUUID()}`;
+    const leaderAgentId = randomUUID();
+    const leaderRunId = randomUUID();
+    const issuePrefix = `PL${randomUUID().slice(0, 8)}`;
+    const issueId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: `Plan Guard ${companyId}`,
+      issuePrefix,
+      issueCounter: 0,
+      locale: "ko",
+    });
+    await db.insert(companyMemberships).values({
+      companyId,
+      principalType: "user",
+      principalId: reviewerUserId,
+      status: "active",
+      membershipRole: "owner",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: `leader-${leaderAgentId.slice(0, 8)}`,
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "codex_local",
+      adapterConfig: {},
+    });
+    await db.insert(heartbeatRuns).values({
+      id: leaderRunId,
+      companyId,
+      agentId: leaderAgentId,
+      invocationSource: "manual",
+      status: "running",
+      startedAt: new Date(),
+    });
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "workflow 탭을 사람이 이해 가능한 flow UI로 재설계",
+      description: "상세 요구사항은 있지만 아직 <plan> 태그는 없음",
+      status: "in_progress",
+      priority: "high",
+      assigneeAgentId: leaderAgentId,
+      checkoutRunId: leaderRunId,
+      executionRunId: leaderRunId,
+      createdByUserId: reviewerUserId,
+      issueNumber: 1,
+      identifier: createIdentifier(issuePrefix, 1),
+      requestDepth: 0,
+    });
+
+    const leaderToken = createLocalAgentJwt(leaderAgentId, companyId, "codex_local", leaderRunId);
+    expect(leaderToken).toBeTruthy();
+
+    const response = await request(app)
+      .patch(`/api/issues/${issueId}`)
+      .set("Authorization", `Bearer ${leaderToken}`)
+      .set("x-baton-run-id", leaderRunId)
+      .send({
+        status: "in_review",
+        assigneeAgentId: null,
+        assigneeUserId: reviewerUserId,
+        comment: "## 계획 제출\n\n- `<plan>`을 추가한 뒤 plan approval을 받고 child issue를 생성하겠습니다.",
+      })
+      .expect(409);
+
+    expect(response.body.error).toMatch(/<plan>.*description/i);
+
+    const issueAfter = await db
+      .select({
+        status: issues.status,
+        assigneeAgentId: issues.assigneeAgentId,
+        assigneeUserId: issues.assigneeUserId,
+      })
+      .from(issues)
+      .where(eq(issues.id, issueId))
+      .then((rows) => rows[0]);
+
+    expect(issueAfter).toEqual(
+      expect.objectContaining({
+        status: "in_progress",
+        assigneeAgentId: leaderAgentId,
+        assigneeUserId: null,
+      }),
+    );
+
+    const linkedApprovals = await db
+      .select({
+        type: approvals.type,
+        status: approvals.status,
+      })
+      .from(issueApprovals)
+      .innerJoin(approvals, eq(issueApprovals.approvalId, approvals.id))
+      .where(eq(issueApprovals.issueId, issueId));
+
+    expect(linkedApprovals).toEqual([]);
+  });
+
   it("unlinks obsolete revision-requested pull request approval before creating existing-pr update approval", async () => {
     const companyId = randomUUID();
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `AQ${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `AQ${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
     const oldApprovalId = randomUUID();
@@ -1508,7 +1611,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `AQ${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `AQ${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
     const oldApprovalId = randomUUID();
@@ -1643,7 +1746,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `WS${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `WS${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
 
@@ -1739,7 +1842,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `WS${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `WS${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
     const approvalId = randomUUID();
@@ -1984,7 +2087,7 @@ describe("review-governed workflow transitions", () => {
     const reviewerUserId = `user-${randomUUID()}`;
     const leaderAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const executionWorkspaceId = randomUUID();
 
@@ -2103,7 +2206,7 @@ describe("review-governed workflow transitions", () => {
   it("rejects direct parent completion while approve_pull_request is still pending", async () => {
     const companyId = randomUUID();
     const reviewerUserId = `user-${randomUUID()}`;
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
     const parentId = randomUUID();
     const approvalId = randomUUID();
 
@@ -2177,7 +2280,7 @@ describe("review-governed workflow transitions", () => {
     const leaderAgentId = randomUUID();
     const childAgentId = randomUUID();
     const leaderRunId = randomUUID();
-    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `RW${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -2260,7 +2363,7 @@ describe("review-governed workflow transitions", () => {
         id: childInReviewId,
         companyId,
         parentId,
-        title: "Child awaiting review",
+        title: "[Review] Child awaiting review",
         status: "in_review",
         priority: "medium",
         assigneeAgentId: leaderAgentId,
@@ -2333,11 +2436,231 @@ describe("review-governed workflow transitions", () => {
       ]),
     );
   });
+
+  it("does not open parent PR approval when a non-review child is terminalized before reviewer child exists", async () => {
+    const companyId = randomUUID();
+    const reviewerUserId = `user-${randomUUID()}`;
+    const leaderAgentId = randomUUID();
+    const leaderRunId = randomUUID();
+    const issuePrefix = `RW${Date.now().toString().slice(-5)}`;
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: `Review Flow ${companyId}`,
+      issuePrefix,
+      issueCounter: 0,
+      locale: "ko",
+    });
+    await db.insert(companyMemberships).values({
+      companyId,
+      principalType: "user",
+      principalId: reviewerUserId,
+      status: "active",
+      membershipRole: "owner",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: `leader-${leaderAgentId.slice(0, 8)}`,
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "codex_local",
+      adapterConfig: {},
+    });
+    await db.insert(heartbeatRuns).values({
+      id: leaderRunId,
+      companyId,
+      agentId: leaderAgentId,
+      invocationSource: "manual",
+      status: "running",
+      startedAt: new Date(),
+    });
+
+    const parentId = randomUUID();
+    const implementationChildId = randomUUID();
+    const executionWorkspaceId = randomUUID();
+    await db.insert(executionWorkspaces).values({
+      id: executionWorkspaceId,
+      companyId,
+      ownerIssueId: parentId,
+      sourceRepoCwd: "/tmp/source",
+      executionCwd: "/tmp/execution",
+      ticketKey: "AZAK-REVIEW-2",
+      branch: "feature/AZAK-REVIEW-2",
+      baseBranch: "main",
+      status: "ready",
+      provisionedAt: new Date(),
+    });
+    await db.insert(issues).values([
+      {
+        id: parentId,
+        companyId,
+        title: "Parent implementation issue",
+        description: "Waiting for reviewer child after implementation child handoff.",
+        status: "in_progress",
+        priority: "medium",
+        assigneeAgentId: leaderAgentId,
+        checkoutRunId: leaderRunId,
+        executionRunId: leaderRunId,
+        executionWorkspaceId,
+        createdByUserId: reviewerUserId,
+        issueNumber: 1,
+        identifier: createIdentifier(issuePrefix, 1),
+        requestDepth: 0,
+      },
+      {
+        id: implementationChildId,
+        companyId,
+        parentId,
+        title: "[FE] Child awaiting leader review",
+        status: "in_review",
+        priority: "medium",
+        assigneeAgentId: leaderAgentId,
+        createdByUserId: reviewerUserId,
+        issueNumber: 2,
+        identifier: createIdentifier(issuePrefix, 2),
+        requestDepth: 1,
+      },
+    ]);
+
+    const leaderToken = createLocalAgentJwt(leaderAgentId, companyId, "codex_local", leaderRunId);
+    expect(leaderToken).toBeTruthy();
+
+    const response = await request(app)
+      .patch(`/api/issues/${implementationChildId}`)
+      .set("Authorization", `Bearer ${leaderToken}`)
+      .set("x-baton-run-id", leaderRunId)
+      .send({ status: "done" })
+      .expect(200);
+
+    expect(response.body.status).toBe("done");
+
+    const updatedParent = await db
+      .select({
+        status: issues.status,
+        assigneeAgentId: issues.assigneeAgentId,
+        assigneeUserId: issues.assigneeUserId,
+      })
+      .from(issues)
+      .where(eq(issues.id, parentId))
+      .then((rows) => rows[0]);
+
+    expect(updatedParent?.status).toBe("in_progress");
+    expect(updatedParent?.assigneeAgentId).toBe(leaderAgentId);
+    expect(updatedParent?.assigneeUserId).toBeNull();
+
+    const linkedApprovals = await db
+      .select({
+        type: approvals.type,
+        status: approvals.status,
+      })
+      .from(issueApprovals)
+      .innerJoin(approvals, eq(issueApprovals.approvalId, approvals.id))
+      .where(eq(issueApprovals.issueId, parentId));
+
+    expect(linkedApprovals).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "approve_pull_request",
+          status: "pending",
+        }),
+      ]),
+    );
+  });
+
+  it("cancels orphaned pending approvals when the linked issue is deleted", async () => {
+    const companyId = randomUUID();
+    const boardUserId = `user-${randomUUID()}`;
+    const issueId = randomUUID();
+    const approvalId = randomUUID();
+    const issuePrefix = `DEL${randomUUID().slice(0, 8)}`;
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: `Delete Flow ${companyId}`,
+      issuePrefix,
+      issueCounter: 1,
+      locale: "ko",
+    });
+
+    await db.insert(companyMemberships).values({
+      id: randomUUID(),
+      companyId,
+      principalType: "user",
+      principalId: boardUserId,
+      role: "owner",
+      status: "active",
+    });
+
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "orphan approval cleanup",
+      description: "delete should cancel pending orphan approval",
+      status: "todo",
+      priority: "high",
+      createdByUserId: boardUserId,
+      issueNumber: 1,
+      identifier: createIdentifier(issuePrefix, 1),
+    });
+
+    await db.insert(approvals).values({
+      id: approvalId,
+      companyId,
+      type: "approve_issue_plan",
+      requestedByAgentId: null,
+      requestedByUserId: boardUserId,
+      status: "pending",
+      payload: {
+        issueId,
+        issueIdentifier: createIdentifier(issuePrefix, 1),
+      },
+      decisionNote: null,
+      decidedByUserId: null,
+      decidedAt: null,
+      updatedAt: new Date(),
+    });
+
+    await db.insert(issueApprovals).values({
+      companyId,
+      issueId,
+      approvalId,
+      linkedByAgentId: null,
+      linkedByUserId: boardUserId,
+    });
+
+    await request(app)
+      .delete(`/api/issues/${issueId}`)
+      .set("x-baton-user-id", boardUserId)
+      .expect(200);
+
+    const approvalAfterDelete = await db
+      .select({
+        status: approvals.status,
+        decisionNote: approvals.decisionNote,
+      })
+      .from(approvals)
+      .where(eq(approvals.id, approvalId))
+      .then((rows) => rows[0] ?? null);
+
+    expect(approvalAfterDelete).toMatchObject({
+      status: "cancelled",
+      decisionNote: "Automatically cancelled because all linked issues were deleted.",
+    });
+
+    const pendingApprovals = await request(app)
+      .get(`/api/companies/${companyId}/approvals?status=pending`)
+      .set("x-baton-user-id", boardUserId)
+      .expect(200);
+
+    expect(pendingApprovals.body).toEqual([]);
+  });
   it("returns heartbeat run details from GET /api/heartbeat-runs/:id", async () => {
     const companyId = randomUUID();
     const agentId = randomUUID();
     const runId = randomUUID();
-    const issuePrefix = `HR${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `HR${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -2385,7 +2708,7 @@ describe("review-governed workflow transitions", () => {
     const companyId = randomUUID();
     const userId = `user-${randomUUID()}`;
     const issueId = randomUUID();
-    const issuePrefix = `CM${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `CM${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,
@@ -2435,7 +2758,7 @@ describe("review-governed workflow transitions", () => {
   it("lists workflow sessions for an issue as a timeline ordered newest first", async () => {
     const companyId = randomUUID();
     const issueId = randomUUID();
-    const issuePrefix = `WS${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `WS${randomUUID().slice(0, 8)}`;
     const openSessionId = randomUUID();
     const consumedSessionId = randomUUID();
 
@@ -2525,7 +2848,7 @@ describe("review-governed workflow transitions", () => {
   it("creates a workflow session for manual approve_completion approvals", async () => {
     const companyId = randomUUID();
     const issueId = randomUUID();
-    const issuePrefix = `WC${Date.now().toString().slice(-5)}`;
+    const issuePrefix = `WC${randomUUID().slice(0, 8)}`;
 
     await db.insert(companies).values({
       id: companyId,

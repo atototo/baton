@@ -68,6 +68,7 @@ export function ApprovalDetail() {
 
   // Extract <plan> content from linked issue descriptions
   const planContent = useMemo(() => {
+    if (approval?.type !== "approve_issue_plan") return null;
     if (!linkedIssues?.length) return null;
     for (const issue of linkedIssues) {
       if (!issue.description) continue;
@@ -75,7 +76,7 @@ export function ApprovalDetail() {
       if (match?.[1]?.trim()) return match[1].trim();
     }
     return null;
-  }, [linkedIssues]);
+  }, [approval?.type, linkedIssues]);
 
   // Extract delegation plan from approval payload
   const delegations = useMemo(() => {

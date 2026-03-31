@@ -80,6 +80,28 @@ export function extractPlanText(description: string | null | undefined) {
   return match?.[1]?.trim() ?? null;
 }
 
+function looksLikePlanSubmissionIntent(...sources: Array<string | null | undefined>) {
+  const combined = sources
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .join("\n")
+    .toLowerCase();
+  if (combined.length === 0) return false;
+
+  return [
+    "<plan>",
+    "계획 제출",
+    "plan submission",
+    "plan approval",
+    "approve_issue_plan",
+    "child issue",
+    "subtask",
+    "delegation",
+    "구현 이슈",
+    "하위 구현 이슈",
+    "하위 이슈",
+  ].some((needle) => combined.includes(needle));
+}
+
 export function isAgentReviewHandoff(args: { issue: IssueRow; existing: IssueRow; actor: ActorInfo }): boolean {
   const { issue, existing, actor } = args;
   if (actor.actorType !== "agent" || !actor.agentId) return false;
@@ -420,6 +442,22 @@ export function createIssueApprovalHelpers(ctx: IssueApprovalContext) {
         executionWorkspace?.pullRequestUrl || executionWorkspace?.pullRequestNumber || executionWorkspace?.prOpenedAt,
       ),
     });
+
+    if (
+      approvalType === "approve_completion" &&
+      !planText &&
+      !hasApprovedPlan &&
+      looksLikePlanSubmissionIntent(commentBody, issue.description)
+    ) {
+      throw conflict(
+        "Planning handoff is missing a <plan>...</plan> block in the issue description. Update the description first instead of falling back to completion approval.",
+        {
+          issueId: issue.id,
+          source: "issue.review_handoff",
+          reason: "missing_plan_block_for_planning_handoff",
+        },
+      );
+    }
 
     await unlinkObsoleteBoardReviewApprovals({
       issue,

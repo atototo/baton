@@ -34,12 +34,13 @@ export function issueWorkflowOrchestrator(db: Db) {
     return rows[0] ?? null;
   }
 
-  async function getIssueWorkflowState(issueId: string, companyId?: string) {
-    const rows = await db
+async function getIssueWorkflowState(issueId: string, companyId?: string) {
+  const rows = await db
       .select({
         id: issues.id,
         companyId: issues.companyId,
         parentId: issues.parentId,
+        title: issues.title,
         status: issues.status,
         assigneeAgentId: issues.assigneeAgentId,
         assigneeUserId: issues.assigneeUserId,
@@ -514,6 +515,7 @@ export function issueWorkflowOrchestrator(db: Db) {
 
       const completedIssue = await getIssueWorkflowState(args.completedIssueId, args.companyId);
       if (!completedIssue?.parentId) return null;
+      if (!completedIssue.title.trimStart().startsWith("[Review]")) return null;
 
       const parentIssue = await getIssueWorkflowState(completedIssue.parentId, completedIssue.companyId);
       if (!parentIssue) return null;

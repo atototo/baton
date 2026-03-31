@@ -541,6 +541,78 @@ describe("issue workflow orchestrator session transitions", () => {
     ).rejects.toThrow(/direct child issues are still active/i);
   });
 
+  it("does not auto-advance parent board handoff when a non-review child is terminalized", async () => {
+    const companyId = randomUUID();
+    const reviewerUserId = `user-${randomUUID()}`;
+    const leaderAgentId = randomUUID();
+    const parentId = randomUUID();
+    const childId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Workflow Co non-review child",
+      issuePrefix: "WN",
+      issueCounter: 0,
+      locale: "ko",
+    });
+    await db.insert(companyMemberships).values({
+      companyId,
+      principalType: "user",
+      principalId: reviewerUserId,
+      status: "active",
+      membershipRole: "owner",
+    });
+    await db.insert(agents).values({
+      id: leaderAgentId,
+      companyId,
+      name: "leader-non-review",
+      role: "general",
+      title: "Leader",
+      status: "paused",
+      adapterType: "codex_local",
+      adapterConfig: {},
+    });
+    await db.insert(issues).values([
+      {
+        id: parentId,
+        companyId,
+        title: "Parent implementation issue",
+        status: "in_progress",
+        priority: "medium",
+        assigneeAgentId: leaderAgentId,
+        createdByUserId: reviewerUserId,
+        issueNumber: 1,
+        identifier: "WN-1",
+        requestDepth: 0,
+      },
+      {
+        id: childId,
+        companyId,
+        parentId,
+        title: "[FE] workflow tab redesign",
+        status: "in_review",
+        priority: "medium",
+        assigneeAgentId: leaderAgentId,
+        createdByUserId: reviewerUserId,
+        issueNumber: 2,
+        identifier: "WN-2",
+        requestDepth: 1,
+      },
+    ]);
+
+    const orchestrator = issueWorkflowOrchestrator(db);
+    const result = await orchestrator.advanceParentAfterChildReviewCompletion({
+      completedIssueId: childId,
+      previousStatus: "in_review",
+      nextStatus: "done",
+      actorType: "agent",
+      actorAgentId: leaderAgentId,
+      companyId,
+    });
+
+    expect(result).toBeNull();
+  });
+
   it("applies a workflow-aware patch for an agent returning a top-level issue to board review", async () => {
     const companyId = randomUUID();
     const issueId = randomUUID();
@@ -709,7 +781,7 @@ describe("issue workflow orchestrator session transitions", () => {
     await db.insert(companies).values({
       id: companyId,
       name: "Workflow Co 8",
-      issuePrefix: "WN",
+      issuePrefix: "WNQ",
       issueCounter: 0,
       locale: "ko",
     });
@@ -720,7 +792,7 @@ describe("issue workflow orchestrator session transitions", () => {
       status: "in_progress",
       priority: "medium",
       issueNumber: 1,
-      identifier: "WN-1",
+      identifier: "WNQ-1",
       requestDepth: 0,
     });
     await db.insert(approvals).values({
@@ -833,7 +905,7 @@ describe("issue workflow orchestrator session transitions", () => {
         id: childId,
         companyId,
         parentId,
-        title: "Child in review",
+        title: "[Review] Child in review",
         status: "done",
         priority: "medium",
         assigneeAgentId: leaderAgentId,
@@ -929,7 +1001,7 @@ describe("issue workflow orchestrator session transitions", () => {
         id: childId,
         companyId,
         parentId,
-        title: "Child in review",
+        title: "[Review] Child in review",
         status: "done",
         priority: "medium",
         assigneeAgentId: leaderAgentId,

@@ -21,7 +21,7 @@ import {
 import { extractProjectMentionIds } from "@atototo/shared";
 import { extractMentionedAgentIds } from "./issue-mentions.js";
 import { conflict, notFound, unprocessable } from "../errors.js";
-import { extractJiraTicketKey } from "./execution-workspaces.js";
+import { extractDeclaredTicketKey, extractJiraTicketKey } from "./execution-workspaces.js";
 
 const ALL_ISSUE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
 
@@ -446,7 +446,8 @@ export function issueService(db: Db) {
           .then((rows) => rows[0] ?? null);
         inheritedBillingCode =
           parent?.billingCode ??
-          extractJiraTicketKey(parent?.title, parent?.description, parent?.identifier) ??
+          extractDeclaredTicketKey(parent?.title, parent?.description) ??
+          extractJiraTicketKey(parent?.title, parent?.identifier, parent?.description) ??
           null;
         inheritedExecutionWorkspaceId = parent?.executionWorkspaceId ?? null;
       } else if (issueData.parentId) {
@@ -603,6 +604,11 @@ export function issueService(db: Db) {
           .select({ assetId: issueAttachments.assetId })
           .from(issueAttachments)
           .where(eq(issueAttachments.issueId, id));
+        const linkedApprovalIds = await tx
+          .select({ approvalId: issueApprovals.approvalId })
+          .from(issueApprovals)
+          .where(eq(issueApprovals.issueId, id))
+          .then((rows) => Array.from(new Set(rows.map((row) => row.approvalId))));
 
         await tx.delete(issueComments).where(eq(issueComments.issueId, id));
         await tx.update(costEvents).set({ issueId: null }).where(eq(costEvents.issueId, id));
@@ -618,6 +624,33 @@ export function issueService(db: Db) {
           await tx
             .delete(assets)
             .where(inArray(assets.id, attachmentAssetIds.map((row) => row.assetId)));
+        }
+
+        if (removedIssue && linkedApprovalIds.length > 0) {
+          const remainingLinkedApprovalRows = await tx
+            .selectDistinct({ approvalId: issueApprovals.approvalId })
+            .from(issueApprovals)
+            .where(inArray(issueApprovals.approvalId, linkedApprovalIds));
+          const remainingLinkedApprovalIds = new Set(remainingLinkedApprovalRows.map((row) => row.approvalId));
+          const orphanedApprovalIds = linkedApprovalIds.filter((approvalId) => !remainingLinkedApprovalIds.has(approvalId));
+
+          if (orphanedApprovalIds.length > 0) {
+            const now = new Date();
+            await tx
+              .update(approvals)
+              .set({
+                status: "cancelled",
+                decisionNote: "Automatically cancelled because all linked issues were deleted.",
+                decidedAt: now,
+                updatedAt: now,
+              })
+              .where(
+                and(
+                  inArray(approvals.id, orphanedApprovalIds),
+                  inArray(approvals.status, ["pending", "revision_requested"]),
+                ),
+              );
+          }
         }
 
         if (!removedIssue) return null;

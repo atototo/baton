@@ -11,6 +11,7 @@ import { resolveBatonInstanceRoot, resolveHomeAwarePath } from "../home-paths.js
 const execFile = promisify(execFileCb);
 const EXPLICIT_BRANCH_RE = /\b((?:feature|bugfix|hotfix|chore|fix|refactor)\/[A-Za-z0-9._/-]+)\b/;
 const JIRA_TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/i;
+const DECLARED_TICKET_RE = /\b(?:jira[-_\s]?ticket|ticket|billing(?:[-_\s]?code)?)\s*:\s*([A-Z][A-Z0-9]+-\d+)\b/i;
 export const REPO_ONLY_CWD_SENTINEL = "/__baton_repo_only__";
 
 export interface ExecutionWorkspacePlan {
@@ -136,6 +137,17 @@ export function extractJiraTicketKey(...sources: Array<string | null | undefined
   return null;
 }
 
+export function extractDeclaredTicketKey(...sources: Array<string | null | undefined>) {
+  for (const source of sources) {
+    if (!source) continue;
+    const match = source.match(DECLARED_TICKET_RE);
+    if (match?.[1]) {
+      return normalizeExecutionTicketKey(match[1]);
+    }
+  }
+  return null;
+}
+
 export function deriveExecutionBranch(input: {
   ticketKey: string;
   explicitBranch?: string | null;
@@ -218,7 +230,9 @@ export function buildExecutionWorkspacePlansForDelegations(input: {
     throw conflict("Issue must belong to a project before requesting implementation approval.");
   }
   const ticketKey = normalizeExecutionTicketKey(
-    extractJiraTicketKey(issue.billingCode, issue.title, issue.description, issue.identifier),
+    issue.billingCode ??
+      extractDeclaredTicketKey(issue.title, issue.description) ??
+      extractJiraTicketKey(issue.title, issue.identifier, issue.description),
   );
   if (!ticketKey) {
     throw conflict("Implementation approval requires a Jira ticket key on the parent issue.");
@@ -332,7 +346,9 @@ export function buildExecutionWorkspacePlanForIssue(input: {
   }
 
   const ticketKey = normalizeExecutionTicketKey(
-    extractJiraTicketKey(issue.billingCode, issue.title, issue.description, issue.identifier),
+    issue.billingCode ??
+      extractDeclaredTicketKey(issue.title, issue.description) ??
+      extractJiraTicketKey(issue.title, issue.identifier, issue.description),
   );
   if (!ticketKey) {
     throw conflict("Implementation approval requires a Jira ticket key on the parent issue.");
